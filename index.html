@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wantd</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --paper: rgb(247,247,245);
+    --paper-deep: rgb(238,238,235);
+    --ink: rgb(20,20,18);
+    --ink-soft: rgb(122,120,116);
+    --accent: rgb(39,67,214);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: rgb(18,18,17);
+      --paper-deep: rgb(28,28,26);
+      --ink: rgb(242,241,238);
+      --ink-soft: rgb(148,146,141);
+      --accent: rgb(96,120,255);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Helvetica Neue", -apple-system, "SF Pro Text", Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* The board is the page */
+  #board {
+    position: fixed; inset: 0;
+    cursor: grab;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  #board.grabbing { cursor: grabbing; }
+  #sheet { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+  #world { position: absolute; top: 0; left: 0; will-change: transform; }
+  .tile { position: absolute; top: 0; left: 0; }
+
+  /* Figures on paper. No card chrome: the photograph is the object. */
+  .fig {
+    position: absolute; cursor: pointer; display: block;
+    color: inherit; text-decoration: none;
+  }
+  .fig.lift .ph { transform: scale(1.035); transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
+  .fig .ph {
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--paper-deep);
+  }
+  .fig img, .fig .block { width: 100%; display: block; pointer-events: none; }
+  .fig .ph > * { transition: transform 0.5s cubic-bezier(0.16,1,0.3,1); }
+  @media (hover: hover) {
+    .fig:hover .ph > * { transform: scale(1.025); }
+  }
+  .fig.reserved .ph { opacity: 0.55; }
+
+  /* Entrance: the spread develops, one piece after another, on a diagonal. */
+  @media (prefers-reduced-motion: no-preference) {
+    .fig, .masthead {
+      opacity: 0;
+      filter: blur(7px);
+      animation: develop 0.9s cubic-bezier(0.16,1,0.3,1) forwards;
+      animation-delay: var(--d, 0s);
+    }
+  }
+  @keyframes develop {
+    to { opacity: 1; filter: blur(0); }
+  }
+  .fig.reserved { animation-name: developReserved; }
+  @keyframes developReserved {
+    to { opacity: 1; filter: blur(0); }
+  }
+  .fig.reserved .ph { opacity: 0.55; }
+
+  .cap {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding-top: 7px;
+  }
+  .cap .name {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cap .price {
+    font-size: 12px; font-weight: 400; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .cap .price.state { color: var(--accent); font-weight: 500; }
+
+  /* The masthead lives ON the board, dragged like everything else */
+  .masthead { position: absolute; pointer-events: none; }
+  .masthead .title {
+    font-size: 84px; font-weight: 800; letter-spacing: -0.045em; line-height: 0.92;
+    text-transform: uppercase;
+  }
+  .masthead .sub {
+    margin-top: 14px;
+    font-size: 12px; font-weight: 400; color: var(--ink-soft);
+    letter-spacing: 0.01em;
+  }
+  .masthead .sub b { color: var(--ink); font-weight: 500; }
+
+  /* Fixed chrome: one quiet corner each */
+  .corner {
+    position: fixed; z-index: 2; pointer-events: none;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  }
+  .corner.brand { right: 26px; bottom: 22px; color: var(--accent); }
+  .corner.handle { right: 26px; top: 24px; color: var(--ink-soft); font-weight: 400; }
+
+  .hint {
+    position: fixed; bottom: 22px; left: 26px; z-index: 2; pointer-events: none;
+    font-size: 11px; color: var(--ink-soft);
+    transition: opacity 0.7s ease;
+  }
+  .hint.gone { opacity: 0; }
+
+  .empty {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-soft); font-size: 13px;
+  }
+
+  @media (max-width: 700px) {
+    .masthead .title { font-size: 56px; }
+  }
+</style>
+</head>
+<body>
+  <div id="board"><div id="sheet"><div id="world"></div></div></div>
+  <div class="corner handle" id="handle"></div>
+  <div class="corner brand">Wantd.</div>
+  <div class="hint" id="hint">Drag</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Data. Preview (no handle in URL) renders sample matter so the design can be
+// judged by opening the page. Production reads CloudKit (SED-519).
+// ---------------------------------------------------------------------------
+const HANDLE = new URLSearchParams(location.search).get("handle")
+            || location.pathname.match(/@([\w-]+)/)?.[1];
+
+const SAMPLE = {
+  profile: { name: "Agathe", handle: "wtd-agathe" },
+  items: [
+    {
+        "name": "Heirloom Earrings in Snow",
+        "price": "IDR 59.940.000,00",
+        "img": "https://realfinestudio.com/cdn/shop/files/15_b_b1f4e1c0-e276-4a89-a368-a68b0a642bee.png?v=1760465604%5Cu0026width=1920",
+        "url": "https://realfinestudio.com/collections/earrings/products/heirloom-earrings?variant=45786887848125",
+        "reserved": false
+    },
+    {
+        "name": "Delina La Rosée Eau de Parfum (30ml)",
+        "price": "175 €",
+        "img": "https://parfums-de-marly.com/cdn/shop/files/DELINA_LAROSEE-PERFUME-30-PACK1-1X1_CENTERED_e6d10cdd-4278-4718-a32d-9a0b6fb0aa4b.png?v=1759501422%5Cu0026width=1080",
+        "url": "https://parfums-de-marly.com/products/delina-la-rosee-30ml?variant=46968406671683",
+        "reserved": false
+    },
+    {
+        "name": "Black Ruches Nappa Leather Loafers",
+        "price": "$1.120",
+        "img": "https://www.miumiu.com/content/dam/miumiubkg_products/5/5D3/5D341E/EFXF0002/5D341E_EFX_F0002_F_D005_MDR.jpg",
+        "url": "https://www.miumiu.com/us/en/p/ruches-nappa-leather-loafers/5D341E_EFX_F0002_F_D005",
+        "reserved": false
+    },
+    {
+        "name": "Small shopping bag",
+        "price": "€6.200",
+        "img": "https://www.chanel.com/images/as///f_auto//-80644081.jpg",
+        "url": "https://www.chanel.com/be-nl/mode/p/AS6288B2424894305/small-shopping-bag-kaviaar-kalfsleer-goudkleurig-metaal/",
+        "reserved": false
+    },
+    {
+        "name": "AirWash™ dry shampoo 4oz",
+        "price": "$48.00",
+        "img": "https://www.k18hair.com/cdn/shop/files/Airwash_altimages_1650x2259_MAIN.jpg?v=1710849567&width=1024",
+        "url": "https://www.k18hair.com/products/airwash-dry-shampoo-4oz",
+        "reserved": false
+    },
+    {
+        "name": "LED Face Mask",
+        "price": "£399.99",
+        "img": "https://www.currentbody.com/cdn/shop/files/series_2_red_light_mask_face_on_2.png?v=1769185981%5Cu0026width=1920",
+        "url": "https://www.currentbody.com/products/currentbody-skin-led-light-therapy-mask?variant=51615071928703",
+        "reserved": false
+    },
+    {
+        "name": "Panthère de Cartier",
+        "price": "£29 000",
+        "img": "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
+        "url": "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053-panthre-de-cartier-small-18ct-yellow-gold-and-023ct-brilliant-cut-diamond-quartz-watch_R04267746/#colour=GOLD",
+        "reserved": false
+    },
+    {
+        "name": "London. Portrait of a City. TASCHEN Books. TASCHEN",
+        "price": "€60",
+        "img": "https://taschen.makaira.media/taschen/image/upload/f_webp,w_1200/v1693206866/products-live/8a0bd52af076d7a3db4d0d7c16a1cd3b.png",
+        "url": "https://www.taschen.com/en/books/photography/05753/london-portrait-of-a-city/",
+        "reserved": false
+    },
+    {
+        "name": "Tan Luxe - The Gradual - Lotion autobronzante effet rehausseur d'éclat - 250 ml",
+        "price": "27,99 €",
+        "img": "https://images.asos-media.com/products/tan-luxe-the-gradual-lotion-autobronzante-effet-rehausseur-declat-250-ml/9042817-1-gradual?$n_960w$",
+        "url": "https://www.asos.com/fr/prd/9042817?acquisitionsource=pasteboard",
+        "reserved": false
+    },
+    {
+        "name": "Vanilla Skin Perfume",
+        "price": "$99.00",
+        "img": "https://phlur.com/cdn/shop/files/1-PHLUR_PDP_VanillaSkin_EDP_50ml_CapOn_450x450.jpg?v=1718657757",
+        "url": "https://phlur.com/products/vanilla-skin-perfume",
+        "reserved": false
+    },
+    {
+        "name": "the rhode kit",
+        "price": "$117.00",
+        "img": "https://www.rhodeskin.com/cdn/shop/files/rhodekitmainimage_1_1024x1024.png?v=1746036049",
+        "url": "https://www.rhodeskin.com/en-gb/products/full-rhode-kit",
+        "reserved": false
+    }
+],
+};
+
+// ---------------------------------------------------------------------------
+// An exploded magazine spread: a giant masthead and flat photographs, laid on
+// one endless sheet of paper. Straight, precise, generous gutters.
+// ---------------------------------------------------------------------------
+function buildTile(profile, items) {
+  const small = Math.min(innerWidth, innerHeight) < 700;
+  const W = small ? 168 : 236;
+  const COLS = small ? 2 : 4;
+  const GAP_X = small ? 12 : 18;
+  const GAP_Y = small ? 18 : 26;
+  const CAPTION = 28;
+  const MAST_H = small ? 150 : 208;
+
+  const tile = document.createElement("div");
+  tile.className = "tile";
+
+  // Masthead occupies the top of the first two columns.
+  const mast = document.createElement("div");
+  mast.className = "masthead";
+  mast.style.transform = "translate(0px, 0px)";
+  mast.style.width = (2 * W + GAP_X) + "px";
+  mast.style.setProperty("--d", "0.05s");
+  mast.innerHTML =
+    `<div class="title">${profile.name}</div>` +
+    `<div class="sub"><b>Wishlist</b>, ${items.length} pieces</div>`;
+  tile.append(mast);
+
+  const colY = new Array(COLS).fill(0).map((_, c) =>
+    c < 2 ? MAST_H : (c % 2 ? W * 0.34 : W * 0.12));
+
+  items.forEach((it, i) => {
+    const col = i % COLS;
+    const x = col * (W + GAP_X);
+    const y = colY[col];
+    colY[col] = y + W * it.ratio + CAPTION + GAP_Y;
+
+    const fig = document.createElement(it.url ? "a" : "figure");
+    if (it.url) {
+      fig.href = it.url;
+      fig.target = "_blank";
+      fig.rel = "noopener";
+      fig.draggable = false;
+    }
+    fig.className = "fig" + (it.reserved ? " reserved" : "");
+    fig.style.width = W + "px";
+    fig.style.transform = `translate(${x}px, ${y}px)`;
+    const diag = (col + Math.floor(i / COLS));
+    fig.style.setProperty("--d", (0.15 + diag * 0.07).toFixed(2) + "s");
+
+    const ph = document.createElement("div"); ph.className = "ph";
+    if (it.img) {
+      const img = new Image(); img.src = it.img; img.alt = it.name; ph.append(img);
+    } else {
+      const b = document.createElement("div"); b.className = "block";
+      b.style.paddingBottom = (it.ratio * 100) + "%"; b.style.background = it.tone;
+      ph.append(b);
+    }
+    const cap = document.createElement("figcaption"); cap.className = "cap";
+    const nm = document.createElement("span"); nm.className = "name"; nm.textContent = it.name;
+    const pr = document.createElement("span");
+    pr.className = "price" + (it.reserved ? " state" : "");
+    pr.textContent = it.reserved ? "Reserved" : (it.price || "");
+    cap.append(nm, pr);
+    fig.append(ph, cap);
+    tile.append(fig);
+  });
+
+  return {
+    tile,
+    tileW: COLS * (W + GAP_X),
+    tileH: Math.max(...colY) + GAP_Y,
+  };
+}
+
+function startBoard(profile, items) {
+  document.getElementById("handle").textContent = "@" + profile.handle;
+
+  const world = document.getElementById("world");
+  const { tile, tileW, tileH } = buildTile(profile, items);
+
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    const t = (dx === 0 && dy === 0) ? tile : tile.cloneNode(true);
+    t.style.transform = `translate(${dx * tileW}px, ${dy * tileH}px)`;
+    world.append(t);
+  }
+
+  // Opening framing: the masthead sits in the upper left, breathing.
+  let ox = 40, oy = 60;
+  let vx = 0, vy = 0;
+  let tiltX = 0, tiltY = 0;
+  let downX = 0, downY = 0, downT = 0, moved = 0;
+  let dragging = false, lastX = 0, lastY = 0, lastT = 0;
+  const board = document.getElementById("board");
+  const sheet = document.getElementById("sheet");
+  const hint = document.getElementById("hint");
+  const mod = (v, m) => ((v % m) + m) % m;
+
+  const apply = () => {
+    world.style.transform =
+      `translate(${mod(ox, tileW) - tileW}px, ${mod(oy, tileH) - tileH}px)`;
+  };
+  apply();
+
+  board.addEventListener("pointerdown", (e) => {
+    dragging = true; board.classList.add("grabbing");
+    lastX = downX = e.clientX; lastY = downY = e.clientY;
+    lastT = downT = performance.now();
+    moved = 0;
+    vx = vy = 0;
+    hint.classList.add("gone");
+  });
+  board.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const now = performance.now(), dt = Math.max(1, now - lastT);
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    ox += dx; oy += dy;
+    vx = dx / dt * 16; vy = dy / dt * 16;
+    lastX = e.clientX; lastY = e.clientY; lastT = now;
+    moved = Math.max(moved, Math.hypot(e.clientX - downX, e.clientY - downY));
+    // Capture only once it is a real wander, so a tap stays a click on the piece.
+    if (moved > 6 && !board.hasPointerCapture(e.pointerId)) {
+      board.setPointerCapture(e.pointerId);
+    }
+    apply();
+  });
+  const release = () => { dragging = false; board.classList.remove("grabbing"); };
+  board.addEventListener("pointercancel", release);
+  board.addEventListener("pointerup", release);
+  // A still hand on a piece is a visit; a wander is not a click.
+  board.addEventListener("click", (e) => {
+    if (moved > 6 || performance.now() - downT > 600) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
+  board.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    ox -= e.deltaX; oy -= e.deltaY;
+    hint.classList.add("gone");
+    apply();
+  }, { passive: false });
+
+  // Momentum + depth: the sheet glides and tips toward the hand, then settles.
+  // Driven entirely by the gesture; still means still.
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  (function glide() {
+    if (!reduce) {
+      if (!dragging && (Math.abs(vx) > 0.05 || Math.abs(vy) > 0.05)) {
+        ox += vx; oy += vy;
+        vx *= 0.94; vy *= 0.94;
+        apply();
+      }
+      const targetY = Math.max(-2.4, Math.min(2.4, vx * 0.22));
+      const targetX = Math.max(-2.4, Math.min(2.4, -vy * 0.22));
+      tiltX += (targetX - tiltX) * 0.10;
+      tiltY += (targetY - tiltY) * 0.10;
+      if (Math.abs(tiltX) > 0.01 || Math.abs(tiltY) > 0.01) {
+        sheet.style.transform =
+          `perspective(1400px) rotateX(${tiltX.toFixed(3)}deg) rotateY(${tiltY.toFixed(3)}deg)`;
+      } else if (sheet.style.transform) {
+        sheet.style.transform = "";
+      }
+    }
+    requestAnimationFrame(glide);
+  })();
+}
+
+// Real product images: measure natural ratios before laying the board out.
+function preload(items) {
+  return Promise.all(items.map(it => new Promise(resolve => {
+    if (!it.img) { resolve({ ...it, ratio: 1.2, tone: "#DDD9D2" }); return; }
+    const img = new Image();
+    const done = (ratio) => resolve({ ...it, ratio });
+    const timer = setTimeout(() => done(1.2), 4000);
+    img.onload = () => {
+      clearTimeout(timer);
+      const r = img.naturalHeight / Math.max(1, img.naturalWidth);
+      done(Math.min(1.6, Math.max(0.72, r)));
+    };
+    img.onerror = () => { clearTimeout(timer); resolve({ ...it, img: null, ratio: 1.2, tone: "#DDD9D2" }); };
+    img.src = it.img;
+  })));
+}
+
+if (!HANDLE) {
+  preload(SAMPLE.items).then(items => startBoard(SAMPLE.profile, items));
+} else {
+  // Production: CloudKit JS wiring lands with the deploy step of SED-519.
+  document.body.insertAdjacentHTML("beforeend",
+    '<div class="empty">This wishlist could not be found.</div>');
+}
+</script>
+</body>
+</html>
