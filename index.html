@@ -80,9 +80,12 @@
   .fig.reserved .ph { opacity: 0.55; }
 
   .cap {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 2px 12px;
     padding-top: 7px;
   }
+  .cap .name { flex: 1 1 auto; min-width: 0; }
+  .cap .price { margin-left: auto; }
   .cap .name {
     font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -93,6 +96,12 @@
     flex-shrink: 0;
   }
   .cap .price.state { color: var(--accent); font-weight: 500; }
+  .cap .name { transition: color 0.18s ease; }
+  @media (hover: hover) {
+    .fig:hover .cap .name { color: var(--accent); }
+  }
+  .fig:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 4px; }
+  ::selection { background: var(--accent); color: rgb(247,247,245); }
 
   /* The masthead lives ON the board, dragged like everything else */
   .masthead { position: absolute; pointer-events: none; }
@@ -105,7 +114,7 @@
     font-size: 12px; font-weight: 400; color: var(--ink-soft);
     letter-spacing: 0.01em;
   }
-  .masthead .sub b { color: var(--ink); font-weight: 500; }
+  .masthead .sub b { color: var(--accent); font-weight: 500; }
 
   /* Fixed chrome: one quiet corner each */
   .corner {
@@ -316,8 +325,9 @@ function startBoard(profile, items) {
   }
 
   // Opening framing: the masthead sits in the upper left, breathing.
-  let ox = 40, oy = 60;
-  let vx = 0, vy = 0;
+  let tx = 40, ty = 60;          // target (the hand)
+  let rx = tx, ry = ty;          // rendered (eased toward the hand)
+  let vx = 0, vy = 0;            // release momentum
   let tiltX = 0, tiltY = 0;
   let downX = 0, downY = 0, downT = 0, moved = 0;
   let dragging = false, lastX = 0, lastY = 0, lastT = 0;
@@ -325,12 +335,7 @@ function startBoard(profile, items) {
   const sheet = document.getElementById("sheet");
   const hint = document.getElementById("hint");
   const mod = (v, m) => ((v % m) + m) % m;
-
-  const apply = () => {
-    world.style.transform =
-      `translate(${mod(ox, tileW) - tileW}px, ${mod(oy, tileH) - tileH}px)`;
-  };
-  apply();
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   board.addEventListener("pointerdown", (e) => {
     dragging = true; board.classList.add("grabbing");
@@ -344,15 +349,14 @@ function startBoard(profile, items) {
     if (!dragging) return;
     const now = performance.now(), dt = Math.max(1, now - lastT);
     const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    ox += dx; oy += dy;
-    vx = dx / dt * 16; vy = dy / dt * 16;
+    tx += dx; ty += dy;
+    vx = vx * 0.4 + (dx / dt * 16) * 0.6;
+    vy = vy * 0.4 + (dy / dt * 16) * 0.6;
     lastX = e.clientX; lastY = e.clientY; lastT = now;
     moved = Math.max(moved, Math.hypot(e.clientX - downX, e.clientY - downY));
-    // Capture only once it is a real wander, so a tap stays a click on the piece.
     if (moved > 6 && !board.hasPointerCapture(e.pointerId)) {
       board.setPointerCapture(e.pointerId);
     }
-    apply();
   });
   const release = () => { dragging = false; board.classList.remove("grabbing"); };
   board.addEventListener("pointercancel", release);
@@ -367,33 +371,38 @@ function startBoard(profile, items) {
 
   board.addEventListener("wheel", (e) => {
     e.preventDefault();
-    ox -= e.deltaX; oy -= e.deltaY;
+    tx -= e.deltaX; ty -= e.deltaY;
     hint.classList.add("gone");
-    apply();
   }, { passive: false });
 
-  // Momentum + depth: the sheet glides and tips toward the hand, then settles.
-  // Driven entirely by the gesture; still means still.
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  (function glide() {
+  // The only clock: eases the sheet, carries momentum, breathes the tilt.
+  let prevRx = rx, prevRy = ry;
+  (function frame() {
+    if (!dragging && (Math.abs(vx) > 0.04 || Math.abs(vy) > 0.04)) {
+      tx += vx; ty += vy;
+      vx *= 0.945; vy *= 0.945;
+    }
+    const ease = reduce ? 1 : 0.16;
+    rx += (tx - rx) * ease;
+    ry += (ty - ry) * ease;
+    world.style.transform =
+      `translate3d(${mod(rx, tileW) - tileW}px, ${mod(ry, tileH) - tileH}px, 0)`;
+
     if (!reduce) {
-      if (!dragging && (Math.abs(vx) > 0.05 || Math.abs(vy) > 0.05)) {
-        ox += vx; oy += vy;
-        vx *= 0.94; vy *= 0.94;
-        apply();
-      }
-      const targetY = Math.max(-2.4, Math.min(2.4, vx * 0.22));
-      const targetX = Math.max(-2.4, Math.min(2.4, -vy * 0.22));
-      tiltX += (targetX - tiltX) * 0.10;
-      tiltY += (targetY - tiltY) * 0.10;
+      const fvx = rx - prevRx, fvy = ry - prevRy;
+      const targetY = Math.max(-4.5, Math.min(4.5, fvx * 0.42));
+      const targetX = Math.max(-4.5, Math.min(4.5, -fvy * 0.42));
+      tiltX += (targetX - tiltX) * 0.12;
+      tiltY += (targetY - tiltY) * 0.12;
       if (Math.abs(tiltX) > 0.01 || Math.abs(tiltY) > 0.01) {
         sheet.style.transform =
-          `perspective(1400px) rotateX(${tiltX.toFixed(3)}deg) rotateY(${tiltY.toFixed(3)}deg)`;
+          `perspective(1000px) rotateX(${tiltX.toFixed(3)}deg) rotateY(${tiltY.toFixed(3)}deg)`;
       } else if (sheet.style.transform) {
         sheet.style.transform = "";
       }
     }
-    requestAnimationFrame(glide);
+    prevRx = rx; prevRy = ry;
+    requestAnimationFrame(frame);
   })();
 }
 
