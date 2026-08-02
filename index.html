@@ -15,11 +15,11 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: rgb(18,18,17);
-      --paper-deep: rgb(28,28,26);
-      --ink: rgb(242,241,238);
-      --ink-soft: rgb(148,146,141);
-      --accent: rgb(96,120,255);
+      --paper: rgb(9,9,9);
+      --paper-deep: rgb(20,20,20);
+      --ink: rgb(243,242,240);
+      --ink-soft: rgb(140,139,136);
+      --accent: rgb(99,122,255);
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
@@ -39,7 +39,7 @@
     user-select: none; -webkit-user-select: none;
   }
   #board.grabbing { cursor: grabbing; }
-  #sheet { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+  #sheet { position: absolute; inset: 0; }
   #world { position: absolute; top: 0; left: 0; will-change: transform; }
   .tile { position: absolute; top: 0; left: 0; }
 
@@ -168,10 +168,24 @@ const SAMPLE = {
   profile: { name: "Agathe", handle: "wtd-agathe" },
   items: [
     {
+        "name": "Eau Rihla",
+        "price": "255 €",
+        "img": "https://diptyqueparis.com/cdn/shop/files/diptyque-eau-rihla-eau-de-parfum-MEASTP75C_side.webp?v=1759147564%5Cu0026width=2048",
+        "url": "https://diptyqueparis.com/fr-fr/products/eau-de-parfum-eau-rihla-meastp75c?_gl=1*apyswi*_up*MQ..*_gs*MQ..&gclid=EAIaIQobChMIhvDRipeAlgMVT6JQBh3CDgG9EAAYASAAEgKaVPD_BwE&gbraid=0AAAAADEgS-jAQ_pm_A562idmulyAhT-gv",
+        "reserved": false
+    },
+    {
         "name": "Heirloom Earrings in Snow",
         "price": "IDR 59.940.000,00",
         "img": "https://realfinestudio.com/cdn/shop/files/15_b_b1f4e1c0-e276-4a89-a368-a68b0a642bee.png?v=1760465604%5Cu0026width=1920",
         "url": "https://realfinestudio.com/collections/earrings/products/heirloom-earrings?variant=45786887848125",
+        "reserved": false
+    },
+    {
+        "name": "Topshop - Bomber en imitation daim à col cheminée - Fauve",
+        "price": "€54,99",
+        "img": "https://images.asos-media.com/products/topshop-bomber-en-imitation-daim-a-col-cheminee-fauve/209098303-1-tan?$n_960w$",
+        "url": "https://www.asos.com/fr/prd/209098303",
         "reserved": false
     },
     {
@@ -228,6 +242,20 @@ const SAMPLE = {
         "price": "27,99 €",
         "img": "https://images.asos-media.com/products/tan-luxe-the-gradual-lotion-autobronzante-effet-rehausseur-declat-250-ml/9042817-1-gradual?$n_960w$",
         "url": "https://www.asos.com/fr/prd/9042817?acquisitionsource=pasteboard",
+        "reserved": false
+    },
+    {
+        "name": "CARTIER - CRWJPN0053 Panthère de Cartier small 18ct yellow-gold and 0.23ct brilliant-cut diamond quartz watch",
+        "price": "£29000.00",
+        "img": "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
+        "url": "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053-panthre-de-cartier-small-18ct-yellow-gold-and-023ct-brilliant-cut-diamond-quartz-watch_R04267746/#colour=GOLD",
+        "reserved": false
+    },
+    {
+        "name": "PUMA - Speedcat - Baskets en satin - Marron chocolat",
+        "price": "€54,99",
+        "img": "https://images.asos-media.com/products/puma-speedcat-baskets-en-satin-marron-chocolat/209767177-1-brown?$n_960w$",
+        "url": "https://www.asos.com/fr/prd/209767177",
         "reserved": false
     },
     {
@@ -357,11 +385,9 @@ function startBoard(profile, items) {
   let tx = 40, ty = 60;          // target (the hand)
   let rx = tx, ry = ty;          // rendered (eased toward the hand)
   let vx = 0, vy = 0;            // release momentum
-  let tiltX = 0, tiltY = 0;
   let downX = 0, downY = 0, downT = 0, moved = 0;
   let dragging = false, lastX = 0, lastY = 0, lastT = 0;
   const board = document.getElementById("board");
-  const sheet = document.getElementById("sheet");
   const hint = document.getElementById("hint");
   const mod = (v, m) => ((v % m) + m) % m;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -404,8 +430,7 @@ function startBoard(profile, items) {
     hint.classList.add("gone");
   }, { passive: false });
 
-  // The only clock: eases the sheet, carries momentum, breathes the tilt.
-  let prevRx = rx, prevRy = ry;
+  // The only clock: eases the sheet toward the hand and carries momentum.
   (function frame() {
     if (!dragging && (Math.abs(vx) > 0.04 || Math.abs(vy) > 0.04)) {
       tx += vx; ty += vy;
@@ -417,20 +442,6 @@ function startBoard(profile, items) {
     world.style.transform =
       `translate3d(${mod(rx, tileW) - tileW}px, ${mod(ry, tileH) - tileH}px, 0)`;
 
-    if (!reduce) {
-      const fvx = rx - prevRx, fvy = ry - prevRy;
-      const targetY = Math.max(-4.5, Math.min(4.5, fvx * 0.42));
-      const targetX = Math.max(-4.5, Math.min(4.5, -fvy * 0.42));
-      tiltX += (targetX - tiltX) * 0.12;
-      tiltY += (targetY - tiltY) * 0.12;
-      if (Math.abs(tiltX) > 0.01 || Math.abs(tiltY) > 0.01) {
-        sheet.style.transform =
-          `perspective(1000px) rotateX(${tiltX.toFixed(3)}deg) rotateY(${tiltY.toFixed(3)}deg)`;
-      } else if (sheet.style.transform) {
-        sheet.style.transform = "";
-      }
-    }
-    prevRx = rx; prevRy = ry;
     requestAnimationFrame(frame);
   })();
 }
