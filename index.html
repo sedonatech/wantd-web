@@ -218,6 +218,30 @@
     transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
   }
   .piece .go:active { transform: scale(0.985); }
+  button.go { width: 100%; border: 0; cursor: pointer; font-family: inherit; }
+  .piece .go.quiet {
+    margin-top: 4px; padding: 10px 0 0;
+    background: none; color: var(--ink-soft); font-weight: 400;
+    text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-color: rgba(127,127,127,0.5);
+  }
+  .piece .go.quiet:active { transform: none; }
+  .piece .resv input {
+    width: 100%; margin-top: 14px;
+    font: inherit; font-size: 14px; color: var(--ink);
+    background: none; border: 0; border-radius: 0;
+    border-bottom: 1px solid rgba(127,127,127,0.35);
+    padding: 10px 2px; outline: none; -webkit-appearance: none;
+  }
+  .piece .resv input::placeholder { color: var(--ink-soft); }
+  .piece .note { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
+  .piece .appline {
+    margin-top: 20px; padding-top: 14px;
+    border-top: 1px solid rgba(127,127,127,0.22);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    font-size: 12px; line-height: 1.45; color: var(--ink-soft);
+  }
+  .piece .appline a { color: var(--ink); text-decoration: none; font-weight: 500; white-space: nowrap; }
 
   .empty {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -598,6 +622,7 @@ function startBoard(profile, items) {
   const pieceOverlay = document.getElementById("pieceOverlay");
   const pieceCard = document.getElementById("pieceCard");
 
+  const indexPrices = [];
   items.forEach((it, i) => {
     const row = document.createElement("div");
     row.className = "row";
@@ -605,6 +630,7 @@ function startBoard(profile, items) {
     const pr = document.createElement("span");
     pr.className = "p" + (it.reserved ? " state" : "");
     pr.textContent = it.reserved ? "Reserved" : (it.price || "");
+    indexPrices[i] = pr;
     row.append(n, pr);
     row.addEventListener("click", () => {
       indexOverlay.classList.remove("on");
@@ -633,7 +659,22 @@ function startBoard(profile, items) {
   }
 
   // --- The piece, opened in place ------------------------------------------
-  function openPiece(it) {
+  // Reservation is local for now; production writes through CloudKit (SED-519).
+  const APP_STORE_URL = "https://apps.apple.com/app/wantd/id0000000000"; // set at launch
+
+  function markReserved(idx) {
+    items[idx].reserved = true;
+    document.querySelectorAll('.fig[data-idx="' + idx + '"]').forEach((f) => {
+      f.classList.add("reserved");
+      const pr = f.querySelector(".price");
+      if (pr) { pr.classList.add("state"); pr.textContent = "Reserved"; }
+    });
+    const ip = indexPrices[idx];
+    if (ip) { ip.classList.add("state"); ip.textContent = "Reserved"; }
+  }
+
+  function openPiece(idx) {
+    const it = items[idx];
     let host = "";
     try { host = new URL(it.url).hostname.replace(/^www\./, ""); } catch {}
     pieceCard.replaceChildren();
@@ -642,18 +683,69 @@ function startBoard(profile, items) {
       pieceCard.append(img);
     }
     const info = document.createElement("div"); info.className = "info";
-    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
-    const pz = document.createElement("div");
-    pz.className = "pz" + (it.reserved ? " state" : "");
-    pz.textContent = it.reserved ? "Reserved" : (it.price || "");
-    info.append(nm, pz);
-    if (it.url) {
-      const go = document.createElement("a");
-      go.className = "go"; go.href = it.url; go.target = "_blank"; go.rel = "noopener";
-      go.textContent = host ? "View at " + host : "View the piece";
-      info.append(go);
-    }
     pieceCard.append(info);
+
+    const render = (stage) => {
+      info.replaceChildren();
+      const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
+      const pz = document.createElement("div");
+      pz.className = "pz" + (it.reserved ? " state" : "");
+      pz.textContent = it.reserved ? "Reserved" : (it.price || "");
+      info.append(nm, pz);
+
+      if (stage === "form") {
+        const wrap = document.createElement("div"); wrap.className = "resv";
+        const field = document.createElement("input");
+        field.type = "text"; field.placeholder = "Your first name";
+        field.autocapitalize = "words"; field.autocomplete = "given-name"; field.maxLength = 40;
+        wrap.append(field);
+        const ok = document.createElement("button"); ok.className = "go"; ok.type = "button";
+        ok.textContent = "Confirm";
+        const confirm = () => {
+          const name = field.value.trim();
+          if (!name) { field.focus(); return; }
+          it.reservedName = name;
+          markReserved(idx);
+          render("view");
+        };
+        ok.addEventListener("click", confirm);
+        field.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
+        const note = document.createElement("div"); note.className = "note";
+        note.textContent = "Just your first name. " + profile.name + " will never see who reserved what.";
+        info.append(wrap, ok, note);
+        setTimeout(() => field.focus(), 380);
+      } else {
+        if (it.reserved) {
+          const note = document.createElement("div"); note.className = "note";
+          note.textContent = it.reservedName
+            ? "Reserved by " + it.reservedName + ". The surprise is safe."
+            : "Someone reserved this gift already.";
+          info.append(note);
+        } else {
+          const rs = document.createElement("button"); rs.className = "go"; rs.type = "button";
+          rs.textContent = "Reserve this gift";
+          rs.addEventListener("click", () => render("form"));
+          info.append(rs);
+        }
+        if (it.url) {
+          const go = document.createElement("a");
+          go.className = "go quiet"; go.href = it.url; go.target = "_blank"; go.rel = "noopener";
+          go.textContent = host ? "View at " + host : "View the piece";
+          info.append(go);
+        }
+      }
+
+      const appline = document.createElement("div"); appline.className = "appline";
+      const at = document.createElement("span");
+      at.textContent = "Group gifts and your own list live in Wantd.";
+      const al = document.createElement("a");
+      al.href = APP_STORE_URL; al.target = "_blank"; al.rel = "noopener";
+      al.textContent = "Get the app";
+      appline.append(at, al);
+      info.append(appline);
+    };
+
+    render("view");
     pieceOverlay.classList.add("on");
   }
 
@@ -661,7 +753,7 @@ function startBoard(profile, items) {
     const fig = e.target.closest ? e.target.closest(".fig") : null;
     if (!fig) return;
     e.preventDefault();
-    openPiece(items[+fig.dataset.idx]);
+    openPiece(+fig.dataset.idx);
   });
 
   // --- Guided arrival: one slow half-screen drift, then stillness ----------
