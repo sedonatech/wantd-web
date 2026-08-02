@@ -64,6 +64,8 @@
   }
   .fig img, .fig .block { width: 100%; display: block; pointer-events: none; }
   .fig .ph > * { transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+  .fig .ph { transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
+  .fig:active .ph { transform: scale(0.985); }
   @media (hover: hover) {
     .fig:hover .ph > * { transform: scale(1.015); }
   }
@@ -298,9 +300,27 @@ function buildTile(profile, items) {
                         Math.ceil((innerWidth * 1.7) / (W + GAP_X)));
   const targetH = innerHeight * 1.7;
 
-  // Deterministic shuffle, and never place a piece within one row of itself.
+  // Deterministic shuffle. Pieces that are the same PRODUCT (saved twice
+  // from two shops, or literal repeats) share a family, and a family never
+  // appears twice within one row of itself.
   let seed = 20260802;
   const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  const tokens = items.map(it => new Set(
+    it.name.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .split(/[^a-z0-9]+/)
+      .filter(w => w.length > 2 && !["the","and","les","des","une","pour"].includes(w))
+  ));
+  const family = items.map((_, i) => i);
+  const find = (a) => family[a] === a ? a : (family[a] = find(family[a]));
+  for (let a = 0; a < items.length; a++) {
+    for (let b = a + 1; b < items.length; b++) {
+      let shared = 0;
+      tokens[a].forEach(t => { if (tokens[b].has(t)) shared++; });
+      if (shared >= 2) family[find(a)] = find(b);
+    }
+  }
 
   function sequence(minCount) {
     const seq = [];
@@ -313,8 +333,8 @@ function buildTile(profile, items) {
           [pool[k], pool[j]] = [pool[j], pool[k]];
         }
       }
-      const recent = new Set(seq.slice(-COLS).map(e => e.i));
-      let pick = pool.findIndex(e => !recent.has(e.i));
+      const recent = new Set(seq.slice(-(COLS + 1)).map(e => find(e.i)));
+      let pick = pool.findIndex(e => !recent.has(find(e.i)));
       if (pick < 0) pick = 0;
       seq.push(pool.splice(pick, 1)[0]);
     }
