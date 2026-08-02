@@ -86,6 +86,11 @@
     }
   }
   @keyframes settle { to { opacity: 1; transform: translateY(0); } }
+  /* Safety net: content is never hidden by a stalled animation. */
+  .shown .fig .in, .shown .masthead .in {
+    opacity: 1 !important; transform: none !important; animation: none !important;
+  }
+  .shown .masthead .title span { transform: none !important; animation: none !important; }
   @keyframes printline { to { transform: translateY(0); } }
 
   .cap {
@@ -282,21 +287,53 @@ const SAMPLE = {
 function buildTile(profile, items) {
   const small = Math.min(innerWidth, innerHeight) < 700;
   const W = small ? 168 : 236;
-  const COLS = small ? 2 : 4;
   const GAP_X = small ? 12 : 18;
   const GAP_Y = small ? 18 : 26;
   const CAPTION = 28;
   const MAST_H = small ? 150 : 208;
 
+  // The sheet must be wider and taller than the viewport, otherwise the
+  // neighbouring copy shows the same piece beside itself.
+  const COLS = Math.max(small ? 4 : 5,
+                        Math.ceil((innerWidth * 1.7) / (W + GAP_X)));
+  const targetH = innerHeight * 1.7;
+
+  // Deterministic shuffle, and never place a piece within one row of itself.
+  let seed = 20260802;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  function sequence(minCount) {
+    const seq = [];
+    let pool = [];
+    while (seq.length < minCount) {
+      if (!pool.length) {
+        pool = items.map((it, i) => ({ it, i }));
+        for (let k = pool.length - 1; k > 0; k--) {
+          const j = Math.floor(rnd() * (k + 1));
+          [pool[k], pool[j]] = [pool[j], pool[k]];
+        }
+      }
+      const recent = new Set(seq.slice(-COLS).map(e => e.i));
+      let pick = pool.findIndex(e => !recent.has(e.i));
+      if (pick < 0) pick = 0;
+      seq.push(pool.splice(pick, 1)[0]);
+    }
+    return seq;
+  }
+
+  // Rough pass to learn the column height, then build for real.
+  const avgRow = W * 1.15 + CAPTION + GAP_Y;
+  const perCol = Math.max(Math.ceil(items.length / COLS),
+                          Math.ceil(targetH / avgRow));
+  const seq = sequence(perCol * COLS);
+
   const tile = document.createElement("div");
   tile.className = "tile";
 
-  // Masthead occupies the top of the first two columns.
   const mast = document.createElement("div");
   mast.className = "masthead";
   mast.style.transform = "translate(0px, 0px)";
   mast.style.width = (2 * W + GAP_X) + "px";
-  mast.style.setProperty("--d", "0.05s");
   mast.innerHTML =
     `<div class="in" style="--d:0s">` +
     `<div class="title"><span>${profile.name}</span></div>` +
@@ -307,7 +344,8 @@ function buildTile(profile, items) {
   const colY = new Array(COLS).fill(0).map((_, c) =>
     c < 2 ? MAST_H : (c % 2 ? W * 0.34 : W * 0.12));
 
-  items.forEach((it, i) => {
+  seq.forEach((entry, i) => {
+    const it = entry.it;
     const col = i % COLS;
     const x = col * (W + GAP_X);
     const y = colY[col];
@@ -375,6 +413,14 @@ function startBoard(profile, items) {
     }
   }
   layout();
+  // If the entrance never got to run (throttled tab, blocked animations),
+  // reveal everything rather than show an empty sheet.
+  setTimeout(() => {
+    const probe = document.querySelector(".fig .in");
+    if (probe && parseFloat(getComputedStyle(probe).opacity) < 0.9) {
+      document.body.classList.add("shown");
+    }
+  }, 1800);
   let resizeTimer;
   addEventListener("resize", () => {
     clearTimeout(resizeTimer);
