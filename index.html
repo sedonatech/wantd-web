@@ -50,34 +50,43 @@
   }
   .fig.lift .ph { transform: scale(1.035); transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
   .fig .ph {
-    border-radius: 3px;
+    position: relative;
+    border-radius: 4px;
     overflow: hidden;
     background: var(--paper-deep);
+    box-shadow: inset 0 0 0 0.5px rgba(20,20,18,0.08);
+  }
+  .fig .ph::after {
+    content: ""; position: absolute; inset: 0;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 0.5px rgba(20,20,18,0.08);
+    pointer-events: none;
   }
   .fig img, .fig .block { width: 100%; display: block; pointer-events: none; }
-  .fig .ph > * { transition: transform 0.5s cubic-bezier(0.16,1,0.3,1); }
+  .fig .ph > * { transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
   @media (hover: hover) {
-    .fig:hover .ph > * { transform: scale(1.025); }
+    .fig:hover .ph > * { transform: scale(1.015); }
   }
   .fig.reserved .ph { opacity: 0.55; }
 
-  /* Entrance: the spread develops, one piece after another, on a diagonal. */
+  /* Entrance: the masthead prints out of an invisible line; each figure
+     settles into place once. Nothing blurs, nothing bounces. */
+  .masthead .title { overflow: hidden; }
+  .masthead .title span { display: inline-block; }
   @media (prefers-reduced-motion: no-preference) {
-    .fig, .masthead {
+    .fig .in, .masthead .in {
       opacity: 0;
-      filter: blur(7px);
-      animation: develop 0.9s cubic-bezier(0.16,1,0.3,1) forwards;
+      transform: translateY(16px);
+      animation: settle 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
       animation-delay: var(--d, 0s);
     }
+    .masthead .title span {
+      transform: translateY(112%);
+      animation: printline 0.85s cubic-bezier(0.16,1,0.3,1) 0.1s forwards;
+    }
   }
-  @keyframes develop {
-    to { opacity: 1; filter: blur(0); }
-  }
-  .fig.reserved { animation-name: developReserved; }
-  @keyframes developReserved {
-    to { opacity: 1; filter: blur(0); }
-  }
-  .fig.reserved .ph { opacity: 0.55; }
+  @keyframes settle { to { opacity: 1; transform: translateY(0); } }
+  @keyframes printline { to { transform: translateY(0); } }
 
   .cap {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
@@ -261,8 +270,10 @@ function buildTile(profile, items) {
   mast.style.width = (2 * W + GAP_X) + "px";
   mast.style.setProperty("--d", "0.05s");
   mast.innerHTML =
-    `<div class="title">${profile.name}</div>` +
-    `<div class="sub"><b>Wishlist</b>, ${items.length} pieces</div>`;
+    `<div class="in" style="--d:0s">` +
+    `<div class="title"><span>${profile.name}</span></div>` +
+    `<div class="sub"><b>Wishlist</b>, ${items.length} pieces</div>` +
+    `</div>`;
   tile.append(mast);
 
   const colY = new Array(COLS).fill(0).map((_, c) =>
@@ -285,7 +296,7 @@ function buildTile(profile, items) {
     fig.style.width = W + "px";
     fig.style.transform = `translate(${x}px, ${y}px)`;
     const diag = (col + Math.floor(i / COLS));
-    fig.style.setProperty("--d", (0.15 + diag * 0.07).toFixed(2) + "s");
+    fig.style.setProperty("--d", (0.18 + diag * 0.05).toFixed(2) + "s");
 
     const ph = document.createElement("div"); ph.className = "ph";
     if (it.img) {
@@ -301,7 +312,10 @@ function buildTile(profile, items) {
     pr.className = "price" + (it.reserved ? " state" : "");
     pr.textContent = it.reserved ? "Reserved" : (it.price || "");
     cap.append(nm, pr);
-    fig.append(ph, cap);
+    const inner = document.createElement("div");
+    inner.className = "in";
+    inner.append(ph, cap);
+    fig.append(inner);
     tile.append(fig);
   });
 
@@ -316,13 +330,28 @@ function startBoard(profile, items) {
   document.getElementById("handle").textContent = "@" + profile.handle;
 
   const world = document.getElementById("world");
-  const { tile, tileW, tileH } = buildTile(profile, items);
+  let tileW = 1, tileH = 1;
 
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-    const t = (dx === 0 && dy === 0) ? tile : tile.cloneNode(true);
-    t.style.transform = `translate(${dx * tileW}px, ${dy * tileH}px)`;
-    world.append(t);
+  // Build enough copies to cover the CURRENT viewport (plus a margin ring),
+  // and rebuild whenever it changes; the modulo render does the rest.
+  function layout() {
+    world.replaceChildren();
+    const built = buildTile(profile, items);
+    tileW = built.tileW; tileH = built.tileH;
+    const nx = Math.ceil(innerWidth / tileW) + 2;
+    const ny = Math.ceil(innerHeight / tileH) + 2;
+    for (let dx = -1; dx < nx - 1; dx++) for (let dy = -1; dy < ny - 1; dy++) {
+      const t = (dx === 0 && dy === 0) ? built.tile : built.tile.cloneNode(true);
+      t.style.transform = `translate(${dx * tileW}px, ${dy * tileH}px)`;
+      world.append(t);
+    }
   }
+  layout();
+  let resizeTimer;
+  addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layout, 180);
+  });
 
   // Opening framing: the masthead sits in the upper left, breathing.
   let tx = 40, ty = 60;          // target (the hand)
@@ -380,9 +409,9 @@ function startBoard(profile, items) {
   (function frame() {
     if (!dragging && (Math.abs(vx) > 0.04 || Math.abs(vy) > 0.04)) {
       tx += vx; ty += vy;
-      vx *= 0.945; vy *= 0.945;
+      vx *= 0.93; vy *= 0.93;
     }
-    const ease = reduce ? 1 : 0.16;
+    const ease = reduce ? 1 : 0.22;
     rx += (tx - rx) * ease;
     ry += (ty - ry) * ease;
     world.style.transform =
