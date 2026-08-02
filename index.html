@@ -140,12 +140,84 @@
   .corner.brand { right: 26px; bottom: 22px; color: var(--accent); }
   .corner.handle { right: 26px; top: 24px; color: var(--ink-soft); font-weight: 400; }
 
-  .hint {
-    position: fixed; bottom: 22px; left: 26px; z-index: 2; pointer-events: none;
-    font-size: 11px; color: var(--ink-soft);
-    transition: opacity 0.7s ease;
+  /* Index: the magazine's table of contents */
+  .indexBtn {
+    position: fixed; left: 26px; bottom: 22px; z-index: 3;
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    transition: color 0.18s ease;
   }
-  .hint.gone { opacity: 0; }
+  .indexBtn:hover { color: var(--accent); }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    pointer-events: none;
+  }
+  .overlay .scrim {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.42);
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .overlay.on { pointer-events: auto; }
+  .overlay.on .scrim { opacity: 1; }
+
+  .panel {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    max-width: 460px; margin: 0 auto;
+    background: var(--paper);
+    border-radius: 16px 16px 0 0;
+    padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
+    max-height: 62vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    transform: translateY(24px); opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
+  }
+  @media (min-width: 700px) {
+    .panel { left: 26px; right: auto; bottom: 56px; width: 360px; border-radius: 14px; }
+  }
+  .overlay.on .panel { transform: translateY(0); opacity: 1; }
+  .panel .row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    padding: 10px 0; cursor: pointer;
+  }
+  .panel .row .n {
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color 0.15s ease;
+  }
+  .panel .row:hover .n { color: var(--accent); }
+  .panel .row .p {
+    font-size: 12.5px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums; flex-shrink: 0;
+  }
+  .panel .row .p.state { color: var(--accent); font-weight: 500; }
+
+  /* The piece, opened in place */
+  .piece {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -46%); opacity: 0;
+    width: min(420px, calc(100vw - 32px));
+    max-height: 86vh; overflow-y: auto;
+    background: var(--paper); border-radius: 16px; overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
+  }
+  .overlay.on .piece { transform: translate(-50%, -50%); opacity: 1; }
+  .piece img {
+    width: 100%; display: block;
+    max-height: 52vh; object-fit: contain;
+    background: var(--paper-deep);
+  }
+  .piece .info { padding: 18px 22px 22px; }
+  .piece .nm { font-size: 16px; font-weight: 600; line-height: 1.3; }
+  .piece .pz { margin-top: 5px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .piece .pz.state { color: var(--accent); font-weight: 500; }
+  .piece .go {
+    margin-top: 16px; display: block; text-align: center;
+    background: var(--ink); color: var(--paper); text-decoration: none;
+    font-size: 13px; font-weight: 500; padding: 14px; border-radius: 999px;
+    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
+  }
+  .piece .go:active { transform: scale(0.985); }
 
   .empty {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -161,7 +233,9 @@
   <div id="board"><div id="sheet"><div id="world"></div></div></div>
   <div class="corner handle" id="handle"></div>
   <div class="corner brand">Wantd.</div>
-  <div class="hint" id="hint">Drag</div>
+  <button class="indexBtn" id="indexBtn">Index</button>
+  <div class="overlay" id="indexOverlay"><div class="scrim"></div><div class="panel" id="indexPanel"></div></div>
+  <div class="overlay" id="pieceOverlay"><div class="scrim"></div><div class="piece" id="pieceCard"></div></div>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -349,6 +423,7 @@ function buildTile(profile, items) {
 
   const tile = document.createElement("div");
   tile.className = "tile";
+  const placements = {};
 
   const mast = document.createElement("div");
   mast.className = "masthead";
@@ -379,8 +454,10 @@ function buildTile(profile, items) {
       fig.draggable = false;
     }
     fig.className = "fig" + (it.reserved ? " reserved" : "");
+    fig.dataset.idx = entry.i;
     fig.style.width = W + "px";
     fig.style.transform = `translate(${x}px, ${y}px)`;
+    if (!(entry.i in placements)) placements[entry.i] = { x, y };
     const diag = (col + Math.floor(i / COLS));
     fig.style.setProperty("--d", (0.18 + diag * 0.05).toFixed(2) + "s");
 
@@ -409,6 +486,8 @@ function buildTile(profile, items) {
     tile,
     tileW: COLS * (W + GAP_X),
     tileH: Math.max(...colY) + GAP_Y,
+    W,
+    placements,
   };
 }
 
@@ -416,7 +495,7 @@ function startBoard(profile, items) {
   document.getElementById("handle").textContent = "@" + profile.handle;
 
   const world = document.getElementById("world");
-  let tileW = 1, tileH = 1;
+  let tileW = 1, tileH = 1, cardW = 1, placements = {};
 
   // Build enough copies to cover the CURRENT viewport (plus a margin ring),
   // and rebuild whenever it changes; the modulo render does the rest.
@@ -424,6 +503,7 @@ function startBoard(profile, items) {
     world.replaceChildren();
     const built = buildTile(profile, items);
     tileW = built.tileW; tileH = built.tileH;
+    cardW = built.W; placements = built.placements;
     const nx = Math.ceil(innerWidth / tileW) + 2;
     const ny = Math.ceil(innerHeight / tileH) + 2;
     for (let dx = -1; dx < nx - 1; dx++) for (let dy = -1; dy < ny - 1; dy++) {
@@ -454,8 +534,8 @@ function startBoard(profile, items) {
   let downX = 0, downY = 0, downT = 0, moved = 0;
   let dragging = false, lastX = 0, lastY = 0, lastT = 0;
   const board = document.getElementById("board");
-  const hint = document.getElementById("hint");
   const mod = (v, m) => ((v % m) + m) % m;
+  let interacted = false;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   board.addEventListener("pointerdown", (e) => {
@@ -484,7 +564,7 @@ function startBoard(profile, items) {
   board.addEventListener("pointerup", release);
   // A still hand on a piece is a visit; a wander is not a click.
   board.addEventListener("click", (e) => {
-    if (moved > 6 || performance.now() - downT > 600) {
+    if (moved > 6) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -493,7 +573,7 @@ function startBoard(profile, items) {
   board.addEventListener("wheel", (e) => {
     e.preventDefault();
     tx -= e.deltaX; ty -= e.deltaY;
-    hint.classList.add("gone");
+    interacted = true;
   }, { passive: false });
 
   // The only clock: eases the sheet toward the hand and carries momentum.
@@ -510,6 +590,98 @@ function startBoard(profile, items) {
 
     requestAnimationFrame(frame);
   })();
+
+  // --- The index: the wishlist's table of contents -------------------------
+  const indexBtn = document.getElementById("indexBtn");
+  const indexOverlay = document.getElementById("indexOverlay");
+  const indexPanel = document.getElementById("indexPanel");
+  const pieceOverlay = document.getElementById("pieceOverlay");
+  const pieceCard = document.getElementById("pieceCard");
+
+  items.forEach((it, i) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = it.name;
+    const pr = document.createElement("span");
+    pr.className = "p" + (it.reserved ? " state" : "");
+    pr.textContent = it.reserved ? "Reserved" : (it.price || "");
+    row.append(n, pr);
+    row.addEventListener("click", () => {
+      indexOverlay.classList.remove("on");
+      glideTo(i);
+    });
+    indexPanel.append(row);
+  });
+
+  indexBtn.addEventListener("click", () => indexOverlay.classList.add("on"));
+  indexOverlay.querySelector(".scrim").addEventListener("click", () => indexOverlay.classList.remove("on"));
+  pieceOverlay.querySelector(".scrim").addEventListener("click", () => pieceOverlay.classList.remove("on"));
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { indexOverlay.classList.remove("on"); pieceOverlay.classList.remove("on"); }
+  });
+
+  // Bring a piece to the center of the screen, by the shortest road.
+  function glideTo(i) {
+    const pl = placements[i];
+    if (!pl) return;
+    interacted = true;
+    vx = vy = 0;
+    const baseX = (innerWidth - cardW) / 2 - pl.x;
+    const baseY = innerHeight * 0.42 - pl.y;
+    tx = baseX + Math.round((rx - baseX) / tileW) * tileW;
+    ty = baseY + Math.round((ry - baseY) / tileH) * tileH;
+  }
+
+  // --- The piece, opened in place ------------------------------------------
+  function openPiece(it) {
+    let host = "";
+    try { host = new URL(it.url).hostname.replace(/^www\./, ""); } catch {}
+    pieceCard.replaceChildren();
+    if (it.img) {
+      const img = new Image(); img.src = it.img; img.alt = it.name;
+      pieceCard.append(img);
+    }
+    const info = document.createElement("div"); info.className = "info";
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
+    const pz = document.createElement("div");
+    pz.className = "pz" + (it.reserved ? " state" : "");
+    pz.textContent = it.reserved ? "Reserved" : (it.price || "");
+    info.append(nm, pz);
+    if (it.url) {
+      const go = document.createElement("a");
+      go.className = "go"; go.href = it.url; go.target = "_blank"; go.rel = "noopener";
+      go.textContent = host ? "View at " + host : "View the piece";
+      info.append(go);
+    }
+    pieceCard.append(info);
+    pieceOverlay.classList.add("on");
+  }
+
+  board.addEventListener("click", (e) => {
+    const fig = e.target.closest ? e.target.closest(".fig") : null;
+    if (!fig) return;
+    e.preventDefault();
+    openPiece(items[+fig.dataset.idx]);
+  });
+
+  // --- Guided arrival: one slow half-screen drift, then stillness ----------
+  if (!reduce) {
+    setTimeout(() => {
+      if (interacted) return;
+      const dur = 2000, dx = -Math.min(innerWidth * 0.5, 340), dy = -90;
+      const t0 = performance.now();
+      let applied = 0;
+      (function driftStep(now) {
+        if (interacted) return;
+        const pct = Math.min(1, (now - t0) / dur);
+        const eased = 0.5 - 0.5 * Math.cos(Math.PI * pct);
+        tx += dx * (eased - applied);
+        ty += dy * (eased - applied);
+        applied = eased;
+        if (pct < 1) requestAnimationFrame(driftStep);
+      })(t0);
+    }, 1500);
+  }
 }
 
 // Real product images: measure natural ratios before laying the board out.
