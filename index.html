@@ -793,12 +793,85 @@ function preload(items) {
   })));
 }
 
-if (!HANDLE) {
-  preload(SAMPLE.items).then(items => startBoard(SAMPLE.profile, items));
-} else {
-  // Production: CloudKit JS wiring lands with the deploy step of SED-519.
+// ---------------------------------------------------------------------------
+// CloudKit, read only. The token is minted in the CloudKit console
+// (Tokens & Keys) and only allows what the schema already exposes publicly.
+// ---------------------------------------------------------------------------
+const CK = {
+  container: "iCloud.com.sedonatech.WANTD",
+  env: "production",
+  token: "__CK_API_TOKEN__"
+};
+
+async function ckQuery(query, continuationMarker) {
+  const url = "https://api.apple-cloudkit.com/database/1/" + CK.container +
+              "/" + CK.env + "/public/records/query?ckAPIToken=" +
+              encodeURIComponent(CK.token);
+  const body = { query, resultsLimit: 200 };
+  if (continuationMarker) body.continuationMarker = continuationMarker;
+  const res = await fetch(url, { method: "POST", body: JSON.stringify(body) });
+  if (!res.ok) throw new Error("CloudKit " + res.status);
+  return res.json();
+}
+
+async function loadWishlist(handle) {
+  const profRes = await ckQuery({
+    recordType: "Profile",
+    filterBy: [{ fieldName: "handle", comparator: "EQUALS", fieldValue: { value: handle } }]
+  });
+  const prof = (profRes.records || []).filter(r => !r.serverErrorCode)[0];
+  if (!prof) throw new Error("no profile");
+  const pf = prof.fields;
+  const profile = {
+    name: pf.displayName?.value || handle,
+    handle: pf.handle?.value || handle
+  };
+
+  let records = [], marker = null;
+  do {
+    const page = await ckQuery({
+      recordType: "Item",
+      filterBy: [{ fieldName: "ownerID", comparator: "EQUALS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    }, marker);
+    records = records.concat((page.records || []).filter(r => !r.serverErrorCode));
+    marker = page.continuationMarker || null;
+  } while (marker);
+
+  const items = records
+    .sort((a, b) => (a.fields.sortIndex?.value ?? 0) - (b.fields.sortIndex?.value ?? 0))
+    .map(r => {
+      const f = r.fields;
+      let img = f.imageURLString?.value || null;
+      if (!img && f.imageAsset?.value?.downloadURL)
+        img = f.imageAsset.value.downloadURL.replace("${f}", "image");
+      return {
+        name: f.name?.value || "",
+        price: f.priceText?.value || "",
+        img,
+        url: f.urlString?.value || "",
+        reserved: (f.status?.value || "available") !== "available",
+        recordName: r.recordName
+      };
+    })
+    .filter(it => it.name);
+  if (!items.length) throw new Error("no items");
+  return { profile, items };
+}
+
+function showEmpty() {
   document.body.insertAdjacentHTML("beforeend",
     '<div class="empty">This wishlist could not be found.</div>');
+}
+
+if (!HANDLE) {
+  preload(SAMPLE.items).then(items => startBoard(SAMPLE.profile, items));
+} else if (CK.token.startsWith("__")) {
+  showEmpty();
+} else {
+  loadWishlist(HANDLE)
+    .then(({ profile, items }) => preload(items).then(loaded => startBoard(profile, loaded)))
+    .catch(showEmpty);
 }
 </script>
 </body>
