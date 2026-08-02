@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wantd</title>
 <meta name="robots" content="noindex">
+<link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
 <style>
   :root {
     --paper: rgb(247,247,245);
@@ -777,18 +778,35 @@ function startBoard(profile, items) {
 }
 
 // Real product images: measure natural ratios before laying the board out.
+// Only the DIMENSIONS are needed, and the browser knows them from the first
+// bytes of the file — poll naturalWidth instead of waiting for full loads,
+// so the board appears in a fraction of the download time.
 function preload(items) {
   return Promise.all(items.map(it => new Promise(resolve => {
     if (!it.img) { resolve({ ...it, ratio: 1.2, tone: "#DDD9D2" }); return; }
     const img = new Image();
-    const done = (ratio) => resolve({ ...it, ratio });
-    const timer = setTimeout(() => done(1.2), 4000);
-    img.onload = () => {
-      clearTimeout(timer);
-      const r = img.naturalHeight / Math.max(1, img.naturalWidth);
-      done(Math.min(1.6, Math.max(0.72, r)));
+    let settled = false;
+    const done = (ratio) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll); clearTimeout(timer);
+      resolve({ ...it, ratio });
     };
-    img.onerror = () => { clearTimeout(timer); resolve({ ...it, img: null, ratio: 1.2, tone: "#DDD9D2" }); };
+    const measure = () => {
+      if (img.naturalWidth > 0) {
+        const r = img.naturalHeight / Math.max(1, img.naturalWidth);
+        done(Math.min(1.6, Math.max(0.72, r)));
+      }
+    };
+    const poll = setInterval(measure, 60);
+    const timer = setTimeout(() => done(1.2), 4000);
+    img.onload = measure;
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll); clearTimeout(timer);
+      resolve({ ...it, img: null, ratio: 1.2, tone: "#DDD9D2" });
+    };
     img.src = it.img;
   })));
 }
