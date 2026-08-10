@@ -623,7 +623,6 @@ function startBoard(profile, items) {
   const pieceOverlay = document.getElementById("pieceOverlay");
   const pieceCard = document.getElementById("pieceCard");
 
-  const indexPrices = [];
   items.forEach((it, i) => {
     const row = document.createElement("div");
     row.className = "row";
@@ -631,7 +630,6 @@ function startBoard(profile, items) {
     const pr = document.createElement("span");
     pr.className = "p" + (it.reserved ? " state" : "");
     pr.textContent = it.reserved ? "Reserved" : (it.price || "");
-    indexPrices[i] = pr;
     row.append(n, pr);
     row.addEventListener("click", () => {
       indexOverlay.classList.remove("on");
@@ -660,19 +658,12 @@ function startBoard(profile, items) {
   }
 
   // --- The piece, opened in place ------------------------------------------
-  // Reservation is local for now; production writes through CloudKit (SED-519).
-  const APP_STORE_URL = "https://apps.apple.com/app/wantd/id0000000000"; // set at launch
-
-  function markReserved(idx) {
-    items[idx].reserved = true;
-    document.querySelectorAll('.fig[data-idx="' + idx + '"]').forEach((f) => {
-      f.classList.add("reserved");
-      const pr = f.querySelector(".price");
-      if (pr) { pr.classList.add("state"); pr.textContent = "Reserved"; }
-    });
-    const ip = indexPrices[idx];
-    if (ip) { ip.classList.add("state"); ip.textContent = "Reserved"; }
-  }
+  // Reserving writes to someone's wishlist, and the key that allows writes
+  // cannot live in a public page — so reserving belongs to the app. The web
+  // page reads, and sends you to the app to act.
+  // Fill this in once the app is on the App Store; until then the card says
+  // so plainly rather than offering a dead link.
+  const APP_STORE_URL = "";
 
   function openPiece(idx) {
     const it = items[idx];
@@ -686,67 +677,45 @@ function startBoard(profile, items) {
     const info = document.createElement("div"); info.className = "info";
     pieceCard.append(info);
 
-    const render = (stage) => {
-      info.replaceChildren();
-      const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
-      const pz = document.createElement("div");
-      pz.className = "pz" + (it.reserved ? " state" : "");
-      pz.textContent = it.reserved ? "Reserved" : (it.price || "");
-      info.append(nm, pz);
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
+    const pz = document.createElement("div");
+    pz.className = "pz" + (it.reserved ? " state" : "");
+    pz.textContent = it.reserved ? "Reserved" : (it.price || "");
+    info.append(nm, pz);
 
-      if (stage === "form") {
-        const wrap = document.createElement("div"); wrap.className = "resv";
-        const field = document.createElement("input");
-        field.type = "text"; field.placeholder = "Your first name";
-        field.autocapitalize = "words"; field.autocomplete = "given-name"; field.maxLength = 40;
-        wrap.append(field);
-        const ok = document.createElement("button"); ok.className = "go"; ok.type = "button";
-        ok.textContent = "Confirm";
-        const confirm = () => {
-          const name = field.value.trim();
-          if (!name) { field.focus(); return; }
-          it.reservedName = name;
-          markReserved(idx);
-          render("view");
-        };
-        ok.addEventListener("click", confirm);
-        field.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
-        const note = document.createElement("div"); note.className = "note";
-        note.textContent = "Just your first name. " + profile.name + " will never see who reserved what.";
-        info.append(wrap, ok, note);
-        setTimeout(() => field.focus(), 380);
-      } else {
-        if (it.reserved) {
-          const note = document.createElement("div"); note.className = "note";
-          note.textContent = it.reservedName
-            ? "Reserved by " + it.reservedName + ". The surprise is safe."
-            : "Someone reserved this gift already.";
-          info.append(note);
-        } else {
-          const rs = document.createElement("button"); rs.className = "go"; rs.type = "button";
-          rs.textContent = "Reserve this gift";
-          rs.addEventListener("click", () => render("form"));
-          info.append(rs);
-        }
-        if (it.url) {
-          const go = document.createElement("a");
-          go.className = "go quiet"; go.href = it.url; go.target = "_blank"; go.rel = "noopener";
-          go.textContent = host ? "View at " + host : "View the piece";
-          info.append(go);
-        }
-      }
+    if (it.reserved) {
+      const note = document.createElement("div"); note.className = "note";
+      note.textContent = "Someone has already reserved this gift.";
+      info.append(note);
+    } else if (APP_STORE_URL) {
+      const rs = document.createElement("a");
+      rs.className = "go"; rs.href = APP_STORE_URL;
+      rs.target = "_blank"; rs.rel = "noopener";
+      rs.textContent = "Reserve in the app";
+      info.append(rs);
+    }
 
-      const appline = document.createElement("div"); appline.className = "appline";
-      const at = document.createElement("span");
-      at.textContent = "Group gifts and your own list live in Wantd.";
+    if (it.url) {
+      const go = document.createElement("a");
+      go.className = "go quiet"; go.href = it.url; go.target = "_blank"; go.rel = "noopener";
+      go.textContent = host ? "View at " + host : "View the piece";
+      info.append(go);
+    }
+
+    const appline = document.createElement("div"); appline.className = "appline";
+    const at = document.createElement("span");
+    at.textContent = APP_STORE_URL
+      ? "Reserving and group gifts happen in Wantd."
+      : "Reserving and group gifts happen in the Wantd app, coming soon.";
+    appline.append(at);
+    if (APP_STORE_URL) {
       const al = document.createElement("a");
       al.href = APP_STORE_URL; al.target = "_blank"; al.rel = "noopener";
       al.textContent = "Get the app";
-      appline.append(at, al);
-      info.append(appline);
-    };
+      appline.append(al);
+    }
+    info.append(appline);
 
-    render("view");
     pieceOverlay.classList.add("on");
   }
 
