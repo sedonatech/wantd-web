@@ -663,7 +663,7 @@ function startBoard(profile, items) {
   // page reads, and sends you to the app to act.
   // Fill this in once the app is on the App Store; until then the card says
   // so plainly rather than offering a dead link.
-  const APP_STORE_URL = "";
+  const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
 
   function openPiece(idx) {
     const it = items[idx];
@@ -704,16 +704,11 @@ function startBoard(profile, items) {
 
     const appline = document.createElement("div"); appline.className = "appline";
     const at = document.createElement("span");
+    // The button above already carries the link, so this line stays a line.
     at.textContent = APP_STORE_URL
-      ? "Reserving and group gifts happen in Wantd."
+      ? "Group gifts and your own list live in Wantd."
       : "Reserving and group gifts happen in the Wantd app, coming soon.";
     appline.append(at);
-    if (APP_STORE_URL) {
-      const al = document.createElement("a");
-      al.href = APP_STORE_URL; al.target = "_blank"; al.rel = "noopener";
-      al.textContent = "Get the app";
-      appline.append(al);
-    }
     info.append(appline);
 
     pieceOverlay.classList.add("on");
