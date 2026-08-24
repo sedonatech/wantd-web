@@ -832,7 +832,11 @@ async function loadWishlist(handle) {
         price: f.priceText?.value || "",
         img,
         url: f.urlString?.value || "",
-        reserved: (f.status?.value || "available") !== "available",
+        // The board never reveals a reservation. The owner opens her own
+        // link too, and reading "Reserved" on her own gift is exactly the
+        // surprise we promise to keep (2026-08-24). Reserving lives in the
+        // app, where the owner is the one person who cannot see it.
+        reserved: false,
         recordName: r.recordName
       };
     })
