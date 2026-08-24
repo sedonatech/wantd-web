@@ -77,7 +77,7 @@
   <p class="note" id="note">This piece lives on a Wantd wishlist. Wantd is invitation only.</p>
   <div class="spacer"></div>
   <a class="act" id="open" href="#">Open in Wantd</a>
-  <a class="quiet" href="/">Wantd</a>
+  <a class="quiet" id="store" href="https://apps.apple.com/app/id6787658989">Don't have Wantd yet? Get the app</a>
 </main>
 <script>
   (function () {
@@ -85,8 +85,10 @@
     if (!m) { location.replace('/'); return; }
     var deep = 'wantd://item/' + m[1].toLowerCase();
     document.getElementById('open').setAttribute('href', deep);
-    // Universal links carry this straight into the app; this is the path for
-    // everyone whose phone landed in the browser instead.
+    // Universal links carry this straight into the app. Landing here means
+    // the phone did not take that road: try the scheme, and if nothing
+    // happens the app simply is not installed, so the App Store act below
+    // is the way in.
     setTimeout(function () { location.href = deep; }, 60);
   })();
 </script>
