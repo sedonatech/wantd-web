@@ -81,6 +81,11 @@
 </main>
 <script>
   (function () {
+    // A profile link (/@handle) must keep its handle: the board reads it from
+    // the path, and this page replaces the path. Hand it over as a query
+    // instead, which index.html also understands.
+    var h = location.pathname.match(/^\/@([\w-]+)\/?$/);
+    if (h) { location.replace('/?handle=' + encodeURIComponent(h[1])); return; }
     var m = location.pathname.match(/^\/i\/([0-9a-fA-F-]{36})\/?$/);
     if (!m) { location.replace('/'); return; }
     var deep = 'wantd://item/' + m[1].toLowerCase();
