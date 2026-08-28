@@ -809,6 +809,29 @@ async function loadWishlist(handle) {
     handle: pf.handle?.value || handle
   };
 
+  // Which of her lists are private. A private list is where people put the
+  // things they are a little ashamed of wanting, and nobody is ever meant to
+  // see it: not a friend, not a stranger with the link (Agathe, 2026-08-28).
+  // The board had no idea private lists existed and published them.
+  const privateLists = new Set();
+  try {
+    const listRes = await ckQuery({
+      recordType: "List",
+      filterBy: [{ fieldName: "ownerID", comparator: "EQUALS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    });
+    for (const r of (listRes.records || []).filter(r => !r.serverErrorCode)) {
+      if ((r.fields.isPrivate?.value ?? 0) === 1) {
+        const uuid = r.fields.listUUID?.value;
+        if (uuid) privateLists.add(uuid);
+      }
+    }
+  } catch (e) {
+    // A lookup we could not perform must never be read as "nothing is
+    // private": sooner an empty board than a private list on the internet.
+    throw new Error("private lists unavailable");
+  }
+
   let records = [], marker = null;
   do {
     const page = await ckQuery({
@@ -846,10 +869,17 @@ async function loadWishlist(handle) {
         // friend's secret, and making that piece vanish would reveal by its
         // absence exactly what this whole app is built to hide.
         spoiled: (f.status?.value || "") === "purchased",
+        // Filed ONLY in private lists, so it stays off the board. A piece in
+        // no list at all predates lists and stays visible, exactly as the app
+        // decides it.
+        hidden: (() => {
+          const ids = f.listIDs?.value || [];
+          return ids.length > 0 && ids.every(id => privateLists.has(id));
+        })(),
         recordName: r.recordName
       };
     })
-    .filter(it => it.name && !it.spoiled);
+    .filter(it => it.name && !it.spoiled && !it.hidden);
   if (!items.length) throw new Error("no items");
   return { profile, items };
 }
