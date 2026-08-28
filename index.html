@@ -457,7 +457,7 @@ function buildTile(profile, items) {
   mast.innerHTML =
     `<div class="in" style="--d:0s">` +
     `<div class="title"><span>${profile.name}</span></div>` +
-    `<div class="sub"><b>Wishlist</b>, ${items.length} pieces</div>` +
+    `<div class="sub"><b>Wishlist</b>, ${items.length} ${items.length === 1 ? "want" : "wants"}</div>` +
     `</div>`;
   tile.append(mast);
 
@@ -837,10 +837,19 @@ async function loadWishlist(handle) {
         // surprise we promise to keep (2026-08-24). Reserving lives in the
         // app, where the owner is the one person who cannot see it.
         reserved: false,
+        // She marked it as already hers. It leaves the public board exactly
+        // as it leaves her wishlist in the app: the board counted 46 where
+        // the app counted 43, and kept offering three things she owns
+        // (Agathe, 2026-08-28).
+        //
+        // Only "purchased" is dropped, never "reserved": a reservation is a
+        // friend's secret, and making that piece vanish would reveal by its
+        // absence exactly what this whole app is built to hide.
+        spoiled: (f.status?.value || "") === "purchased",
         recordName: r.recordName
       };
     })
-    .filter(it => it.name);
+    .filter(it => it.name && !it.spoiled);
   if (!items.length) throw new Error("no items");
   return { profile, items };
 }
