@@ -829,6 +829,9 @@ async function loadWishlist(handle) {
   // see it: not a friend, not a stranger with the link (Agathe, 2026-08-28).
   // The board had no idea private lists existed and published them.
   const privateLists = new Set();
+  // Co-owned lists live on every member's board: the other members' pieces
+  // on her shared, PUBLIC lists join it (SED-598). Private ones never do.
+  const sharedPublicLists = new Set();
   try {
     const listRes = await ckQuery({
       recordType: "List",
@@ -836,16 +839,29 @@ async function loadWishlist(handle) {
                    fieldValue: { value: pf.ownerID.value } }]
     });
     for (const r of (listRes.records || []).filter(r => !r.serverErrorCode)) {
-      if ((r.fields.isPrivate?.value ?? 0) === 1) {
-        const uuid = r.fields.listUUID?.value;
-        if (uuid) privateLists.add(uuid);
-      }
+      const uuid = r.fields.listUUID?.value;
+      if (!uuid) continue;
+      if ((r.fields.isPrivate?.value ?? 0) === 1) privateLists.add(uuid);
+      else if ((r.fields.memberIDs?.value || []).length) sharedPublicLists.add(uuid);
     }
   } catch (e) {
     // A lookup we could not perform must never be read as "nothing is
     // private": sooner an empty board than a private list on the internet.
     throw new Error("private lists unavailable");
   }
+  try {
+    // Lists she was invited into, created by someone else. Additive only:
+    // if this fails the board is merely incomplete, never leaky.
+    const joined = await ckQuery({
+      recordType: "List",
+      filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    });
+    for (const r of (joined.records || []).filter(r => !r.serverErrorCode)) {
+      const uuid = r.fields.listUUID?.value;
+      if (uuid && (r.fields.isPrivate?.value ?? 0) !== 1) sharedPublicLists.add(uuid);
+    }
+  } catch (e) { /* incomplete, not leaky */ }
 
   let records = [], marker = null;
   do {
@@ -857,6 +873,20 @@ async function loadWishlist(handle) {
     records = records.concat((page.records || []).filter(r => !r.serverErrorCode));
     marker = page.continuationMarker || null;
   } while (marker);
+
+  // The co-members' pieces on her shared public lists.
+  for (const uuid of sharedPublicLists) {
+    try {
+      const extra = await ckQuery({
+        recordType: "Item",
+        filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS",
+                     fieldValue: { value: uuid } }]
+      });
+      records = records.concat((extra.records || []).filter(r => !r.serverErrorCode));
+    } catch (e) { /* incomplete, not leaky */ }
+  }
+  // One card per record: her own pieces came back in both queries.
+  records = [...new Map(records.map(r => [r.recordName, r])).values()];
 
   const items = records
     .sort((a, b) => (a.fields.sortIndex?.value ?? 0) - (b.fields.sortIndex?.value ?? 0))
