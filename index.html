@@ -71,6 +71,7 @@
     .fig:hover .ph > * { transform: scale(1.015); }
   }
   .fig.reserved .ph { opacity: 0.55; }
+  .cap .kept { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 
   /* Entrance: the masthead prints out of an invisible line; each figure
      settles into place once. Nothing blurs, nothing bounces. */
@@ -500,6 +501,12 @@ function buildTile(profile, items) {
     pr.className = "price" + (it.reserved ? " state" : "");
     pr.textContent = it.reserved ? "Reserved" : (it.price || "");
     cap.append(nm, pr);
+    if (it.keptWith) {
+      const kw = document.createElement("span");
+      kw.className = "kept";
+      kw.textContent = "Kept with " + it.keptWith;
+      cap.append(kw);
+    }
     const inner = document.createElement("div");
     inner.className = "in";
     inner.append(ph, cap);
@@ -863,6 +870,43 @@ async function loadWishlist(handle) {
     }
   } catch (e) { /* incomplete, not leaky */ }
 
+  // Who keeps each shared list, so every shared card can say so: a gift on a
+  // co-owned list pleases two people, and the giver deserves to know it
+  // before buying (same rule as in the app, 2026-08-28).
+  const sharedWith = new Map();   // listUUID -> "Agathe" / "Agathe, Sedona"
+  try {
+    const memberIDsByList = new Map();
+    const allMemberIDs = new Set();
+    for (const q of [
+      { fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: pf.ownerID.value } },
+      { fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: pf.ownerID.value } }
+    ]) {
+      const res = await ckQuery({ recordType: "List", filterBy: [q] });
+      for (const r of (res.records || []).filter(r => !r.serverErrorCode)) {
+        const uuid = r.fields.listUUID?.value;
+        if (!uuid || !sharedPublicLists.has(uuid)) continue;
+        const ids = new Set(r.fields.memberIDs?.value || []);
+        if (r.fields.ownerID?.value) ids.add(r.fields.ownerID.value);
+        ids.delete(pf.ownerID.value);
+        memberIDsByList.set(uuid, [...ids]);
+        for (const id of ids) allMemberIDs.add(id);
+      }
+    }
+    const names = new Map();
+    for (const id of allMemberIDs) {
+      const res = await ckQuery({
+        recordType: "Profile",
+        filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: id } }]
+      });
+      const prof = (res.records || []).filter(r => !r.serverErrorCode)[0];
+      if (prof) names.set(id, prof.fields.displayName?.value || prof.fields.handle?.value || "");
+    }
+    for (const [uuid, ids] of memberIDsByList) {
+      const label = ids.map(id => names.get(id)).filter(Boolean).join(", ");
+      sharedWith.set(uuid, label || "someone");
+    }
+  } catch (e) { /* names are a courtesy, never a blocker */ }
+
   let records = [], marker = null;
   do {
     const page = await ckQuery({
@@ -924,6 +968,8 @@ async function loadWishlist(handle) {
         // friend's secret, and making that piece vanish would reveal by its
         // absence exactly what this whole app is built to hide.
         spoiled: (f.status?.value || "") === "purchased",
+        // The co-owned list this piece sits on, if any: its card says so.
+        keptWith: (f.listIDs?.value || []).map(id => sharedWith.get(id)).find(Boolean) || null,
         // Filed ONLY in private lists, so it stays off the board. A piece in
         // no list at all predates lists and stays visible, exactly as the app
         // decides it.
