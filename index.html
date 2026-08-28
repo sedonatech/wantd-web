@@ -785,6 +785,21 @@ const CK = {
   token: "81be7b7770829e83e23ba86168bfcda9676868818687c83b269e560a9271bf54"
 };
 
+function formatPrice(amount, currency, fallback) {
+  if (typeof amount !== "number" || !currency) return fallback;
+  try {
+    const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(currency.toUpperCase());
+    return new Intl.NumberFormat(navigator.language || "en", {
+      style: "currency",
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: noCents ? 0 : 2
+    }).format(amount);
+  } catch (e) {
+    return fallback;   // an unknown currency code must never blank a price
+  }
+}
+
 async function ckQuery(query, continuationMarker) {
   const url = "https://api.apple-cloudkit.com/database/1/" + CK.container +
               "/" + CK.env + "/public/records/query?ckAPIToken=" +
@@ -852,7 +867,17 @@ async function loadWishlist(handle) {
         img = f.imageAsset.value.downloadURL.replace("${f}", "image");
       return {
         name: f.name?.value || "",
-        price: f.priceText?.value || "",
+        // Same rule as the app: when the numeric amount and its currency are
+        // known, format them for the reader; otherwise fall back to the string
+        // scraped from the shop. The board used to always show the raw string,
+        // so the same piece read "37.99 €" in the app and "€37,99" here
+        // (Agathe, 2026-08-28).
+        //
+        // Deliberately no parsing of the scraped string: "£29.000" is
+        // twenty-nine thousand pounds and "37,99" is thirty-seven, and getting
+        // that wrong on a gift list is worse than an uneven format.
+        price: formatPrice(f.priceAmount?.value, f.priceCurrency?.value,
+                           f.priceText?.value || ""),
         img,
         url: f.urlString?.value || "",
         // The board never reveals a reservation. The owner opens her own
