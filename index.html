@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wantd</title>
 <meta name="robots" content="noindex">
+<meta property="og:title" content="Wantd.">
+<meta property="og:description" content="A wishlist, kept beautifully. See what they truly want.">
+<meta property="og:image" content="https://wantd.sedonatech.uk/og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
 <style>
   :root {
@@ -371,6 +376,12 @@ function renderGrid() {
     if (it.keptWith) {
       const k = document.createElement("div"); k.className = "kept";
       k.textContent = "Kept with " + it.keptWith; cartel.append(k);
+    }
+    // Only the browser that reserved it knows: the token never leaves
+    // localStorage, so the owner and everyone else keep seeing nothing.
+    if (it.recordName && localStorage.getItem("wantd.reserved." + it.recordName)) {
+      const r = document.createElement("div"); r.className = "kept";
+      r.textContent = "Reserved by you"; cartel.append(r);
     }
     card.append(ph, cartel);
     card.addEventListener("click", () => openPiece(it));
