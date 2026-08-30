@@ -492,20 +492,33 @@ function buildReserveFlow(container, it) {
       go.textContent = "Reserve";
       go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
       form.append(input, go);
-      form.addEventListener("submit", async (e) => {
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
         const name = input.value.trim();
         if (!name) { input.focus(); return; }
-        go.textContent = "…"; go.disabled = true;
-        const r = await api("/reserve", { itemID: it.recordName, name });
-        if (r.ok) {
-          localStorage.setItem(key, r.token);
-          box.replaceChildren(note("Reserved. Nobody else will offer it."));
-        } else if (r.error === "taken") {
-          box.replaceChildren(note("Someone already reserved this one."));
-        } else {
-          box.replaceChildren(note("That did not go through. Try again in a moment."));
-        }
+        // The same clear breath the app takes before committing: a
+        // reservation is a promise to the whole circle.
+        box.replaceChildren();
+        const warn = note("Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.");
+        warn.style.marginTop = "0";
+        const acts = document.createElement("div");
+        acts.style.cssText = "display:flex;gap:20px;margin-top:12px";
+        acts.append(
+          link("Reserve it", async (aEl) => {
+            aEl.textContent = "One moment…";
+            const r = await api("/reserve", { itemID: it.recordName, name });
+            if (r.ok) {
+              localStorage.setItem(key, r.token);
+              box.replaceChildren(note("Reserved. Nobody else will offer it."));
+            } else if (r.error === "taken") {
+              box.replaceChildren(note("Someone already reserved this one."));
+            } else {
+              box.replaceChildren(note("That did not go through. Try again in a moment."));
+            }
+          }),
+          link("Not now", () => render())
+        );
+        box.append(warn, acts);
       });
       box.append(form);
       input.focus();
