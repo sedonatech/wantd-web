@@ -436,6 +436,7 @@ function openPiece(it) {
   const links = document.createElement("div"); links.className = "quiet-links";
   if (RESERVE_API && it.recordName) {
     buildReserveFlow(links, it);
+    buildPotFlow(links, it);
   } else {
     const rs = document.createElement("a");
     rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
@@ -443,12 +444,11 @@ function openPiece(it) {
     links.append(rs);
   }
   info.append(links);
-
-  const line = document.createElement("div"); line.className = "appline";
-  line.textContent = RESERVE_API
-    ? "Group gifts live in the Wantd app."
-    : "Reserving and group gifts live in the Wantd app.";
-  info.append(line);
+  if (!(RESERVE_API && it.recordName)) {
+    const line = document.createElement("div"); line.className = "appline";
+    line.textContent = "Reserving and group gifts live in the Wantd app.";
+    info.append(line);
+  }
 
   document.getElementById("piece").classList.add("on");
   document.querySelector("#piece .sheet").scrollTop = 0;
@@ -538,6 +538,105 @@ function buildReserveFlow(container, it) {
     }));
   }
   render();
+}
+
+// Chipping in from the web (SED-610), so a papa never needs the app. Same
+// passivity rule as reserving: the board shows nothing about the pot — in
+// the app the owner never sees her own group gift, and the web cannot know
+// who is looking, so the pot only answers whoever taps the word.
+function buildPotFlow(container, it) {
+  const box = document.createElement("div");
+  container.append(box);
+  const api = (p, b) => fetch(RESERVE_API + p, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(b)
+  }).then(r => r.json()).catch(() => ({ error: "net" }));
+
+  const link = (text, fn) => {
+    const a = document.createElement("a");
+    a.href = "#"; a.textContent = text;
+    a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
+    return a;
+  };
+  const note = (text) => {
+    const d = document.createElement("div");
+    d.className = "appline"; d.style.marginTop = "4px";
+    d.textContent = text;
+    return d;
+  };
+  const money = (amount, code) => {
+    const sym = { EUR: "€", USD: "$", GBP: "£" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + s : s + " " + (code || "");
+  };
+
+  function showPot(pot) {
+    box.replaceChildren();
+    const wrap = document.createElement("div");
+    if (pot.active) {
+      const head = note(pot.target
+        ? money(pot.collected, pot.currency) + " of " + money(pot.target, pot.currency) + " gathered."
+        : money(pot.collected, pot.currency) + " gathered so far.");
+      head.style.marginTop = "0";
+      wrap.append(head);
+      if (pot.contributors?.length) {
+        wrap.append(note(pot.contributors
+          .map((c) => c.name + " " + money(c.amount, pot.currency)).join(" · ")));
+      }
+    } else {
+      const head = note(pot.target
+        ? "Nobody has chipped in yet. The pot aims for " + money(pot.target, pot.currency) + "."
+        : "Nobody has chipped in yet. Every amount counts.");
+      head.style.marginTop = "0";
+      wrap.append(head);
+    }
+
+    const form = document.createElement("form");
+    form.style.cssText = "display:flex;gap:8px;align-items:stretch;margin-top:12px";
+    const inputCSS = "min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
+    const nameIn = document.createElement("input");
+    nameIn.placeholder = "Your name"; nameIn.maxLength = 30;
+    nameIn.autocomplete = "off"; nameIn.style.cssText = "flex:1.4;" + inputCSS;
+    const amountIn = document.createElement("input");
+    const potSym = { EUR: "€", USD: "$", GBP: "£" }[pot.currency];
+    amountIn.placeholder = potSym ? "Amount (" + potSym + ")" : "Amount";
+    amountIn.inputMode = "decimal"; amountIn.autocomplete = "off";
+    amountIn.style.cssText = "flex:1;" + inputCSS;
+    const go = document.createElement("button");
+    go.textContent = "Chip in";
+    go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
+    form.append(nameIn, amountIn, go);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = nameIn.value.trim();
+      const amount = parseFloat(amountIn.value.replace(",", "."));
+      if (!name) { nameIn.focus(); return; }
+      if (!(amount > 0)) { amountIn.focus(); return; }
+      go.textContent = "One moment…"; go.disabled = true;
+      const r = await api("/contribute", { itemID: it.recordName, name, amount });
+      if (r.ok) {
+        box.replaceChildren(note(r.target
+          ? "Added. " + money(r.collected, r.currency) + " of " + money(r.target, r.currency) + " gathered."
+          : "Added. " + money(r.collected, r.currency) + " gathered so far."));
+      } else {
+        box.replaceChildren(note("That did not go through. Try again in a moment."));
+      }
+    });
+    wrap.append(form);
+    box.append(wrap);
+    nameIn.focus();
+  }
+
+  box.append(link("Chip in for a group gift", async (a) => {
+    a.textContent = "One moment…";
+    const pot = await api("/pot", { itemID: it.recordName });
+    if (pot.error) {
+      box.replaceChildren(note("That did not go through. Try again in a moment."));
+      return;
+    }
+    showPot(pot);
+  }));
 }
 
 document.querySelector("#piece .scrim").addEventListener("click",
