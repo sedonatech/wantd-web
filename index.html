@@ -50,7 +50,7 @@
     padding: 26px 4px 4px;
   }
   .avatar {
-    width: 44px; height: 44px; border-radius: 50%;
+    width: 44px; height: 44px; border-radius: 24%;
     background: var(--paper-deep);
     display: flex; align-items: center; justify-content: center;
     overflow: hidden; flex: none;
@@ -296,8 +296,21 @@ function startPage(profile, items, lists) {
     const img = new Image(); img.src = profile.avatar; img.alt = "";
     avatar.replaceChildren(img);
   } else {
-    document.getElementById("avatarLetter").textContent =
-      (profile.name || "?").trim().charAt(0).toUpperCase();
+    // The 26 letters she drew in the icon's cobalt: the avatar IS the app
+    // icon, personalized — identical to the app's AvatarView.
+    const letter = ((profile.name || "?").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().match(/[A-Z]/) || [null])[0];
+    if (letter) {
+      const img = new Image(); img.src = "/avatars/" + letter + ".jpg"; img.alt = "";
+      img.onerror = () => {
+        avatar.replaceChildren(document.getElementById("avatarLetter") || document.createElement("span"));
+        const sp = document.createElement("span"); sp.className = "letter";
+        sp.textContent = letter; avatar.replaceChildren(sp);
+      };
+      avatar.replaceChildren(img);
+    } else {
+      document.getElementById("avatarLetter").textContent = "?";
+    }
   }
   document.getElementById("whoName").textContent = profile.name;
   document.getElementById("whoFacts").textContent =
