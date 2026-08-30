@@ -10,258 +10,209 @@
   :root {
     --paper: rgb(247,247,245);
     --paper-deep: rgb(238,238,235);
+    --card: rgb(252,252,251);
     --ink: rgb(20,20,18);
     --ink-soft: rgb(122,120,116);
     --accent: rgb(39,67,214);
+    --hairline: rgba(20,20,18,0.08);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --paper: rgb(9,9,9);
       --paper-deep: rgb(20,20,20);
+      --card: rgb(16,16,16);
       --ink: rgb(243,242,240);
       --ink-soft: rgb(140,139,136);
       --accent: rgb(99,122,255);
+      --hairline: rgba(243,242,240,0.10);
     }
   }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-  html, body { height: 100%; overscroll-behavior: none; }
   body {
     background: var(--paper);
     color: var(--ink);
     font-family: "Helvetica Neue", -apple-system, "SF Pro Text", Arial, sans-serif;
-    overflow: hidden;
   }
+  .serif { font-family: Georgia, "Times New Roman", serif; }
 
-  /* The board is the page */
-  #board {
-    position: fixed; inset: 0;
-    cursor: grab;
-    touch-action: none;
-    user-select: none; -webkit-user-select: none;
-  }
-  #board.grabbing { cursor: grabbing; }
-  #sheet { position: absolute; inset: 0; }
-  #world { position: absolute; top: 0; left: 0; will-change: transform; }
-  .tile { position: absolute; top: 0; left: 0; }
+  /* ------------------------------------------------------------------ */
+  /* The page mirrors the app's own profile screen, piece for piece.     */
+  /* ------------------------------------------------------------------ */
+  #app { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
 
-  /* Figures on paper. No card chrome: the photograph is the object. */
-  .fig {
-    position: absolute; cursor: pointer; display: block;
-    color: inherit; text-decoration: none;
+  header.profile {
+    display: flex; align-items: center; gap: 12px;
+    padding: 26px 4px 4px;
   }
-  .fig.lift .ph { transform: scale(1.035); transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
-  .fig .ph {
-    position: relative;
-    border-radius: 4px;
-    overflow: hidden;
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
     background: var(--paper-deep);
-    box-shadow: inset 0 0 0 0.5px rgba(20,20,18,0.08);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex: none;
   }
-  .fig .ph::after {
-    content: ""; position: absolute; inset: 0;
-    border-radius: 4px;
-    box-shadow: inset 0 0 0 0.5px rgba(20,20,18,0.08);
-    pointer-events: none;
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar .letter {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 20px; color: var(--accent);
   }
-  .fig img, .fig .block { width: 100%; display: block; pointer-events: none; }
-  .fig .ph > * { transition: transform 0.7s cubic-bezier(0.16,1,0.3,1); }
-  .fig .ph { transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
-  .fig:active .ph { transform: scale(0.985); }
-  @media (hover: hover) {
-    .fig:hover .ph > * { transform: scale(1.015); }
+  .who .name {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 19px; font-weight: 400; line-height: 1.15;
   }
-  .fig.reserved .ph { opacity: 0.55; }
-  .cap .kept { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .who .facts { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
 
-  /* Entrance: the masthead prints out of an invisible line; each figure
-     settles into place once. Nothing blurs, nothing bounces. */
-  .masthead .title { overflow: hidden; }
-  .masthead .title span { display: inline-block; }
-  @media (prefers-reduced-motion: no-preference) {
-    .fig .in, .masthead .in {
-      opacity: 0;
-      transform: translateY(16px);
-      animation: settle 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
-      animation-delay: var(--d, 0s);
-    }
-    .masthead .title span {
-      transform: translateY(112%);
-      animation: printline 0.85s cubic-bezier(0.16,1,0.3,1) 0.1s forwards;
-    }
+  /* List tabs, exactly the app's quiet row of words. */
+  nav.lists {
+    display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none;
+    padding: 18px 4px 10px;
   }
-  @keyframes settle { to { opacity: 1; transform: translateY(0); } }
-  /* Safety net: content is never hidden by a stalled animation. */
-  .shown .fig .in, .shown .masthead .in {
-    opacity: 1 !important; transform: none !important; animation: none !important;
+  nav.lists::-webkit-scrollbar { display: none; }
+  nav.lists button {
+    appearance: none; background: none; border: 0; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 400; color: var(--ink-soft);
+    padding: 6px 0; white-space: nowrap;
   }
-  .shown .masthead .title span { transform: none !important; animation: none !important; }
-  @keyframes printline { to { transform: translateY(0); } }
-
-  .cap {
-    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-    gap: 2px 12px;
-    padding-top: 7px;
-  }
-  .cap .name { flex: 1 1 auto; min-width: 0; }
-  .cap .price { margin-left: auto; }
-  .cap .name {
-    font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .cap .price {
-    font-size: 12px; font-weight: 400; color: var(--ink-soft);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
-  }
-  .cap .price.state { color: var(--accent); font-weight: 500; }
-  .cap .name { transition: color 0.18s ease; }
-  @media (hover: hover) {
-    .fig:hover .cap .name { color: var(--accent); }
-  }
-  .fig:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 4px; }
-  ::selection { background: var(--accent); color: rgb(247,247,245); }
-
-  /* The masthead lives ON the board, dragged like everything else */
-  .masthead { position: absolute; pointer-events: none; }
-  .masthead .title {
-    font-size: 84px; font-weight: 800; letter-spacing: -0.045em; line-height: 0.92;
-    text-transform: uppercase;
-  }
-  .masthead .sub {
-    margin-top: 14px;
-    font-size: 12px; font-weight: 400; color: var(--ink-soft);
-    letter-spacing: 0.01em;
-  }
-  .masthead .sub b { color: var(--accent); font-weight: 500; }
-
-  /* Fixed chrome: one quiet corner each */
-  .corner {
-    position: fixed; z-index: 2; pointer-events: none;
-    font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
-  }
-  .corner.brand { right: 26px; bottom: 22px; color: var(--accent); }
-  .corner.handle { right: 26px; top: 24px; color: var(--ink-soft); font-weight: 400; }
-
-  /* Index: the magazine's table of contents */
-  .indexBtn {
-    position: fixed; left: 26px; bottom: 22px; z-index: 3;
-    background: none; border: 0; padding: 0; cursor: pointer;
-    font: inherit; font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
-    color: var(--ink-soft);
-    transition: color 0.18s ease;
-  }
-  .indexBtn:hover { color: var(--accent); }
-
-  .overlay {
-    position: fixed; inset: 0; z-index: 10;
-    pointer-events: none;
-  }
-  .overlay .scrim {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.42);
-    opacity: 0; transition: opacity 0.3s ease;
-  }
-  .overlay.on { pointer-events: auto; }
-  .overlay.on .scrim { opacity: 1; }
-
-  .panel {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    max-width: 460px; margin: 0 auto;
-    background: var(--paper);
-    border-radius: 16px 16px 0 0;
-    padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
-    max-height: 62vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    transform: translateY(24px); opacity: 0;
-    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
-  }
-  @media (min-width: 700px) {
-    .panel { left: 26px; right: auto; bottom: 56px; width: 360px; border-radius: 14px; }
-  }
-  .overlay.on .panel { transform: translateY(0); opacity: 1; }
-  .panel .row {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
-    padding: 10px 0; cursor: pointer;
-  }
-  .panel .row .n {
-    font-size: 13px; font-weight: 500;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    transition: color 0.15s ease;
-  }
-  .panel .row:hover .n { color: var(--accent); }
-  .panel .row .p {
-    font-size: 12.5px; color: var(--ink-soft);
-    font-variant-numeric: tabular-nums; flex-shrink: 0;
-  }
-  .panel .row .p.state { color: var(--accent); font-weight: 500; }
-
-  /* The piece, opened in place */
-  .piece {
-    position: absolute; left: 50%; top: 50%;
-    transform: translate(-50%, -46%); opacity: 0;
-    width: min(420px, calc(100vw - 32px));
-    max-height: 86vh; overflow-y: auto;
-    background: var(--paper); border-radius: 16px; overflow: hidden;
-    transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
-  }
-  .overlay.on .piece { transform: translate(-50%, -50%); opacity: 1; }
-  .piece img {
-    width: 100%; display: block;
-    max-height: 52vh; object-fit: contain;
-    background: var(--paper-deep);
-  }
-  .piece .info { padding: 18px 22px 22px; }
-  .piece .nm { font-size: 16px; font-weight: 600; line-height: 1.3; }
-  .piece .pz { margin-top: 5px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-  .piece .pz.state { color: var(--accent); font-weight: 500; }
-  .piece .go {
-    margin-top: 16px; display: block; text-align: center;
-    background: var(--ink); color: var(--paper); text-decoration: none;
-    font-size: 13px; font-weight: 500; padding: 14px; border-radius: 999px;
-    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1);
-  }
-  .piece .go:active { transform: scale(0.985); }
-  button.go { width: 100%; border: 0; cursor: pointer; font-family: inherit; }
-  .piece .go.quiet {
-    margin-top: 4px; padding: 10px 0 0;
-    background: none; color: var(--ink-soft); font-weight: 400;
+  nav.lists button.on {
+    color: var(--ink); font-weight: 500;
     text-decoration: underline; text-underline-offset: 3px;
-    text-decoration-color: rgba(127,127,127,0.5);
   }
-  .piece .go.quiet:active { transform: none; }
-  .piece .resv input {
-    width: 100%; margin-top: 14px;
-    font: inherit; font-size: 14px; color: var(--ink);
-    background: none; border: 0; border-radius: 0;
-    border-bottom: 1px solid rgba(127,127,127,0.35);
-    padding: 10px 2px; outline: none; -webkit-appearance: none;
+
+  /* The masonry: the same balanced columns, the same cartel per card. */
+  #grid { display: flex; gap: 12px; align-items: flex-start; padding-top: 6px; }
+  .col { flex: 1 1 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06), inset 0 0 0 0.5px var(--hairline);
+    padding: 8px;
+    cursor: pointer;
+    opacity: 0; transform: translateY(10px);
+    animation: settle 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
   }
-  .piece .resv input::placeholder { color: var(--ink-soft); }
-  .piece .note { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
-  .piece .appline {
-    margin-top: 20px; padding-top: 14px;
-    border-top: 1px solid rgba(127,127,127,0.22);
-    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-    font-size: 12px; line-height: 1.45; color: var(--ink-soft);
+  @keyframes settle { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card { animation: none; opacity: 1; transform: none; } }
+  .card .ph {
+    border-radius: 14px; overflow: hidden; background: var(--paper-deep);
+    position: relative;
   }
-  .piece .appline a { color: var(--ink); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  .card .ph img { width: 100%; display: block; }
+  .card .ph .blank { width: 100%; padding-top: 110%; }
+  .card .cartel { padding: 10px 6px 8px; }
+  .card .store {
+    font-size: 9px; font-weight: 400; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card .nm {
+    font-family: Georgia, serif; font-size: 14px; font-weight: 400;
+    line-height: 1.25; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card .pz {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 13px; font-weight: 400; margin-top: 3px;
+  }
+  .card .kept { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+
+  /* The piece sheet: the app's product card, breath for breath. */
+  #piece {
+    position: fixed; inset: 0; display: none; z-index: 30;
+  }
+  #piece.on { display: block; }
+  #piece .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.34); }
+  #piece .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; top: max(28px, env(safe-area-inset-top));
+    background: var(--paper);
+    border-radius: 22px 22px 0 0;
+    overflow-y: auto; overscroll-behavior: contain;
+    animation: rise 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes rise { from { transform: translateY(24px); opacity: 0.4; } }
+  @media (min-width: 720px) {
+    #piece .sheet { left: 50%; transform: translateX(-50%); width: 560px; }
+  }
+  #piece .grab {
+    width: 38px; height: 4px; border-radius: 2px;
+    background: var(--hairline); margin: 10px auto 0;
+  }
+  #piece .photo {
+    margin: 14px 16px 0; border-radius: 18px; overflow: hidden;
+    background: var(--paper-deep);
+  }
+  #piece .photo img { width: 100%; display: block; }
+  #piece .info { padding: 22px 24px 40px; }
+  #piece .store {
+    font-size: 10px; font-weight: 400; letter-spacing: 1.6px;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  #piece .nm {
+    font-family: Georgia, serif; font-size: 24px; font-weight: 400;
+    line-height: 1.2; margin-top: 6px;
+  }
+  #piece .pz {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 17px; margin-top: 10px;
+  }
+  #piece .host { font-size: 12px; font-weight: 300; color: var(--ink-soft); margin-top: 4px; }
+  #piece .kept { font-size: 13px; font-weight: 300; color: var(--ink-soft); margin-top: 10px; }
+
+  /* One black bar for the main act, quiet underlined words below: the
+     museum grammar of the app's product card. */
+  .bar {
+    display: block; text-align: center; text-decoration: none;
+    background: var(--ink); color: var(--paper);
+    font-size: 13px; font-weight: 400;
+    padding: 15px 0; margin-top: 22px;
+  }
+  .bar:active { opacity: 0.85; }
+  .quiet-links { margin-top: 18px; display: flex; flex-direction: column; gap: 13px; }
+  .quiet-links a {
+    color: var(--ink); font-size: 13px; font-weight: 400;
+    text-decoration: underline; text-underline-offset: 2px;
+    align-self: flex-start;
+  }
+  .appline { margin-top: 22px; font-size: 11px; font-weight: 300; color: var(--ink-soft); }
+
+  footer.house {
+    margin-top: 44px; padding: 0 4px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  footer.house .mark {
+    font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: var(--accent);
+  }
+  footer.house a { color: var(--ink); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
 
   .empty {
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: var(--ink-soft); font-size: 13px;
-  }
-
-  @media (max-width: 700px) {
-    .masthead .title { font-size: 56px; }
+    color: var(--ink-soft); font-size: 14px; font-weight: 300;
   }
 </style>
 </head>
 <body>
-  <div id="board"><div id="sheet"><div id="world"></div></div></div>
-  <div class="corner handle" id="handle"></div>
-  <div class="corner brand">Wantd.</div>
-  <button class="indexBtn" id="indexBtn">Index</button>
-  <div class="overlay" id="indexOverlay"><div class="scrim"></div><div class="panel" id="indexPanel"></div></div>
-  <div class="overlay" id="pieceOverlay"><div class="scrim"></div><div class="piece" id="pieceCard"></div></div>
+<div id="app" hidden>
+  <header class="profile">
+    <div class="avatar" id="avatar"><span class="letter" id="avatarLetter"></span></div>
+    <div class="who">
+      <div class="name" id="whoName"></div>
+      <div class="facts" id="whoFacts"></div>
+    </div>
+  </header>
+  <nav class="lists" id="tabs"></nav>
+  <div id="grid"></div>
+  <footer class="house">
+    <span class="mark">Wantd.</span>
+    <a id="createOwn" href="#" target="_blank" rel="noopener">Create your own</a>
+  </footer>
+</div>
+
+<div id="piece">
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="photo" id="pPhoto"></div>
+    <div class="info" id="pInfo"></div>
+  </div>
+</div>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -277,490 +228,208 @@ function shopURL(u) {
 const HANDLE = new URLSearchParams(location.search).get("handle")
             || location.pathname.match(/@([\w-]+)/)?.[1];
 
+// Reserving writes to someone's wishlist, and the key that allows writes
+// cannot live in a public page — so reserving belongs to the app. The web
+// page reads, and sends you to the app to act.
+const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
+
 const SAMPLE = {
   profile: { name: "Agathe", handle: "wtd-agathe" },
   items: [
-    {
-        "name": "Eau Rihla",
-        "price": "255 €",
-        "img": "https://diptyqueparis.com/cdn/shop/files/diptyque-eau-rihla-eau-de-parfum-MEASTP75C_side.webp?v=1759147564%5Cu0026width=2048",
-        "url": "https://diptyqueparis.com/fr-fr/products/eau-de-parfum-eau-rihla-meastp75c?_gl=1*apyswi*_up*MQ..*_gs*MQ..&gclid=EAIaIQobChMIhvDRipeAlgMVT6JQBh3CDgG9EAAYASAAEgKaVPD_BwE&gbraid=0AAAAADEgS-jAQ_pm_A562idmulyAhT-gv",
-        "reserved": false
-    },
-    {
-        "name": "Heirloom Earrings in Snow",
-        "price": "IDR 59.940.000,00",
-        "img": "https://realfinestudio.com/cdn/shop/files/15_b_b1f4e1c0-e276-4a89-a368-a68b0a642bee.png?v=1760465604%5Cu0026width=1920",
-        "url": "https://realfinestudio.com/collections/earrings/products/heirloom-earrings?variant=45786887848125",
-        "reserved": false
-    },
-    {
-        "name": "Topshop - Bomber en imitation daim à col cheminée - Fauve",
-        "price": "€54,99",
-        "img": "https://images.asos-media.com/products/topshop-bomber-en-imitation-daim-a-col-cheminee-fauve/209098303-1-tan?$n_960w$",
-        "url": "https://www.asos.com/fr/prd/209098303",
-        "reserved": false
-    },
-    {
-        "name": "Delina La Rosée Eau de Parfum (30ml)",
-        "price": "175 €",
-        "img": "https://parfums-de-marly.com/cdn/shop/files/DELINA_LAROSEE-PERFUME-30-PACK1-1X1_CENTERED_e6d10cdd-4278-4718-a32d-9a0b6fb0aa4b.png?v=1759501422%5Cu0026width=1080",
-        "url": "https://parfums-de-marly.com/products/delina-la-rosee-30ml?variant=46968406671683",
-        "reserved": false
-    },
-    {
-        "name": "Black Ruches Nappa Leather Loafers",
-        "price": "$1.120",
-        "img": "https://www.miumiu.com/content/dam/miumiubkg_products/5/5D3/5D341E/EFXF0002/5D341E_EFX_F0002_F_D005_MDR.jpg",
-        "url": "https://www.miumiu.com/us/en/p/ruches-nappa-leather-loafers/5D341E_EFX_F0002_F_D005",
-        "reserved": false
-    },
-    {
-        "name": "Small shopping bag",
-        "price": "€6.200",
-        "img": "https://www.chanel.com/images/as///f_auto//-80644081.jpg",
-        "url": "https://www.chanel.com/be-nl/mode/p/AS6288B2424894305/small-shopping-bag-kaviaar-kalfsleer-goudkleurig-metaal/",
-        "reserved": false
-    },
-    {
-        "name": "AirWash™ dry shampoo 4oz",
-        "price": "$48.00",
-        "img": "https://www.k18hair.com/cdn/shop/files/Airwash_altimages_1650x2259_MAIN.jpg?v=1710849567&width=1024",
-        "url": "https://www.k18hair.com/products/airwash-dry-shampoo-4oz",
-        "reserved": false
-    },
-    {
-        "name": "LED Face Mask",
-        "price": "£399.99",
-        "img": "https://www.currentbody.com/cdn/shop/files/series_2_red_light_mask_face_on_2.png?v=1769185981%5Cu0026width=1920",
-        "url": "https://www.currentbody.com/products/currentbody-skin-led-light-therapy-mask?variant=51615071928703",
-        "reserved": false
-    },
-    {
-        "name": "Panthère de Cartier",
-        "price": "£29 000",
-        "img": "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
-        "url": "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053-panthre-de-cartier-small-18ct-yellow-gold-and-023ct-brilliant-cut-diamond-quartz-watch_R04267746/#colour=GOLD",
-        "reserved": false
-    },
-    {
-        "name": "London. Portrait of a City. TASCHEN Books. TASCHEN",
-        "price": "€60",
-        "img": "https://taschen.makaira.media/taschen/image/upload/f_webp,w_1200/v1693206866/products-live/8a0bd52af076d7a3db4d0d7c16a1cd3b.png",
-        "url": "https://www.taschen.com/en/books/photography/05753/london-portrait-of-a-city/",
-        "reserved": false
-    },
-    {
-        "name": "Tan Luxe - The Gradual - Lotion autobronzante effet rehausseur d'éclat - 250 ml",
-        "price": "27,99 €",
-        "img": "https://images.asos-media.com/products/tan-luxe-the-gradual-lotion-autobronzante-effet-rehausseur-declat-250-ml/9042817-1-gradual?$n_960w$",
-        "url": "https://www.asos.com/fr/prd/9042817?acquisitionsource=pasteboard",
-        "reserved": false
-    },
-    {
-        "name": "CARTIER - CRWJPN0053 Panthère de Cartier small 18ct yellow-gold and 0.23ct brilliant-cut diamond quartz watch",
-        "price": "£29000.00",
-        "img": "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
-        "url": "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053-panthre-de-cartier-small-18ct-yellow-gold-and-023ct-brilliant-cut-diamond-quartz-watch_R04267746/#colour=GOLD",
-        "reserved": false
-    },
-    {
-        "name": "PUMA - Speedcat - Baskets en satin - Marron chocolat",
-        "price": "€54,99",
-        "img": "https://images.asos-media.com/products/puma-speedcat-baskets-en-satin-marron-chocolat/209767177-1-brown?$n_960w$",
-        "url": "https://www.asos.com/fr/prd/209767177",
-        "reserved": false
-    },
-    {
-        "name": "Vanilla Skin Perfume",
-        "price": "$99.00",
-        "img": "https://phlur.com/cdn/shop/files/1-PHLUR_PDP_VanillaSkin_EDP_50ml_CapOn_450x450.jpg?v=1718657757",
-        "url": "https://phlur.com/products/vanilla-skin-perfume",
-        "reserved": false
-    },
-    {
-        "name": "the rhode kit",
-        "price": "$117.00",
-        "img": "https://www.rhodeskin.com/cdn/shop/files/rhodekitmainimage_1_1024x1024.png?v=1746036049",
-        "url": "https://www.rhodeskin.com/en-gb/products/full-rhode-kit",
-        "reserved": false
-    }
-],
+    { name: "Eau Rihla", price: "255 €", store: "Diptyque",
+      img: "https://diptyqueparis.com/cdn/shop/files/diptyque-eau-rihla-eau-de-parfum-MEASTP75C_side.webp?v=1759147564%5Cu0026width=2048",
+      url: "https://diptyqueparis.com/fr-fr/products/eau-de-parfum-eau-rihla-meastp75c" },
+    { name: "Heirloom Earrings in Snow", price: "IDR 59.940.000", store: "Realfine Studio",
+      img: "https://realfinestudio.com/cdn/shop/files/15_b_b1f4e1c0-e276-4a89-a368-a68b0a642bee.png?v=1760465604%5Cu0026width=1920",
+      url: "https://realfinestudio.com/collections/earrings/products/heirloom-earrings" },
+    { name: "Topshop - Bomber en imitation daim - Fauve", price: "€54,99", store: "ASOS",
+      img: "https://images.asos-media.com/products/topshop-bomber-en-imitation-daim-a-col-cheminee-fauve/209098303-1-tan?$n_960w$",
+      url: "https://www.asos.com/fr/prd/209098303" },
+    { name: "Delina La Rosée Eau de Parfum (30ml)", price: "175 €", store: "Parfums de Marly",
+      img: "https://parfums-de-marly.com/cdn/shop/files/DELINA_LAROSEE-PERFUME-30-PACK1-1X1_CENTERED_e6d10cdd-4278-4718-a32d-9a0b6fb0aa4b.png?v=1759501422%5Cu0026width=1080",
+      url: "https://parfums-de-marly.com/products/delina-la-rosee-30ml" },
+    { name: "Black Ruches Nappa Leather Loafers", price: "$1.120", store: "Miu Miu",
+      img: "https://www.miumiu.com/content/dam/miumiubkg_products/5/5D3/5D341E/EFXF0002/5D341E_EFX_F0002_F_D005_MDR.jpg",
+      url: "https://www.miumiu.com/us/en/p/ruches-nappa-leather-loafers/5D341E_EFX_F0002_F_D005" },
+    { name: "Small shopping bag", price: "€6.200", store: "Chanel",
+      img: "https://www.chanel.com/images/as///f_auto//-80644081.jpg",
+      url: "https://www.chanel.com/be-nl/mode/p/AS6288B2424894305/small-shopping-bag-kaviaar-kalfsleer-goudkleurig-metaal/" },
+    { name: "AirWash™ dry shampoo 4oz", price: "$48.00", store: "K18",
+      img: "https://www.k18hair.com/cdn/shop/files/Airwash_altimages_1650x2259_MAIN.jpg?v=1710849567&width=1024",
+      url: "https://www.k18hair.com/products/airwash-dry-shampoo-4oz" },
+    { name: "LED Face Mask", price: "£399.99", store: "CurrentBody",
+      img: "https://www.currentbody.com/cdn/shop/files/series_2_red_light_mask_face_on_2.png?v=1769185981%5Cu0026width=1920",
+      url: "https://www.currentbody.com/products/currentbody-skin-led-light-therapy-mask" },
+    { name: "Panthère de Cartier", price: "£29 000", store: "Selfridges",
+      img: "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
+      url: "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053_R04267746/" },
+    { name: "London. Portrait of a City.", price: "€60", store: "TASCHEN",
+      img: "https://taschen.makaira.media/taschen/image/upload/f_webp,w_1200/v1693206866/products-live/8a0bd52af076d7a3db4d0d7c16a1cd3b.png",
+      url: "https://www.taschen.com/en/books/photography/05753/london-portrait-of-a-city/" },
+    { name: "the rhode kit", price: "$117.00", store: "Rhode",
+      img: "https://www.rhodeskin.com/cdn/shop/files/rhodekitmainimage_1_1024x1024.png?v=1746036049",
+      url: "https://www.rhodeskin.com/en-gb/products/full-rhode-kit" }
+  ]
 };
 
 // ---------------------------------------------------------------------------
-// An exploded magazine spread: a giant masthead and flat photographs, laid on
-// one endless sheet of paper. Straight, precise, generous gutters.
+// The render: the app's own profile screen, rebuilt in HTML. Header, list
+// tabs, balanced masonry, and the product sheet with its black Shop bar —
+// so ordering a gift from this link asks nothing of anyone (SED, 2026-08-30).
 // ---------------------------------------------------------------------------
-function buildTile(profile, items) {
-  const small = Math.min(innerWidth, innerHeight) < 700;
-  const W = small ? 168 : 236;
-  const GAP_X = small ? 12 : 18;
-  const GAP_Y = small ? 18 : 26;
-  const CAPTION = 28;
-  const MAST_H = small ? 150 : 208;
+let ALL = [], LISTS = [], CURRENT = "all";
 
-  // The sheet must be wider and taller than the viewport, otherwise the
-  // neighbouring copy shows the same piece beside itself.
-  const COLS = Math.max(small ? 4 : 5,
-                        Math.ceil((innerWidth * 1.7) / (W + GAP_X)));
-  const targetH = innerHeight * 1.7;
+function startPage(profile, items, lists) {
+  ALL = items; LISTS = lists || [];
+  document.getElementById("app").hidden = false;
 
-  // Deterministic shuffle. Pieces that are the same PRODUCT (saved twice
-  // from two shops, or literal repeats) share a family, and a family never
-  // appears twice within one row of itself.
-  let seed = 20260802;
-  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
-
-  const tokens = items.map(it => new Set(
-    it.name.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .split(/[^a-z0-9]+/)
-      .filter(w => w.length > 2 && !["the","and","les","des","une","pour"].includes(w))
-  ));
-  const family = items.map((_, i) => i);
-  const find = (a) => family[a] === a ? a : (family[a] = find(family[a]));
-  for (let a = 0; a < items.length; a++) {
-    for (let b = a + 1; b < items.length; b++) {
-      let shared = 0;
-      tokens[a].forEach(t => { if (tokens[b].has(t)) shared++; });
-      if (shared >= 2) family[find(a)] = find(b);
-    }
+  const avatar = document.getElementById("avatar");
+  if (profile.avatar) {
+    const img = new Image(); img.src = profile.avatar; img.alt = "";
+    avatar.replaceChildren(img);
+  } else {
+    document.getElementById("avatarLetter").textContent =
+      (profile.name || "?").trim().charAt(0).toUpperCase();
   }
+  document.getElementById("whoName").textContent = profile.name;
+  document.getElementById("whoFacts").textContent =
+    "@" + profile.handle + " · " + items.length + (items.length === 1 ? " want" : " wants");
+  document.getElementById("createOwn").href = APP_STORE_URL;
 
-  function sequence(minCount) {
-    const seq = [];
-    let pool = [];
-    while (seq.length < minCount) {
-      if (!pool.length) {
-        pool = items.map((it, i) => ({ it, i }));
-        for (let k = pool.length - 1; k > 0; k--) {
-          const j = Math.floor(rnd() * (k + 1));
-          [pool[k], pool[j]] = [pool[j], pool[k]];
-        }
-      }
-      const recent = new Set(seq.slice(-(COLS + 1)).map(e => find(e.i)));
-      let pick = pool.findIndex(e => !recent.has(find(e.i)));
-      if (pick < 0) pick = 0;
-      seq.push(pool.splice(pick, 1)[0]);
-    }
-    return seq;
+  const tabs = document.getElementById("tabs");
+  tabs.replaceChildren();
+  const mk = (label, key) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.dataset.key = key;
+    if (key === CURRENT) b.classList.add("on");
+    b.addEventListener("click", () => { CURRENT = key; renderTabs(); renderGrid(); });
+    tabs.append(b);
+  };
+  mk("All", "all");
+  for (const l of LISTS) mk(l.name, l.uuid);
+  if (LISTS.length === 0) tabs.style.display = "none";
+
+  function renderTabs() {
+    for (const b of tabs.querySelectorAll("button"))
+      b.classList.toggle("on", b.dataset.key === CURRENT);
   }
+  renderGrid();
+}
 
-  // Rough pass to learn the column height, then build for real.
-  const avgRow = W * 1.15 + CAPTION + GAP_Y;
-  const perCol = Math.max(Math.ceil(items.length / COLS),
-                          Math.ceil(targetH / avgRow));
-  const seq = sequence(perCol * COLS);
+function visibleItems() {
+  if (CURRENT === "all") return ALL;
+  return ALL.filter(it => (it.listIDs || []).includes(CURRENT));
+}
 
-  const tile = document.createElement("div");
-  tile.className = "tile";
-  const placements = {};
-
-  const mast = document.createElement("div");
-  mast.className = "masthead";
-  mast.style.transform = "translate(0px, 0px)";
-  mast.style.width = (2 * W + GAP_X) + "px";
-  mast.innerHTML =
-    `<div class="in" style="--d:0s">` +
-    `<div class="title"><span>${profile.name}</span></div>` +
-    `<div class="sub"><b>Wishlist</b>, ${items.length} ${items.length === 1 ? "want" : "wants"}</div>` +
-    `</div>`;
-  tile.append(mast);
-
-  const colY = new Array(COLS).fill(0).map((_, c) =>
-    c < 2 ? MAST_H : (c % 2 ? W * 0.34 : W * 0.12));
-
-  seq.forEach((entry, i) => {
-    const it = entry.it;
-    const col = i % COLS;
-    const x = col * (W + GAP_X);
-    const y = colY[col];
-    colY[col] = y + W * it.ratio + CAPTION + GAP_Y;
-
-    const fig = document.createElement(it.url ? "a" : "figure");
-    if (it.url) {
-      fig.href = shopURL(it.url);
-      fig.target = "_blank";
-      fig.rel = "noopener";
-      fig.draggable = false;
-    }
-    fig.className = "fig" + (it.reserved ? " reserved" : "");
-    fig.dataset.idx = entry.i;
-    fig.style.width = W + "px";
-    fig.style.transform = `translate(${x}px, ${y}px)`;
-    if (!(entry.i in placements)) placements[entry.i] = { x, y };
-    const diag = (col + Math.floor(i / COLS));
-    fig.style.setProperty("--d", (0.18 + diag * 0.05).toFixed(2) + "s");
-
+function renderGrid() {
+  const grid = document.getElementById("grid");
+  grid.replaceChildren();
+  const items = visibleItems();
+  const nCols = innerWidth >= 720 ? 3 : 2;
+  const cols = [];
+  const heights = [];
+  for (let c = 0; c < nCols; c++) {
+    const col = document.createElement("div");
+    col.className = "col";
+    grid.append(col);
+    cols.push(col); heights.push(0);
+  }
+  items.forEach((it, i) => {
+    const c = heights.indexOf(Math.min(...heights));
+    heights[c] += (it.ratio || 1.2) + 0.32;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.animationDelay = Math.min(i * 0.03, 0.45) + "s";
     const ph = document.createElement("div"); ph.className = "ph";
     if (it.img) {
-      const img = new Image(); img.src = it.img; img.alt = it.name; ph.append(img);
+      const img = new Image(); img.src = it.img; img.alt = it.name; img.loading = "lazy";
+      ph.append(img);
     } else {
-      const b = document.createElement("div"); b.className = "block";
-      b.style.paddingBottom = (it.ratio * 100) + "%"; b.style.background = it.tone;
-      ph.append(b);
+      const blank = document.createElement("div"); blank.className = "blank";
+      ph.append(blank);
     }
-    const cap = document.createElement("figcaption"); cap.className = "cap";
-    const nm = document.createElement("span"); nm.className = "name"; nm.textContent = it.name;
-    const pr = document.createElement("span");
-    pr.className = "price" + (it.reserved ? " state" : "");
-    pr.textContent = it.reserved ? "Reserved" : (it.price || "");
-    cap.append(nm, pr);
+    const cartel = document.createElement("div"); cartel.className = "cartel";
+    if (it.store) {
+      const s = document.createElement("div"); s.className = "store";
+      s.textContent = it.store; cartel.append(s);
+    }
+    const nm = document.createElement("div"); nm.className = "nm serif";
+    nm.textContent = it.name; cartel.append(nm);
+    if (it.price) {
+      const pz = document.createElement("div"); pz.className = "pz";
+      pz.textContent = it.price; cartel.append(pz);
+    }
     if (it.keptWith) {
-      const kw = document.createElement("span");
-      kw.className = "kept";
-      kw.textContent = "Kept with " + it.keptWith;
-      cap.append(kw);
+      const k = document.createElement("div"); k.className = "kept";
+      k.textContent = "Kept with " + it.keptWith; cartel.append(k);
     }
-    const inner = document.createElement("div");
-    inner.className = "in";
-    inner.append(ph, cap);
-    fig.append(inner);
-    tile.append(fig);
+    card.append(ph, cartel);
+    card.addEventListener("click", () => openPiece(it));
+    cols[c].append(card);
   });
+}
 
-  return {
-    tile,
-    tileW: COLS * (W + GAP_X),
-    tileH: Math.max(...colY) + GAP_Y,
-    W,
-    placements,
+function openPiece(it) {
+  let host = "";
+  try { host = new URL(it.url).hostname.replace(/^www\./, ""); } catch {}
+
+  const photo = document.getElementById("pPhoto");
+  photo.replaceChildren();
+  if (it.img) { const img = new Image(); img.src = it.img; img.alt = it.name; photo.append(img); }
+
+  const info = document.getElementById("pInfo");
+  info.replaceChildren();
+  const add = (cls, text, serif) => {
+    const d = document.createElement("div");
+    d.className = cls + (serif ? " serif" : "");
+    d.textContent = text;
+    info.append(d);
+    return d;
   };
+  if (it.store) add("store", it.store);
+  add("nm", it.name, true);
+  if (it.price) add("pz", it.price, true);
+  if (host) add("host", host);
+  if (it.keptWith) add("kept", "A gift here pleases " + it.keptWith + " too.");
+
+  if (it.url) {
+    const bar = document.createElement("a");
+    bar.className = "bar"; bar.href = shopURL(it.url);
+    bar.target = "_blank"; bar.rel = "noopener";
+    bar.textContent = "Shop";
+    info.append(bar);
+  }
+
+  const links = document.createElement("div"); links.className = "quiet-links";
+  const rs = document.createElement("a");
+  rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
+  rs.textContent = "Reserve this gift in Wantd";
+  links.append(rs);
+  info.append(links);
+
+  const line = document.createElement("div"); line.className = "appline";
+  line.textContent = "Reserving and group gifts live in the Wantd app.";
+  info.append(line);
+
+  document.getElementById("piece").classList.add("on");
+  document.querySelector("#piece .sheet").scrollTop = 0;
 }
 
-function startBoard(profile, items) {
-  document.getElementById("handle").textContent = "@" + profile.handle;
+document.querySelector("#piece .scrim").addEventListener("click",
+  () => document.getElementById("piece").classList.remove("on"));
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.getElementById("piece").classList.remove("on");
+});
+addEventListener("resize", () => {
+  clearTimeout(window.__rgt);
+  window.__rgt = setTimeout(renderGrid, 150);
+});
 
-  const world = document.getElementById("world");
-  let tileW = 1, tileH = 1, cardW = 1, placements = {};
-
-  // Build enough copies to cover the CURRENT viewport (plus a margin ring),
-  // and rebuild whenever it changes; the modulo render does the rest.
-  function layout() {
-    world.replaceChildren();
-    const built = buildTile(profile, items);
-    tileW = built.tileW; tileH = built.tileH;
-    cardW = built.W; placements = built.placements;
-    const nx = Math.ceil(innerWidth / tileW) + 2;
-    const ny = Math.ceil(innerHeight / tileH) + 2;
-    for (let dx = -1; dx < nx - 1; dx++) for (let dy = -1; dy < ny - 1; dy++) {
-      const t = (dx === 0 && dy === 0) ? built.tile : built.tile.cloneNode(true);
-      t.style.transform = `translate(${dx * tileW}px, ${dy * tileH}px)`;
-      world.append(t);
-    }
-  }
-  layout();
-  // If the entrance never got to run (throttled tab, blocked animations),
-  // reveal everything rather than show an empty sheet.
-  setTimeout(() => {
-    const probe = document.querySelector(".fig .in");
-    if (probe && parseFloat(getComputedStyle(probe).opacity) < 0.9) {
-      document.body.classList.add("shown");
-    }
-  }, 1800);
-  let resizeTimer;
-  addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(layout, 180);
-  });
-
-  // Opening framing: the masthead sits in the upper left, breathing.
-  let tx = 40, ty = 60;          // target (the hand)
-  let rx = tx, ry = ty;          // rendered (eased toward the hand)
-  let vx = 0, vy = 0;            // release momentum
-  let downX = 0, downY = 0, downT = 0, moved = 0;
-  let dragging = false, lastX = 0, lastY = 0, lastT = 0;
-  const board = document.getElementById("board");
-  const mod = (v, m) => ((v % m) + m) % m;
-  let interacted = false;
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  board.addEventListener("pointerdown", (e) => {
-    dragging = true; board.classList.add("grabbing");
-    lastX = downX = e.clientX; lastY = downY = e.clientY;
-    lastT = downT = performance.now();
-    moved = 0;
-    vx = vy = 0;
-    hint.classList.add("gone");
-  });
-  board.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    const now = performance.now(), dt = Math.max(1, now - lastT);
-    const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    tx += dx; ty += dy;
-    vx = vx * 0.4 + (dx / dt * 16) * 0.6;
-    vy = vy * 0.4 + (dy / dt * 16) * 0.6;
-    lastX = e.clientX; lastY = e.clientY; lastT = now;
-    moved = Math.max(moved, Math.hypot(e.clientX - downX, e.clientY - downY));
-    if (moved > 6 && !board.hasPointerCapture(e.pointerId)) {
-      board.setPointerCapture(e.pointerId);
-    }
-  });
-  const release = () => { dragging = false; board.classList.remove("grabbing"); };
-  board.addEventListener("pointercancel", release);
-  board.addEventListener("pointerup", release);
-  // A still hand on a piece is a visit; a wander is not a click.
-  board.addEventListener("click", (e) => {
-    if (moved > 6) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
-
-  board.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    tx -= e.deltaX; ty -= e.deltaY;
-    interacted = true;
-  }, { passive: false });
-
-  // The only clock: eases the sheet toward the hand and carries momentum.
-  (function frame() {
-    if (!dragging && (Math.abs(vx) > 0.04 || Math.abs(vy) > 0.04)) {
-      tx += vx; ty += vy;
-      vx *= 0.93; vy *= 0.93;
-    }
-    const ease = reduce ? 1 : 0.22;
-    rx += (tx - rx) * ease;
-    ry += (ty - ry) * ease;
-    world.style.transform =
-      `translate3d(${mod(rx, tileW) - tileW}px, ${mod(ry, tileH) - tileH}px, 0)`;
-
-    requestAnimationFrame(frame);
-  })();
-
-  // --- The index: the wishlist's table of contents -------------------------
-  const indexBtn = document.getElementById("indexBtn");
-  const indexOverlay = document.getElementById("indexOverlay");
-  const indexPanel = document.getElementById("indexPanel");
-  const pieceOverlay = document.getElementById("pieceOverlay");
-  const pieceCard = document.getElementById("pieceCard");
-
-  items.forEach((it, i) => {
-    const row = document.createElement("div");
-    row.className = "row";
-    const n = document.createElement("span"); n.className = "n"; n.textContent = it.name;
-    const pr = document.createElement("span");
-    pr.className = "p" + (it.reserved ? " state" : "");
-    pr.textContent = it.reserved ? "Reserved" : (it.price || "");
-    row.append(n, pr);
-    row.addEventListener("click", () => {
-      indexOverlay.classList.remove("on");
-      glideTo(i);
-    });
-    indexPanel.append(row);
-  });
-
-  indexBtn.addEventListener("click", () => indexOverlay.classList.add("on"));
-  indexOverlay.querySelector(".scrim").addEventListener("click", () => indexOverlay.classList.remove("on"));
-  pieceOverlay.querySelector(".scrim").addEventListener("click", () => pieceOverlay.classList.remove("on"));
-  addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { indexOverlay.classList.remove("on"); pieceOverlay.classList.remove("on"); }
-  });
-
-  // Bring a piece to the center of the screen, by the shortest road.
-  function glideTo(i) {
-    const pl = placements[i];
-    if (!pl) return;
-    interacted = true;
-    vx = vy = 0;
-    const baseX = (innerWidth - cardW) / 2 - pl.x;
-    const baseY = innerHeight * 0.42 - pl.y;
-    tx = baseX + Math.round((rx - baseX) / tileW) * tileW;
-    ty = baseY + Math.round((ry - baseY) / tileH) * tileH;
-  }
-
-  // --- The piece, opened in place ------------------------------------------
-  // Reserving writes to someone's wishlist, and the key that allows writes
-  // cannot live in a public page — so reserving belongs to the app. The web
-  // page reads, and sends you to the app to act.
-  // Fill this in once the app is on the App Store; until then the card says
-  // so plainly rather than offering a dead link.
-  const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
-
-  function openPiece(idx) {
-    const it = items[idx];
-    let host = "";
-    try { host = new URL(it.url).hostname.replace(/^www\./, ""); } catch {}
-    pieceCard.replaceChildren();
-    if (it.img) {
-      const img = new Image(); img.src = it.img; img.alt = it.name;
-      pieceCard.append(img);
-    }
-    const info = document.createElement("div"); info.className = "info";
-    pieceCard.append(info);
-
-    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = it.name;
-    const pz = document.createElement("div");
-    pz.className = "pz" + (it.reserved ? " state" : "");
-    pz.textContent = it.reserved ? "Reserved" : (it.price || "");
-    info.append(nm, pz);
-
-    if (it.reserved) {
-      const note = document.createElement("div"); note.className = "note";
-      note.textContent = "Someone has already reserved this gift.";
-      info.append(note);
-    } else if (APP_STORE_URL) {
-      const rs = document.createElement("a");
-      rs.className = "go"; rs.href = APP_STORE_URL;
-      rs.target = "_blank"; rs.rel = "noopener";
-      rs.textContent = "Reserve in the app";
-      info.append(rs);
-    }
-
-    if (it.url) {
-      const go = document.createElement("a");
-      go.className = "go quiet"; go.href = shopURL(it.url); go.target = "_blank"; go.rel = "noopener";
-      go.textContent = host ? "View at " + host : "View the piece";
-      info.append(go);
-    }
-
-    const appline = document.createElement("div"); appline.className = "appline";
-    const at = document.createElement("span");
-    // The button above already carries the link, so this line stays a line.
-    at.textContent = APP_STORE_URL
-      ? "Group gifts and your own list live in Wantd."
-      : "Reserving and group gifts happen in the Wantd app, coming soon.";
-    appline.append(at);
-    info.append(appline);
-
-    pieceOverlay.classList.add("on");
-  }
-
-  board.addEventListener("click", (e) => {
-    const fig = e.target.closest ? e.target.closest(".fig") : null;
-    if (!fig) return;
-    e.preventDefault();
-    openPiece(+fig.dataset.idx);
-  });
-
-  // --- Guided arrival: one slow half-screen drift, then stillness ----------
-  if (!reduce) {
-    setTimeout(() => {
-      if (interacted) return;
-      const dur = 2000, dx = -Math.min(innerWidth * 0.5, 340), dy = -90;
-      const t0 = performance.now();
-      let applied = 0;
-      (function driftStep(now) {
-        if (interacted) return;
-        const pct = Math.min(1, (now - t0) / dur);
-        const eased = 0.5 - 0.5 * Math.cos(Math.PI * pct);
-        tx += dx * (eased - applied);
-        ty += dy * (eased - applied);
-        applied = eased;
-        if (pct < 1) requestAnimationFrame(driftStep);
-      })(t0);
-    }, 1500);
-  }
-}
-
-// Real product images: measure natural ratios before laying the board out.
-// Only the DIMENSIONS are needed, and the browser knows them from the first
-// bytes of the file — poll naturalWidth instead of waiting for full loads,
-// so the board appears in a fraction of the download time.
+// Real product images: measure natural ratios before laying the grid out.
 function preload(items) {
   return Promise.all(items.map(it => new Promise(resolve => {
-    if (!it.img) { resolve({ ...it, ratio: 1.2, tone: "#DDD9D2" }); return; }
+    if (!it.img) { resolve({ ...it, ratio: 1.2 }); return; }
     const img = new Image();
     let settled = false;
     const done = (ratio) => {
@@ -782,7 +451,7 @@ function preload(items) {
       if (settled) return;
       settled = true;
       clearInterval(poll); clearTimeout(timer);
-      resolve({ ...it, img: null, ratio: 1.2, tone: "#DDD9D2" });
+      resolve({ ...it, img: null, ratio: 1.2 });
     };
     img.src = it.img;
   })));
@@ -834,17 +503,19 @@ async function loadWishlist(handle) {
   const pf = prof.fields;
   const profile = {
     name: pf.displayName?.value || handle,
-    handle: pf.handle?.value || handle
+    handle: pf.handle?.value || handle,
+    avatar: pf.avatarAsset?.value?.downloadURL?.replace("${f}", "avatar") || null
   };
 
   // Which of her lists are private. A private list is where people put the
   // things they are a little ashamed of wanting, and nobody is ever meant to
   // see it: not a friend, not a stranger with the link (Agathe, 2026-08-28).
-  // The board had no idea private lists existed and published them.
   const privateLists = new Set();
   // Co-owned lists live on every member's board: the other members' pieces
   // on her shared, PUBLIC lists join it (SED-598). Private ones never do.
   const sharedPublicLists = new Set();
+  // Public lists become the page's tabs, exactly the app's own row.
+  const publicLists = [];
   try {
     const listRes = await ckQuery({
       recordType: "List",
@@ -854,8 +525,10 @@ async function loadWishlist(handle) {
     for (const r of (listRes.records || []).filter(r => !r.serverErrorCode)) {
       const uuid = r.fields.listUUID?.value;
       if (!uuid) continue;
-      if ((r.fields.isPrivate?.value ?? 0) === 1) privateLists.add(uuid);
-      else if ((r.fields.memberIDs?.value || []).length) sharedPublicLists.add(uuid);
+      if ((r.fields.isPrivate?.value ?? 0) === 1) { privateLists.add(uuid); continue; }
+      publicLists.push({ uuid, name: r.fields.name?.value || "List",
+                         main: (r.fields.isMain?.value ?? 0) === 1 });
+      if ((r.fields.memberIDs?.value || []).length) sharedPublicLists.add(uuid);
     }
   } catch (e) {
     // A lookup we could not perform must never be read as "nothing is
@@ -872,9 +545,14 @@ async function loadWishlist(handle) {
     });
     for (const r of (joined.records || []).filter(r => !r.serverErrorCode)) {
       const uuid = r.fields.listUUID?.value;
-      if (uuid && (r.fields.isPrivate?.value ?? 0) !== 1) sharedPublicLists.add(uuid);
+      if (uuid && (r.fields.isPrivate?.value ?? 0) !== 1) {
+        sharedPublicLists.add(uuid);
+        if (!publicLists.some(l => l.uuid === uuid))
+          publicLists.push({ uuid, name: r.fields.name?.value || "List", main: false });
+      }
     }
   } catch (e) { /* incomplete, not leaky */ }
+  publicLists.sort((a, b) => (b.main - a.main) || a.name.localeCompare(b.name));
 
   // Who keeps each shared list, so every shared card can say so: a gift on a
   // co-owned list pleases two people, and the giver deserves to know it
@@ -904,8 +582,8 @@ async function loadWishlist(handle) {
         recordType: "Profile",
         filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: id } }]
       });
-      const prof = (res.records || []).filter(r => !r.serverErrorCode)[0];
-      if (prof) names.set(id, prof.fields.displayName?.value || prof.fields.handle?.value || "");
+      const p = (res.records || []).filter(r => !r.serverErrorCode)[0];
+      if (p) names.set(id, p.fields.displayName?.value || p.fields.handle?.value || "");
     }
     for (const [uuid, ids] of memberIDsByList) {
       const label = ids.map(id => names.get(id)).filter(Boolean).join(", ");
@@ -949,30 +627,21 @@ async function loadWishlist(handle) {
         name: f.name?.value || "",
         // Same rule as the app: when the numeric amount and its currency are
         // known, format them for the reader; otherwise fall back to the string
-        // scraped from the shop. The board used to always show the raw string,
-        // so the same piece read "37.99 €" in the app and "€37,99" here
-        // (Agathe, 2026-08-28).
-        //
-        // Deliberately no parsing of the scraped string: "£29.000" is
-        // twenty-nine thousand pounds and "37,99" is thirty-seven, and getting
-        // that wrong on a gift list is worse than an uneven format.
+        // scraped from the shop (2026-08-28). Deliberately no parsing of the
+        // scraped string: "£29.000" is twenty-nine thousand pounds.
         price: formatPrice(f.priceAmount?.value, f.priceCurrency?.value,
                            f.priceText?.value || ""),
+        store: f.store?.value || f.brand?.value || "",
         img,
         url: f.urlString?.value || "",
+        listIDs: (f.listIDs?.value || []).filter(id => !privateLists.has(id)),
         // The board never reveals a reservation. The owner opens her own
         // link too, and reading "Reserved" on her own gift is exactly the
-        // surprise we promise to keep (2026-08-24). Reserving lives in the
-        // app, where the owner is the one person who cannot see it.
-        reserved: false,
-        // She marked it as already hers. It leaves the public board exactly
-        // as it leaves her wishlist in the app: the board counted 46 where
-        // the app counted 43, and kept offering three things she owns
-        // (Agathe, 2026-08-28).
-        //
-        // Only "purchased" is dropped, never "reserved": a reservation is a
-        // friend's secret, and making that piece vanish would reveal by its
-        // absence exactly what this whole app is built to hide.
+        // surprise we promise to keep (2026-08-24).
+        // She marked it as already hers: it leaves the public board exactly
+        // as it leaves her wishlist in the app (2026-08-28). Only
+        // "purchased" is dropped, never "reserved": a reservation is a
+        // friend's secret, and a vanished piece would reveal it by absence.
         spoiled: (f.status?.value || "") === "purchased",
         // The co-owned list this piece sits on, if any: its card says so.
         keptWith: (f.listIDs?.value || []).map(id => sharedWith.get(id)).find(Boolean) || null,
@@ -982,13 +651,15 @@ async function loadWishlist(handle) {
         hidden: (() => {
           const ids = f.listIDs?.value || [];
           return ids.length > 0 && ids.every(id => privateLists.has(id));
-        })(),
-        recordName: r.recordName
+        })()
       };
     })
     .filter(it => it.name && !it.spoiled && !it.hidden);
   if (!items.length) throw new Error("no items");
-  return { profile, items };
+
+  // Tabs only for lists that actually show something.
+  const lists = publicLists.filter(l => items.some(it => (it.listIDs || []).includes(l.uuid)));
+  return { profile, items, lists };
 }
 
 function showEmpty() {
@@ -997,12 +668,13 @@ function showEmpty() {
 }
 
 if (!HANDLE) {
-  preload(SAMPLE.items).then(items => startBoard(SAMPLE.profile, items));
+  preload(SAMPLE.items).then(items => startPage(SAMPLE.profile, items, []));
 } else if (CK.token.startsWith("__")) {
   showEmpty();
 } else {
   loadWishlist(HANDLE)
-    .then(({ profile, items }) => preload(items).then(loaded => startBoard(profile, loaded)))
+    .then(({ profile, items, lists }) =>
+      preload(items).then(loaded => startPage(profile, loaded, lists)))
     .catch(showEmpty);
 }
 </script>
