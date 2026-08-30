@@ -307,8 +307,11 @@ function startPage(profile, items, lists) {
     tabs.append(b);
   };
   mk("All", "all");
-  for (const l of LISTS) mk(l.name, l.uuid);
-  if (LISTS.length === 0) tabs.style.display = "none";
+  // The Main list is the invisible default drawer: All is its only face,
+  // and only NAMED lists earn a tab (same rule as the app, 2026-08-30).
+  const named = LISTS.filter(l => !l.main);
+  for (const l of named) mk(l.name, l.uuid);
+  if (named.length === 0) tabs.style.display = "none";
 
   function renderTabs() {
     for (const b of tabs.querySelectorAll("button"))
