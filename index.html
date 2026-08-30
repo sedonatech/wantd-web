@@ -232,6 +232,9 @@ const HANDLE = new URLSearchParams(location.search).get("handle")
 // cannot live in a public page — so reserving belongs to the app. The web
 // page reads, and sends you to the app to act.
 const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
+// The reservation worker (SED-609): blank until deployed; the page behaves
+// exactly as before while it is.
+const RESERVE_API = "";
 
 const SAMPLE = {
   profile: { name: "Agathe", handle: "wtd-agathe" },
@@ -407,18 +410,97 @@ function openPiece(it) {
   }
 
   const links = document.createElement("div"); links.className = "quiet-links";
-  const rs = document.createElement("a");
-  rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
-  rs.textContent = "Reserve this gift in Wantd";
-  links.append(rs);
+  if (RESERVE_API && it.recordName) {
+    buildReserveFlow(links, it);
+  } else {
+    const rs = document.createElement("a");
+    rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
+    rs.textContent = "Reserve this gift in Wantd";
+    links.append(rs);
+  }
   info.append(links);
 
   const line = document.createElement("div"); line.className = "appline";
-  line.textContent = "Reserving and group gifts live in the Wantd app.";
+  line.textContent = RESERVE_API
+    ? "Group gifts live in the Wantd app."
+    : "Reserving and group gifts live in the Wantd app.";
   info.append(line);
 
   document.getElementById("piece").classList.add("on");
   document.querySelector("#piece .sheet").scrollTop = 0;
+}
+
+// Reserving from the web, with just a first name (SED-609). The board
+// itself never shows who reserved what — the owner reads her own link, and
+// the surprise is the product. The truth only answers the person ABOUT to
+// reserve: "someone already took this one."
+function buildReserveFlow(container, it) {
+  const key = "wantd.reserved." + it.recordName;
+  const box = document.createElement("div");
+  container.append(box);
+  const api = (p, b) => fetch(RESERVE_API + p, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(b)
+  }).then(r => r.json()).catch(() => ({ error: "net" }));
+
+  const link = (text, fn) => {
+    const a = document.createElement("a");
+    a.href = "#"; a.textContent = text;
+    a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
+    return a;
+  };
+  const note = (text) => {
+    const d = document.createElement("div");
+    d.className = "appline"; d.style.marginTop = "4px";
+    d.textContent = text;
+    return d;
+  };
+
+  function render() {
+    box.replaceChildren();
+    const mine = localStorage.getItem(key);
+    if (mine) {
+      box.append(link("You reserved this. Tap to undo", async (a) => {
+        a.textContent = "One moment…";
+        const r = await api("/unreserve", { itemID: it.recordName, token: mine });
+        localStorage.removeItem(key);
+        box.replaceChildren(note(r.ok ? "Reservation removed." : "This reservation was not yours to undo."));
+      }));
+      return;
+    }
+    box.append(link("Reserve this gift", () => {
+      box.replaceChildren();
+      const form = document.createElement("form");
+      form.style.cssText = "display:flex;gap:8px;align-items:stretch";
+      const input = document.createElement("input");
+      input.placeholder = "Your name";
+      input.maxLength = 30;
+      input.autocomplete = "off";
+      input.style.cssText = "flex:1;min-width:0;font:inherit;font-size:14px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
+      const go = document.createElement("button");
+      go.textContent = "Reserve";
+      go.style.cssText = "font:inherit;font-size:13px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
+      form.append(input, go);
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = input.value.trim();
+        if (!name) { input.focus(); return; }
+        go.textContent = "…"; go.disabled = true;
+        const r = await api("/reserve", { itemID: it.recordName, name });
+        if (r.ok) {
+          localStorage.setItem(key, r.token);
+          box.replaceChildren(note("Reserved. Nobody else will offer it."));
+        } else if (r.error === "taken") {
+          box.replaceChildren(note("Someone already reserved this one."));
+        } else {
+          box.replaceChildren(note("That did not go through. Try again in a moment."));
+        }
+      });
+      box.append(form);
+      input.focus();
+    }));
+  }
+  render();
 }
 
 document.querySelector("#piece .scrim").addEventListener("click",
@@ -712,7 +794,8 @@ async function loadWishlist(handle) {
         hidden: (() => {
           const ids = f.listIDs?.value || [];
           return ids.length > 0 && ids.every(id => privateLists.has(id));
-        })()
+        })(),
+        recordName: r.recordName
       };
     })
     .filter(it => it.name && !it.spoiled && !it.hidden);
