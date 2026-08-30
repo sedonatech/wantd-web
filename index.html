@@ -487,10 +487,10 @@ function buildReserveFlow(container, it) {
       input.placeholder = "Your name";
       input.maxLength = 30;
       input.autocomplete = "off";
-      input.style.cssText = "flex:1;min-width:0;font:inherit;font-size:14px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
+      input.style.cssText = "flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
       const go = document.createElement("button");
       go.textContent = "Reserve";
-      go.style.cssText = "font:inherit;font-size:13px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
+      go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
       form.append(input, go);
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
