@@ -95,7 +95,7 @@
     border-radius: 14px; overflow: hidden; background: var(--paper-deep);
     position: relative;
   }
-  .card .ph img { width: 100%; display: block; }
+  .card .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .card .ph .blank { width: 100%; padding-top: 110%; }
   .card .cartel { padding: 10px 6px 8px; }
   .card .store {
@@ -327,6 +327,7 @@ function renderGrid() {
   grid.replaceChildren();
   const items = visibleItems();
   const nCols = innerWidth >= 720 ? 3 : 2;
+  lastCols = nCols;
   const cols = [];
   const heights = [];
   for (let c = 0; c < nCols; c++) {
@@ -342,6 +343,7 @@ function renderGrid() {
     card.className = "card";
     card.style.animationDelay = Math.min(i * 0.03, 0.45) + "s";
     const ph = document.createElement("div"); ph.className = "ph";
+    ph.style.aspectRatio = "1 / " + (it.ratio || 1.2);
     if (it.img) {
       const img = new Image(); img.src = it.img; img.alt = it.name; img.loading = "lazy";
       ph.append(img);
@@ -421,9 +423,12 @@ document.querySelector("#piece .scrim").addEventListener("click",
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") document.getElementById("piece").classList.remove("on");
 });
+let lastCols = 0;
 addEventListener("resize", () => {
-  clearTimeout(window.__rgt);
-  window.__rgt = setTimeout(renderGrid, 150);
+  // iOS fires resize as its bars collapse mid-scroll: re-rendering then
+  // reads as the whole page jumping. Only a real column change matters.
+  const n = innerWidth >= 720 ? 3 : 2;
+  if (n !== lastCols) renderGrid();
 });
 
 // Real product images: measure natural ratios before laying the grid out.
@@ -467,16 +472,31 @@ const CK = {
   token: "81be7b7770829e83e23ba86168bfcda9676868818687c83b269e560a9271bf54"
 };
 
+let RATES = null;   // USD-based, same source as the app
+async function loadRates() {
+  try {
+    const r = await fetch("https://open.er-api.com/v6/latest/USD");
+    RATES = (await r.json()).rates || null;
+  } catch (e) { RATES = null; }
+}
+
 function formatPrice(amount, currency, fallback) {
   if (typeof amount !== "number" || !currency) return fallback;
   try {
-    const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(currency.toUpperCase());
+    let cur = currency.toUpperCase(), value = amount;
+    // Everyone reads this page in euros, exactly as the app decided
+    // (2026-08-30): a foreign price is real but mute.
+    if (cur !== "EUR" && RATES && RATES[cur] > 0 && RATES.EUR) {
+      value = Math.round(amount / RATES[cur] * RATES.EUR);
+      cur = "EUR";
+    }
+    const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(cur);
     return new Intl.NumberFormat(navigator.language || "en", {
       style: "currency",
-      currency: currency,
+      currency: cur,
       minimumFractionDigits: 0,
       maximumFractionDigits: noCents ? 0 : 2
-    }).format(amount);
+    }).format(value);
   } catch (e) {
     return fallback;   // an unknown currency code must never blank a price
   }
@@ -672,7 +692,7 @@ if (!HANDLE) {
 } else if (CK.token.startsWith("__")) {
   showEmpty();
 } else {
-  loadWishlist(HANDLE)
+  loadRates().then(() => loadWishlist(HANDLE))
     .then(({ profile, items, lists }) =>
       preload(items).then(loaded => startPage(profile, loaded, lists)))
     .catch(showEmpty);
