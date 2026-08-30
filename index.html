@@ -176,6 +176,70 @@
     text-decoration: underline; text-underline-offset: 2px;
     align-self: flex-start;
   }
+  /* The app's confirm alert, cloned: veil, small centered card, two acts. */
+  .alert-wrap { position: fixed; inset: 0; z-index: 60; display: none;
+    align-items: center; justify-content: center; padding: 20px; }
+  .alert-wrap.on { display: flex; }
+  .alert-wrap .veil { position: absolute; inset: 0; background: rgba(0,0,0,0.42); }
+  .alert-card { position: relative; width: 276px; border-radius: 14px;
+    background: var(--paper); overflow: hidden; text-align: center;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.28); }
+  .alert-card h3 { font-size: 15px; font-weight: 600; color: var(--ink);
+    padding: 19px 18px 5px; margin: 0; }
+  .alert-card p { font-size: 13px; font-weight: 300; color: var(--ink);
+    line-height: 1.4; padding: 0 18px 17px; margin: 0; }
+  .alert-acts { display: flex; border-top: 0.5px solid var(--hairline); }
+  .alert-acts button { flex: 1; font: inherit; font-size: 15px; font-weight: 400;
+    padding: 12px 0; border: 0; background: none; color: var(--ink); cursor: pointer; }
+  .alert-acts button + button { border-left: 0.5px solid var(--hairline); font-weight: 600; }
+  .alert-acts button:active { background: var(--paper-deep); }
+
+  /* Group gift, the app's museum grammar: light serif numbers, a 2px rule
+     that fills, contributors flat on the wall. */
+  .gg-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .gg-nums { display: flex; align-items: baseline; gap: 7px; margin-top: 12px; }
+  .gg-collected { font-family: Georgia, serif; font-style: italic; font-weight: 300;
+    font-size: 22px; letter-spacing: -0.2px; color: var(--ink); }
+  .gg-target, .gg-pct, .gg-amt { font-family: Georgia, serif; font-style: italic;
+    font-weight: 300; font-size: 12px; color: var(--ink-soft); }
+  .gg-pct { margin-left: auto; }
+  .gg-rule { position: relative; height: 2px; margin-top: 8px; overflow: hidden; }
+  .gg-rule::before { content: ""; position: absolute; inset: 0;
+    background: var(--ink-soft); opacity: 0.25; }
+  .gg-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--ink); transition: width 0.7s cubic-bezier(0.3, 0.9, 0.3, 1); }
+  .gg-people { margin-top: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .gg-person { display: flex; align-items: center; gap: 8px; }
+  .gg-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--paper-deep);
+    display: flex; align-items: center; justify-content: center; flex: none;
+    font-family: Georgia, serif; font-weight: 300; font-size: 11px; color: var(--ink); }
+  .gg-name { font-size: 13px; font-weight: 300; color: var(--ink); }
+  .gg-amt { margin-left: auto; }
+  .gg-links { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .gg-links a.soft { color: var(--ink-soft); }
+
+  /* The contribution sheet, cloned: italic serif headline, capsule fields,
+     one full-width ink act. */
+  .gg-h { font-family: Georgia, serif; font-style: italic; font-weight: 300;
+    font-size: 22px; color: var(--ink); text-align: center; margin-top: 6px; }
+  .gg-sub { font-size: 12px; font-weight: 300; color: var(--ink-soft); text-align: center;
+    margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gg-field label { display: block; font-size: 9px; font-weight: 300;
+    letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft);
+    margin: 14px 2px 6px; }
+  .gg-field input { width: 100%; box-sizing: border-box; font: inherit;
+    font-weight: 300; font-size: 16px; padding: 12px 16px;
+    border: 0.5px solid var(--hairline); border-radius: 999px;
+    background: var(--card); color: var(--ink); outline: none; }
+  .gg-cta { display: block; width: 100%; margin-top: 18px; font: inherit;
+    font-size: 13px; font-weight: 300; letter-spacing: 0.3px; padding: 14px 0;
+    border: 0; border-radius: 999px; background: var(--ink); color: var(--paper);
+    cursor: pointer; }
+  .gg-cta:disabled { opacity: 0.35; }
+  .gg-cancel, .quiet-links a.gg-cancel { display: block; text-align: center;
+    margin-top: 13px; font-size: 13px; color: var(--ink-soft);
+    text-decoration: underline; text-underline-offset: 2px; align-self: stretch; }
+
   .appline { margin-top: 22px; font-size: 11px; font-weight: 300; color: var(--ink-soft); }
 
   footer.house {
@@ -458,185 +522,339 @@ function openPiece(it) {
 // itself never shows who reserved what — the owner reads her own link, and
 // the surprise is the product. The truth only answers the person ABOUT to
 // reserve: "someone already took this one."
+//
+// The undo works two ways: the token localStorage kept, or — because
+// WhatsApp's little in-app browser forgets localStorage — the same first
+// name that reserved. Within a circle of people who love the same person,
+// a first name is proof enough.
+
+// The app's alert, cloned: "Reserve this gift?" over a veil, Cancel | act.
+function showConfirm(title, message, okLabel) {
+  return new Promise((resolve) => {
+    let wrap = document.getElementById("confirm");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "confirm"; wrap.className = "alert-wrap";
+      wrap.innerHTML = '<div class="veil"></div>' +
+        '<div class="alert-card"><h3></h3><p></p>' +
+        '<div class="alert-acts"><button type="button"></button><button type="button"></button></div></div>';
+      document.body.append(wrap);
+    }
+    wrap.querySelector("h3").textContent = title;
+    wrap.querySelector("p").textContent = message;
+    const [cancel, ok] = wrap.querySelectorAll("button");
+    cancel.textContent = "Cancel"; ok.textContent = okLabel;
+    const done = (v) => { wrap.classList.remove("on"); resolve(v); };
+    cancel.onclick = () => done(false);
+    ok.onclick = () => done(true);
+    wrap.querySelector(".veil").onclick = () => done(false);
+    wrap.classList.add("on");
+  });
+}
+
+function webAPI(p, b) {
+  return fetch(RESERVE_API + p, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(b)
+  }).then(r => r.json()).catch(() => ({ error: "net" }));
+}
+
+function quietLink(text, fn, soft) {
+  const a = document.createElement("a");
+  a.href = "#"; a.textContent = text;
+  if (soft) a.className = "soft";
+  a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
+  return a;
+}
+
+function quietNote(text) {
+  const d = document.createElement("div");
+  d.className = "appline"; d.style.marginTop = "4px";
+  d.textContent = text;
+  return d;
+}
+
+function capsuleField(labelText, placeholder, opts) {
+  const w = document.createElement("div"); w.className = "gg-field";
+  const l = document.createElement("label"); l.textContent = labelText;
+  const i = document.createElement("input");
+  i.placeholder = placeholder; i.autocomplete = "off";
+  if (opts && opts.decimal) i.inputMode = "decimal";
+  if (opts && opts.max) i.maxLength = opts.max;
+  w.append(l, i);
+  return { wrap: w, input: i };
+}
+
 function buildReserveFlow(container, it) {
   const key = "wantd.reserved." + it.recordName;
   const box = document.createElement("div");
   container.append(box);
-  const api = (p, b) => fetch(RESERVE_API + p, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(b)
-  }).then(r => r.json()).catch(() => ({ error: "net" }));
-
-  const link = (text, fn) => {
-    const a = document.createElement("a");
-    a.href = "#"; a.textContent = text;
-    a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
-    return a;
-  };
-  const note = (text) => {
-    const d = document.createElement("div");
-    d.className = "appline"; d.style.marginTop = "4px";
-    d.textContent = text;
-    return d;
-  };
 
   function render() {
     box.replaceChildren();
     const mine = localStorage.getItem(key);
     if (mine) {
-      box.append(link("You reserved this. Tap to undo", async (a) => {
-        a.textContent = "One moment…";
-        const r = await api("/unreserve", { itemID: it.recordName, token: mine });
+      box.append(quietLink("You reserved this. Tap to undo", async (a) => {
+        a.textContent = "One moment\u2026";
+        const r = await webAPI("/unreserve", { itemID: it.recordName, token: mine });
         localStorage.removeItem(key);
-        box.replaceChildren(note(r.ok ? "Reservation removed." : "This reservation was not yours to undo."));
+        box.replaceChildren(quietNote(r.ok ? "Reservation removed." : "This reservation was not yours to undo."));
       }));
       return;
     }
-    box.append(link("Reserve this gift", () => {
-      box.replaceChildren();
-      const form = document.createElement("form");
-      form.style.cssText = "display:flex;gap:8px;align-items:stretch";
-      const input = document.createElement("input");
-      input.placeholder = "Your name";
-      input.maxLength = 30;
-      input.autocomplete = "off";
-      input.style.cssText = "flex:1;min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
-      const go = document.createElement("button");
-      go.textContent = "Reserve";
-      go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
-      form.append(input, go);
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const name = input.value.trim();
-        if (!name) { input.focus(); return; }
-        // The same clear breath the app takes before committing: a
-        // reservation is a promise to the whole circle.
-        box.replaceChildren();
-        const warn = note("Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.");
-        warn.style.marginTop = "0";
-        const acts = document.createElement("div");
-        acts.style.cssText = "display:flex;gap:20px;margin-top:12px";
-        acts.append(
-          link("Reserve it", async (aEl) => {
-            aEl.textContent = "One moment…";
-            const r = await api("/reserve", { itemID: it.recordName, name });
-            if (r.ok) {
-              localStorage.setItem(key, r.token);
-              box.replaceChildren(note("Reserved. Nobody else will offer it."));
-            } else if (r.error === "taken") {
-              box.replaceChildren(note("Someone already reserved this one."));
-            } else {
-              box.replaceChildren(note("That did not go through. Try again in a moment."));
-            }
-          }),
-          link("Not now", () => render())
-        );
-        box.append(warn, acts);
-      });
-      box.append(form);
-      input.focus();
-    }));
+    box.append(quietLink("Reserve this gift", () => nameForm()));
   }
+
+  function nameForm() {
+    box.replaceChildren();
+    const form = document.createElement("form");
+    const name = capsuleField("Your name", "e.g. Camille", { max: 30 });
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Reserve";
+    const back = quietLink("Cancel", () => render());
+    back.className = "gg-cancel";
+    form.append(name.wrap, go, back);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      if (!n) { name.input.focus(); return; }
+      // The app's own breath before committing, word for word.
+      const sure = await showConfirm("Reserve this gift?",
+        "Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.",
+        "Reserve");
+      if (!sure) return;
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/reserve", { itemID: it.recordName, name: n });
+      if (r.ok) {
+        localStorage.setItem(key, r.token);
+        box.replaceChildren(quietNote("Reserved. Nobody else will offer it."),
+          undoLink());
+      } else if (r.error === "taken") {
+        box.replaceChildren(quietNote("Someone already reserved this one."),
+          quietLink("It was me \u2014 undo my reservation", () => undoByName(), true));
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    name.input.focus();
+  }
+
+  function undoLink() {
+    return quietLink("Undo my reservation", async (a) => {
+      a.textContent = "One moment\u2026";
+      const r = await webAPI("/unreserve", { itemID: it.recordName, token: localStorage.getItem(key) || "" });
+      localStorage.removeItem(key);
+      box.replaceChildren(quietNote(r.ok ? "Reservation removed." : "That did not go through. Try again in a moment."));
+    }, true);
+  }
+
+  // WhatsApp forgot the token: the reserving first name undoes it instead.
+  function undoByName() {
+    box.replaceChildren();
+    const form = document.createElement("form");
+    const name = capsuleField("Your name", "The name you reserved with", { max: 30 });
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Undo my reservation";
+    const back = quietLink("Cancel", () => render());
+    back.className = "gg-cancel";
+    form.append(name.wrap, go, back);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      if (!n) { name.input.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/unreserve", { itemID: it.recordName, name: n });
+      if (r.ok) {
+        localStorage.removeItem(key);
+        box.replaceChildren(quietNote("Reservation removed."));
+      } else if (r.error === "notyours") {
+        box.replaceChildren(quietNote("That name does not match this reservation."));
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    name.input.focus();
+  }
+
   render();
 }
 
-// Chipping in from the web (SED-610), so a papa never needs the app. Same
-// passivity rule as reserving: the board shows nothing about the pot — in
-// the app the owner never sees her own group gift, and the web cannot know
-// who is looking, so the pot only answers whoever taps the word.
+// Chipping in from the web (SED-610), so a papa never needs the app — drawn
+// exactly like the app's GroupGiftSection: light serif numbers, a 2px rule
+// that fills, contributors flat on the wall, and the same sheet to give.
+// Same passivity rule as reserving: in the app the owner never sees her own
+// group gift, and the web cannot know who is looking, so the pot only
+// answers whoever taps the word.
 function buildPotFlow(container, it) {
+  const memKey = "wantd.chip." + it.recordName;
   const box = document.createElement("div");
   container.append(box);
-  const api = (p, b) => fetch(RESERVE_API + p, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(b)
-  }).then(r => r.json()).catch(() => ({ error: "net" }));
+  let pot = null;
 
-  const link = (text, fn) => {
-    const a = document.createElement("a");
-    a.href = "#"; a.textContent = text;
-    a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
-    return a;
-  };
-  const note = (text) => {
-    const d = document.createElement("div");
-    d.className = "appline"; d.style.marginTop = "4px";
-    d.textContent = text;
-    return d;
-  };
   const money = (amount, code) => {
-    const sym = { EUR: "€", USD: "$", GBP: "£" }[code];
+    const sym = { EUR: "\u20ac", USD: "$", GBP: "\u00a3" }[code];
     const n = Math.round(amount * 100) / 100;
-    const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
-    return sym ? sym + s : s + " " + (code || "");
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+  const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const myLine = () => {
+    const n = localStorage.getItem(memKey);
+    if (!n || !pot || !pot.active) return null;
+    return (pot.contributors || []).find((c) => same(c.name, n)) || null;
   };
 
-  function showPot(pot) {
+  function section() {
     box.replaceChildren();
-    const wrap = document.createElement("div");
-    if (pot.active) {
-      const head = note(pot.target
-        ? money(pot.collected, pot.currency) + " of " + money(pot.target, pot.currency) + " gathered."
-        : money(pot.collected, pot.currency) + " gathered so far.");
-      head.style.marginTop = "0";
-      wrap.append(head);
-      if (pot.contributors?.length) {
-        wrap.append(note(pot.contributors
-          .map((c) => c.name + " " + money(c.amount, pot.currency)).join(" · ")));
-      }
-    } else {
-      const head = note(pot.target
-        ? "Nobody has chipped in yet. The pot aims for " + money(pot.target, pot.currency) + "."
-        : "Nobody has chipped in yet. Every amount counts.");
-      head.style.marginTop = "0";
-      wrap.append(head);
-    }
+    const gg = document.createElement("div");
 
-    const form = document.createElement("form");
-    form.style.cssText = "display:flex;gap:8px;align-items:stretch;margin-top:12px";
-    const inputCSS = "min-width:0;font:inherit;font-size:16px;padding:10px 12px;border:0.5px solid var(--hairline);border-radius:10px;background:var(--card);color:var(--ink)";
-    const nameIn = document.createElement("input");
-    nameIn.placeholder = "Your name"; nameIn.maxLength = 30;
-    nameIn.autocomplete = "off"; nameIn.style.cssText = "flex:1.4;" + inputCSS;
-    const amountIn = document.createElement("input");
-    const potSym = { EUR: "€", USD: "$", GBP: "£" }[pot.currency];
-    amountIn.placeholder = potSym ? "Amount (" + potSym + ")" : "Amount";
-    amountIn.inputMode = "decimal"; amountIn.autocomplete = "off";
-    amountIn.style.cssText = "flex:1;" + inputCSS;
-    const go = document.createElement("button");
-    go.textContent = "Chip in";
-    go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:10px 16px;border:0;background:var(--ink);color:var(--paper);cursor:pointer";
-    form.append(nameIn, amountIn, go);
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = nameIn.value.trim();
-      const amount = parseFloat(amountIn.value.replace(",", "."));
-      if (!name) { nameIn.focus(); return; }
-      if (!(amount > 0)) { amountIn.focus(); return; }
-      go.textContent = "One moment…"; go.disabled = true;
-      const r = await api("/contribute", { itemID: it.recordName, name, amount });
-      if (r.ok) {
-        box.replaceChildren(note(r.target
-          ? "Added. " + money(r.collected, r.currency) + " of " + money(r.target, r.currency) + " gathered."
-          : "Added. " + money(r.collected, r.currency) + " gathered so far."));
-      } else {
-        box.replaceChildren(note("That did not go through. Try again in a moment."));
+    const title = document.createElement("div");
+    title.className = "gg-title"; title.textContent = "Group gift";
+    gg.append(title);
+
+    if (pot.active) {
+      const target = pot.target || 0;
+      const nums = document.createElement("div"); nums.className = "gg-nums";
+      const big = document.createElement("span"); big.className = "gg-collected";
+      big.textContent = money(pot.collected, pot.currency);
+      nums.append(big);
+      if (target > 0) {
+        const t = document.createElement("span"); t.className = "gg-target";
+        t.textContent = "/ " + money(target, pot.currency);
+        const pct = document.createElement("span"); pct.className = "gg-pct";
+        pct.textContent = Math.round(Math.min(1, pot.collected / target) * 100) + "%";
+        nums.append(t, pct);
       }
-    });
-    wrap.append(form);
-    box.append(wrap);
-    nameIn.focus();
+      gg.append(nums);
+      if (target > 0) {
+        const rule = document.createElement("div"); rule.className = "gg-rule";
+        const fill = document.createElement("div"); fill.className = "gg-fill";
+        rule.append(fill); gg.append(rule);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          fill.style.width = (Math.min(1, pot.collected / target) * 100) + "%";
+        }));
+      }
+      const people = document.createElement("div"); people.className = "gg-people";
+      (pot.contributors || []).forEach((c) => {
+        const row = document.createElement("div"); row.className = "gg-person";
+        const dot = document.createElement("div"); dot.className = "gg-dot";
+        dot.textContent = (c.name || "?").trim().charAt(0).toUpperCase();
+        const nm = document.createElement("div"); nm.className = "gg-name";
+        nm.textContent = c.name;
+        const amt = document.createElement("div"); amt.className = "gg-amt";
+        amt.textContent = money(c.amount, pot.currency);
+        row.append(dot, nm, amt);
+        people.append(row);
+      });
+      gg.append(people);
+
+      const acts = document.createElement("div"); acts.className = "gg-links";
+      const mine = myLine();
+      if (mine) {
+        acts.append(
+          quietLink("Edit my contribution", () => giveForm(mine)),
+          quietLink("Remove my contribution", async (a) => {
+            a.textContent = "One moment\u2026";
+            const r = await webAPI("/uncontribute", { itemID: it.recordName, name: localStorage.getItem(memKey) });
+            if (r.ok) { pot = r; section(); }
+            else { box.replaceChildren(quietNote("That did not go through. Try again in a moment.")); }
+          }, true));
+      } else {
+        acts.append(quietLink("Add my contribution", () => giveForm(null)));
+      }
+      gg.append(acts);
+    } else {
+      // Untouched, the group gift is one underlined word — the app's own.
+      const acts = document.createElement("div"); acts.className = "gg-links";
+      acts.style.marginTop = "10px";
+      acts.append(quietLink("Start a group gift", () => giveForm(null)));
+      gg.append(acts);
+    }
+    box.append(gg);
   }
 
-  box.append(link("Chip in for a group gift", async (a) => {
-    a.textContent = "One moment…";
-    const pot = await api("/pot", { itemID: it.recordName });
-    if (pot.error) {
-      box.replaceChildren(note("That did not go through. Try again in a moment."));
-      return;
+  // The app's ContributeSheet, cloned: italic serif headline, the piece's
+  // name under it, two capsule fields, one full-width ink act.
+  function giveForm(initial) {
+    box.replaceChildren();
+    const form = document.createElement("form");
+
+    const h = document.createElement("div"); h.className = "gg-h";
+    h.textContent = "Your contribution";
+    const sub = document.createElement("div"); sub.className = "gg-sub";
+    sub.textContent = it.name;
+    form.append(h, sub);
+
+    const name = capsuleField("Your name", "e.g. Camille", { max: 30 });
+    const code = (pot && pot.currency) || "EUR";
+    const amount = capsuleField("Amount (" + code + ")", "50", { decimal: true });
+    if (initial) {
+      name.input.value = localStorage.getItem(memKey) || initial.name;
+      amount.input.value = Number.isInteger(initial.amount) ? String(initial.amount) : String(initial.amount);
+    } else if (localStorage.getItem(memKey)) {
+      name.input.value = localStorage.getItem(memKey);
     }
-    showPot(pot);
-  }));
+    form.append(name.wrap, amount.wrap);
+
+    const hint = quietNote(""); hint.style.display = "none"; hint.style.marginTop = "10px";
+    form.append(hint);
+
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Confirm contribution";
+    const back = quietLink("Cancel", () => pot ? section() : entry());
+    back.className = "gg-cancel";
+    form.append(go, back);
+
+    // A returning name replaces its own line, never stacks a second one —
+    // say so before it happens.
+    const refreshHint = () => {
+      const other = pot && pot.active &&
+        (pot.contributors || []).find((c) => same(c.name, name.input.value) &&
+          !(initial && same(c.name, initial.name)));
+      if (other) {
+        hint.textContent = other.name + " already chipped in " +
+          money(other.amount, pot.currency) + ". Confirming replaces that line.";
+        hint.style.display = "block";
+      } else { hint.style.display = "none"; }
+    };
+    name.input.addEventListener("input", refreshHint);
+    refreshHint();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      const a = parseFloat(amount.input.value.replace(",", "."));
+      if (!n) { name.input.focus(); return; }
+      if (!(a > 0)) { amount.input.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/contribute", { itemID: it.recordName, name: n, amount: a });
+      if (r.ok) {
+        localStorage.setItem(memKey, n);
+        pot = r; section();
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    (initial || localStorage.getItem(memKey) ? amount.input : name.input).focus();
+  }
+
+  function entry() {
+    box.replaceChildren();
+    box.append(quietLink("Chip in for a group gift", async (a) => {
+      a.textContent = "One moment\u2026";
+      const r = await webAPI("/pot", { itemID: it.recordName });
+      if (r.error) {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+        return;
+      }
+      pot = r; section();
+    }));
+  }
+
+  entry();
 }
 
 document.querySelector("#piece .scrim").addEventListener("click",
