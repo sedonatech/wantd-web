@@ -240,6 +240,17 @@
     margin-top: 13px; font-size: 13px; color: var(--ink-soft);
     text-decoration: underline; text-underline-offset: 2px; align-self: stretch; }
 
+  /* The day-one landing (SED-619): quiet room, one act. */
+  .launch { min-height: 88dvh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 0 28px; }
+  .launch .mark { font-size: 30px; font-weight: 700; letter-spacing: -0.8px;
+    color: var(--accent); }
+  .launch .line { font-family: Georgia, serif; font-style: italic;
+    font-weight: 400; font-size: 19px; color: var(--ink); margin-top: 14px; }
+  .launch .bar { width: min(320px, 100%); margin-top: 34px; }
+  .launch .appline { margin-top: 14px; }
+
   .appline { margin-top: 22px; font-size: 11px; font-weight: 300; color: var(--ink-soft); }
 
   footer.house {
@@ -301,6 +312,9 @@ const HANDLE = new URLSearchParams(location.search).get("handle")
 // cannot live in a public page — so reserving belongs to the app. The web
 // page reads, and sends you to the app to act.
 const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
+// Day-one switch (SED-619): flip to true the day Apple approves, push, done.
+// Until then the bare root keeps showing the sample board.
+const LAUNCHED = false;
 // The reservation worker (SED-609): blank until deployed; the page behaves
 // exactly as before while it is.
 const RESERVE_API = "https://wantd-reserve.wantd-reserve.workers.dev";
@@ -1165,7 +1179,16 @@ function showEmpty() {
     '<div class="empty">This wishlist could not be found.</div>');
 }
 
-if (!HANDLE) {
+if (!HANDLE && LAUNCHED) {
+  // The launch landing: the wordmark, one sentence, one black act.
+  document.body.insertAdjacentHTML("beforeend",
+    '<div class="launch">' +
+    '<div class="mark">Wantd.</div>' +
+    '<div class="line serif">A wishlist, kept beautifully.</div>' +
+    '<a class="bar" href="' + APP_STORE_URL + '">Download on the App Store</a>' +
+    '<div class="appline">Free. Invitation only.</div>' +
+    "</div>");
+} else if (!HANDLE) {
   preload(SAMPLE.items).then(items => startPage(SAMPLE.profile, items, []));
 } else if (CK.token.startsWith("__")) {
   showEmpty();
