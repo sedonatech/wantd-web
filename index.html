@@ -240,6 +240,24 @@
     margin-top: 13px; font-size: 13px; color: var(--ink-soft);
     text-decoration: underline; text-underline-offset: 2px; align-self: stretch; }
 
+  /* The promise (SED-611): a quiet underlined line, then the keep-page. */
+  .pledge-link { display: inline-block; margin-top: 8px; font-size: 12px;
+    font-weight: 300; color: var(--ink-soft); text-decoration: underline;
+    text-underline-offset: 2px; }
+  .pledge-form { display: flex; gap: 8px; margin-top: 10px; max-width: 460px; }
+  .promise { max-width: 460px; margin: 0 auto; padding: 60px 24px 60px;
+    text-align: center; }
+  .promise .mark { font-size: 24px; font-weight: 700; letter-spacing: -0.6px;
+    color: var(--accent); margin-bottom: 26px; }
+  .promise .line { font-family: Georgia, serif; font-style: italic;
+    font-size: 21px; color: var(--ink); }
+  .promise .ph { width: 100%; border-radius: 18px; margin-top: 26px; }
+  .promise .nm { font-family: Georgia, serif; font-size: 22px; margin-top: 18px; }
+  .promise .pz { font-family: Georgia, serif; font-style: italic;
+    font-size: 16px; margin-top: 6px; }
+  .promise .bar { margin-top: 24px; }
+  .promise .appline { margin-top: 16px; }
+
   /* The day-one landing (SED-619): quiet room, one act. */
   .launch { min-height: 88dvh; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center;
@@ -275,6 +293,7 @@
     <div class="who">
       <div class="name" id="whoName"></div>
       <div class="facts" id="whoFacts"></div>
+      <div id="pledge"></div>
     </div>
   </header>
   <nav class="lists" id="tabs"></nav>
@@ -394,6 +413,10 @@ function startPage(profile, items, lists) {
   document.getElementById("whoFacts").textContent =
     "@" + profile.handle + " · " + items.length + (items.length === 1 ? " want" : " wants");
   document.getElementById("createOwn").href = APP_STORE_URL;
+
+  // "Let them choose" (SED-611): a giver who cannot decide promises an
+  // amount on the whole list; she picks in the app; he keeps a link.
+  if (RESERVE_API && profile.handle) buildPledgeEntry(profile);
 
   const tabs = document.getElementById("tabs");
   tabs.replaceChildren();
@@ -871,6 +894,111 @@ function buildPotFlow(container, it) {
   entry();
 }
 
+// The promise (SED-611): "Offer an amount, let them choose." No money ever
+// touches Wantd — the giver promises, she picks a piece in the app, and his
+// kept link turns into the piece and its shop.
+function buildPledgeEntry(profile) {
+  const host = document.getElementById("pledge");
+  if (!host) return;
+  host.replaceChildren();
+
+  const link = document.createElement("a");
+  link.href = "#"; link.className = "pledge-link";
+  link.textContent = "Not sure what to pick? Offer an amount, let them choose";
+  link.addEventListener("click", (e) => { e.preventDefault(); form(); });
+  host.append(link);
+
+  function note(text) {
+    const d = document.createElement("div");
+    d.className = "appline"; d.style.marginTop = "6px";
+    d.textContent = text;
+    return d;
+  }
+
+  function form() {
+    host.replaceChildren();
+    const f = document.createElement("form");
+    f.className = "pledge-form";
+    const inputCSS = "min-width:0;font:inherit;font-weight:300;font-size:16px;padding:12px 16px;border:0.5px solid var(--hairline);border-radius:999px;background:var(--card);color:var(--ink);outline:none";
+    const nameIn = document.createElement("input");
+    nameIn.placeholder = "Your name"; nameIn.maxLength = 30;
+    nameIn.autocomplete = "off"; nameIn.style.cssText = "flex:1.4;" + inputCSS;
+    const amountIn = document.createElement("input");
+    amountIn.placeholder = "Amount (\u20ac)"; amountIn.inputMode = "decimal";
+    amountIn.autocomplete = "off"; amountIn.style.cssText = "flex:1;" + inputCSS;
+    const go = document.createElement("button");
+    go.type = "submit"; go.textContent = "Promise it";
+    go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:12px 18px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);cursor:pointer";
+    f.append(nameIn, amountIn, go);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = nameIn.value.trim();
+      const amount = parseFloat(amountIn.value.replace(",", "."));
+      if (!name) { nameIn.focus(); return; }
+      if (!(amount > 0)) { amountIn.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await fetch(RESERVE_API + "/pledge", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: profile.handle, name, amount, currency: "EUR" })
+      }).then(x => x.json()).catch(() => ({ error: "net" }));
+      if (!r.ok) {
+        host.replaceChildren(note("That did not go through. Try again in a moment."));
+        return;
+      }
+      try { localStorage.setItem("wantd.pledge." + profile.handle, r.token); } catch {}
+      const keepURL = location.origin + "/?promise=" + r.token;
+      host.replaceChildren();
+      host.append(note("Your promise is with " + (profile.name || "them") + ". They will choose a piece in the app."));
+      const keep = document.createElement("a");
+      keep.href = keepURL; keep.className = "pledge-link";
+      keep.textContent = "Keep this link to see what they chose";
+      host.append(keep);
+    });
+    host.append(f);
+    nameIn.focus();
+  }
+}
+
+// The kept link: /?promise=<token> shows what became of the promise.
+function showPromise(token) {
+  document.title = "Wantd";
+  const wrap = document.createElement("div");
+  wrap.className = "promise";
+  document.body.append(wrap);
+
+  const money = (amount, code) => {
+    const sym = { EUR: "\u20ac", USD: "$", GBP: "\u00a3" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+
+  fetch(RESERVE_API + "/pledge-status", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  }).then(x => x.json()).catch(() => ({ error: "net" })).then((r) => {
+    if (r.error) {
+      wrap.innerHTML = '<div class="line serif">This promise could not be found.</div>';
+      return;
+    }
+    const mark = '<div class="mark">Wantd.</div>';
+    if (r.status === "offered" || !r.chosen) {
+      wrap.innerHTML = mark +
+        '<div class="line serif">Your promise of ' + money(r.amount, r.currency) + ' is on its way.</div>' +
+        '<div class="appline">Nothing chosen yet. Keep this link and come back.</div>';
+      return;
+    }
+    const c = r.chosen;
+    wrap.innerHTML = mark +
+      '<div class="line serif">They chose this one.</div>' +
+      (c.image ? '<img class="ph" src="' + c.image + '" alt="">' : "") +
+      '<div class="nm serif">' + (c.name || "A piece from the wishlist") + "</div>" +
+      (c.priceAmount ? '<div class="pz serif">' + money(c.priceAmount, c.priceCurrency || "EUR") + "</div>" : "") +
+      (c.url ? '<a class="bar" target="_blank" rel="noopener" href="' + shopURL(c.url) + '">Shop it</a>' : "") +
+      '<div class="appline">Your promise of ' + money(r.amount, r.currency) + ', kept the way you meant it.</div>';
+  });
+}
+
 document.querySelector("#piece .scrim").addEventListener("click",
   () => document.getElementById("piece").classList.remove("on"));
 
@@ -1179,7 +1307,10 @@ function showEmpty() {
     '<div class="empty">This wishlist could not be found.</div>');
 }
 
-if (!HANDLE && LAUNCHED) {
+const PROMISE = new URLSearchParams(location.search).get("promise");
+if (PROMISE && /^[0-9a-f]{12}$/.test(PROMISE)) {
+  showPromise(PROMISE);
+} else if (!HANDLE && LAUNCHED) {
   // The launch landing: the wordmark, one sentence, one black act.
   document.body.insertAdjacentHTML("beforeend",
     '<div class="launch">' +
