@@ -4,10 +4,20 @@
     "details": [
       {
         "appID": "83Z5R5HY32.com.sedonatech.WANTD",
-        "appIDs": ["83Z5R5HY32.com.sedonatech.WANTD"],
-        "paths": ["/i/*"],
+        "appIDs": [
+          "83Z5R5HY32.com.sedonatech.WANTD"
+        ],
+        "paths": [
+          "/i/*",
+          "/@*"
+        ],
         "components": [
-          { "/": "/i/*" }
+          {
+            "/": "/i/*"
+          },
+          {
+            "/": "/@*"
+          }
         ]
       }
     ]
