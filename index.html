@@ -338,6 +338,21 @@ const LAUNCHED = false;
 // exactly as before while it is.
 const RESERVE_API = "https://wantd-reserve.wantd-reserve.workers.dev";
 
+// "Send a gift card instead" (SED-612): the last-minute gesture when
+// shipping is dead. Only merchants with a real, stable gift card page are
+// mapped; the line only appears once affiliate links are live, because its
+// whole point is the click count Skimlinks will report.
+const GIFTCARDS = {
+  "zara.com": "https://www.zara.com/fr/fr/giftcard-l1052.html",
+  "asos.com": "https://www.asos.com/gift-vouchers/",
+  "sephora.fr": "https://www.sephora.fr/carte-cadeau.html",
+  "sephora.com": "https://www.sephora.com/beauty/giftcards",
+  "zalando.fr": "https://www.zalando.fr/carte-cadeau-home/",
+  "hm.com": "https://www2.hm.com/fr_fr/carte-cadeau.html",
+  "farfetch.com": "https://www.farfetch.com/fr/gift-card",
+  "net-a-porter.com": "https://www.net-a-porter.com/fr-fr/gift-cards/",
+};
+
 const SAMPLE = {
   profile: { name: "Agathe", handle: "wtd-agathe" },
   items: [
@@ -543,6 +558,19 @@ function openPiece(it) {
     rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
     rs.textContent = "Reserve this gift in Wantd";
     links.append(rs);
+  }
+  // The gift card line (SED-612), asleep until SKIMLINKS_ID wakes it.
+  if (SKIMLINKS_ID && it.url) {
+    try {
+      const gcHost = new URL(it.url).hostname.replace(/^www\d?\./, "");
+      const gc = GIFTCARDS[gcHost];
+      if (gc) {
+        const a = document.createElement("a");
+        a.href = shopURL(gc); a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "Send a gift card instead";
+        links.append(a);
+      }
+    } catch {}
   }
   info.append(links);
   if (!(RESERVE_API && it.recordName)) {
