@@ -693,6 +693,7 @@ function buildReserveFlow(container, it) {
       if (r.ok) {
         localStorage.setItem(key, r.token);
         box.replaceChildren(quietNote("Reserved. Nobody else will offer it."),
+          noteLink(r.token),
           undoLink());
       } else if (r.error === "taken") {
         box.replaceChildren(quietNote("Someone already reserved this one."),
@@ -703,6 +704,36 @@ function buildReserveFlow(container, it) {
     });
     box.append(form);
     name.input.focus();
+  }
+
+  // The unwrapping note (SED-614): one line that travels with the gift and
+  // unveils the day she shelves the piece. Written veiled by the worker.
+  function noteLink(token) {
+    return quietLink("Leave a note with it", (a) => {
+      const wrap = a.parentNode;
+      const form = document.createElement("form");
+      form.style.cssText = "display:flex;gap:8px;align-items:stretch;margin-top:10px";
+      const input = document.createElement("input");
+      input.placeholder = "Happy birthday..."; input.maxLength = 280;
+      input.autocomplete = "off";
+      input.style.cssText = "flex:1;min-width:0;font:inherit;font-weight:300;font-size:16px;padding:10px 14px;border:0.5px solid var(--hairline);border-radius:999px;background:var(--card);color:var(--ink);outline:none";
+      const go = document.createElement("button");
+      go.type = "submit"; go.textContent = "Ink it";
+      go.style.cssText = "flex:none;font:inherit;font-size:14px;padding:10px 16px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);cursor:pointer";
+      form.append(input, go);
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const note = input.value.trim();
+        if (!note) { input.focus(); return; }
+        go.textContent = "One moment\u2026"; go.disabled = true;
+        const res = await webAPI("/reserve-note", { itemID: it.recordName, token, note });
+        form.replaceWith(quietNote(res.ok
+          ? "Inked. They read it the day the gift reaches their hands."
+          : "That did not go through. Try again in a moment."));
+      });
+      a.replaceWith(form);
+      input.focus();
+    });
   }
 
   function undoLink() {
