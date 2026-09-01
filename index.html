@@ -258,6 +258,31 @@
   .promise .bar { margin-top: 24px; }
   .promise .appline { margin-top: 16px; }
 
+  /* The Secret Santa guest card (SED-603): the app's cobalt invitation,
+     handed to a grandmother by link. */
+  body.santaroom { background: #0228b2; }
+  .santa { min-height: 100svh; max-width: 460px; margin: 0 auto;
+    padding: 20px 30px 52px; display: flex; flex-direction: column;
+    color: #f6f4ee; box-sizing: border-box; }
+  .santa .mark { font-size: 22px; font-weight: 600; letter-spacing: -0.5px;
+    padding-top: 12px; color: #f6f4ee; }
+  .santa .room { margin-top: auto; }
+  .santa .chapter { font-size: 13px; font-weight: 300; opacity: .68; }
+  .santa .lead { font-size: 28px; font-weight: 300; letter-spacing: -0.6px;
+    margin-top: 10px; }
+  .santa .target { font-size: 46px; font-weight: 300; letter-spacing: -1px;
+    margin-top: 6px; overflow-wrap: anywhere; }
+  .santa .meta { font-size: 13px; font-weight: 300; opacity: .68;
+    margin-top: 14px; }
+  .santa .foot { margin-top: auto; padding-top: 44px; text-align: center; }
+  .santa .hush { font-size: 12px; font-weight: 300; opacity: .55;
+    margin-bottom: 16px; }
+  .santa .open { display: block; background: #f6f4ee; color: #0228b2;
+    text-decoration: none; font-size: 13px; letter-spacing: .3px;
+    padding: 15px 0; border-radius: 999px; }
+  .santa .line { font-family: Georgia, serif; font-style: italic;
+    font-size: 20px; margin-top: 40svh; text-align: center; opacity: .9; }
+
   /* The day-one landing (SED-619): quiet room, one act. */
   .launch { min-height: 88dvh; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center;
@@ -1058,6 +1083,61 @@ function showPromise(token) {
   });
 }
 
+// The Secret Santa guest card (SED-603): /?santa=<circle>&t=<token>. A
+// participant without the app opens their personal link and reads the one
+// name they drew — the worker only ever answers the token's own slice.
+function showSanta(group, token) {
+  document.title = "Wantd";
+  document.body.classList.add("santaroom");
+  const wrap = document.createElement("div");
+  wrap.className = "santa";
+  document.body.append(wrap);
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (amount, code) => {
+    const sym = { EUR: "€", USD: "$", GBP: "£" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+
+  fetch(RESERVE_API + "/santa-guest", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group, t: token })
+  }).then(x => x.json()).catch(() => ({ error: "net" })).then((r) => {
+    const mark = '<div class="mark">Wantd.</div>';
+    if (r.error) {
+      wrap.innerHTML = mark +
+        '<div class="line">This draw could not be found.</div>';
+      return;
+    }
+    const day = r.eventDate
+      ? new Date(r.eventDate).toLocaleDateString("en-US",
+          { month: "long", day: "numeric" })
+      : null;
+    const chapter = r.name ? (r.name.endsWith(".") ? r.name : r.name + ".")
+                          : "Secret Santa.";
+    const meta = [
+      r.budget ? "Keep it around " + money(r.budget, r.currency) + "." : null,
+      day ? "For " + day + "." : null,
+    ].filter(Boolean).join(" ");
+    wrap.innerHTML = mark +
+      '<div class="room">' +
+        '<div class="chapter">' + esc(chapter) + "</div>" +
+        '<div class="lead">' + esc(r.you) + ", this year you spoil</div>" +
+        '<div class="target">' + esc(r.targetName) + ".</div>" +
+        (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") +
+      "</div>" +
+      '<div class="foot">' +
+        '<div class="hush">Not a word to anyone.</div>' +
+        (r.targetHandle
+          ? '<a class="open" href="/@' + esc(r.targetHandle) + '">Open their wishlist</a>'
+          : "") +
+      "</div>";
+  });
+}
+
 document.querySelector("#piece .scrim").addEventListener("click",
   () => document.getElementById("piece").classList.remove("on"));
 
@@ -1367,7 +1447,12 @@ function showEmpty() {
 }
 
 const PROMISE = new URLSearchParams(location.search).get("promise");
-if (PROMISE && /^[0-9a-f]{12}$/.test(PROMISE)) {
+const SANTA_G = new URLSearchParams(location.search).get("santa");
+const SANTA_T = new URLSearchParams(location.search).get("t");
+if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
+    && SANTA_T && /^[0-9a-f]{12}$/.test(SANTA_T)) {
+  showSanta(SANTA_G.toUpperCase(), SANTA_T);
+} else if (PROMISE && /^[0-9a-f]{12}$/.test(PROMISE)) {
   showPromise(PROMISE);
 } else if (!HANDLE && LAUNCHED) {
   // The launch landing: the wordmark, one sentence, one black act.
