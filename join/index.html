@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wantd — The wishlist, reimagined</title>
+  <meta name="description" content="Save the things you truly want. Share privately. Give better gifts. Join the Wantd waitlist." />
+  <meta property="og:title" content="Wantd — The wishlist, reimagined" />
+  <meta property="og:description" content="Save the things you truly want. Share privately. Give better gifts." />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --ivory:   #F6F1E8;
+      --ink:     #1E1B16;
+      --ink-soft:#5C554A;
+      --olive:   #8E8463;
+      --clay:    #B98E6F;
+      --amber:   #F4A65C;
+      --orange:  #E2703A;
+      --ember:   #C0432B;
+      --rose:    #E7B79B;
+      --cream:   #FBF3E8;
+      --glass-bg:  linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0.22));
+      --glass-brd: rgba(255,255,255,0.6);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--ivory); color: var(--ink);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 300; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden;
+    }
+    .serif { font-family: 'Fraunces', Georgia, serif; }
+    .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+    /* ===== grain ===== */
+    .grain {
+      position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0.4; mix-blend-mode: soft-light;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 160px 160px;
+    }
+
+    /* ===== numericText rolling digits (the in-app style) ===== */
+    .numroll {
+      display: inline-flex; align-items: baseline;
+      font-family: 'Fraunces', Georgia, serif; font-weight: 300; letter-spacing: -0.2px;
+      font-variant-numeric: tabular-nums; line-height: 1;
+    }
+    .numroll .slot { display: inline-block; height: 1em; overflow: hidden; width: 1ch; text-align: center; }
+    .numroll .reel { display: flex; flex-direction: column; transition: transform .6s cubic-bezier(.34,1.16,.5,1); will-change: transform; }
+    .numroll .reel span { display: block; height: 1em; line-height: 1; }
+    .numroll .slot.enter { animation: slotIn .6s cubic-bezier(.34,1.16,.5,1) both; }
+    @keyframes slotIn { from { opacity: 0; transform: translateY(.5em); } to { opacity: 1; transform: none; } }
+
+    /* ===== HERO with animated mesh gradient ===== */
+    .hero { position: relative; min-height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    .mesh { position: absolute; inset: -20%; z-index: 0; filter: blur(10px); }
+    .mesh span { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.95; }
+    .mesh .m1 { width: 70vw; height: 70vw; left: -10vw; top: -18vw;  background: var(--amber);  animation: mv1 22s ease-in-out infinite; }
+    .mesh .m2 { width: 65vw; height: 65vw; right: -12vw; top: 6vw;   background: var(--orange); animation: mv2 26s ease-in-out infinite; }
+    .mesh .m3 { width: 75vw; height: 75vw; left: 8vw;  bottom: -28vw; background: var(--ember);  animation: mv3 30s ease-in-out infinite; }
+    .mesh .m4 { width: 55vw; height: 55vw; right: 4vw; bottom: -10vw; background: var(--rose);   animation: mv4 24s ease-in-out infinite; }
+    @keyframes mv1 { 0%,100%{transform:translate(0,0) scale(1)}    50%{transform:translate(7vw,6vw) scale(1.18)} }
+    @keyframes mv2 { 0%,100%{transform:translate(0,0) scale(1)}    50%{transform:translate(-8vw,5vw) scale(1.12)} }
+    @keyframes mv3 { 0%,100%{transform:translate(0,0) scale(1.05)} 50%{transform:translate(5vw,-7vw) scale(1.25)} }
+    @keyframes mv4 { 0%,100%{transform:translate(0,0) scale(1)}    50%{transform:translate(-6vw,-5vw) scale(1.15)} }
+    .hero::after { content:""; position:absolute; inset:0; z-index:1; background: linear-gradient(180deg, rgba(40,20,12,0.18), transparent 30%, rgba(40,18,10,0.32)); }
+
+    .hero-inner { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; }
+
+    /* nav */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+    .logo { font-family:'Fraunces',serif; font-weight:400; font-size:24px; letter-spacing:0.05em; color: var(--cream); }
+    .logo span { color: var(--ivory); opacity: 0.7; }
+    .nav-tag { font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color: var(--cream);
+      background: rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.35); padding:8px 16px; border-radius:100px;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+
+    .hero-body { flex:1; display:grid; grid-template-columns: 1.05fr 1fr; gap:60px; align-items:center; padding: 40px 0 56px; }
+    .hero-text { display:flex; flex-direction:column; justify-content:center; }
+    .hero-dial { display:flex; justify-content:center; align-items:center; }
+    @media (max-width:900px) {
+      .hero-body { grid-template-columns: 1fr; gap:30px; }
+      .hero-dial .stage { max-width:440px; }
+    }
+    .eyebrow { font-size:12px; letter-spacing:0.32em; text-transform:uppercase; color: var(--cream); opacity:0.85; margin-bottom: 22px;
+      opacity:0; animation: fadeUp .9s cubic-bezier(.16,1,.3,1) .1s forwards; }
+    .hero h1 {
+      font-family:'Fraunces',serif; font-weight:300; color: var(--cream);
+      font-size: clamp(52px, 11vw, 150px); line-height: 0.92; letter-spacing: -0.035em; margin-bottom: 30px;
+    }
+    .hero h1 .l { display:block; opacity:0; transform: translateY(40px); animation: fadeUp 1s cubic-bezier(.16,1,.3,1) forwards; }
+    .hero h1 .l:nth-child(1){ animation-delay:.18s; }
+    .hero h1 .l:nth-child(2){ animation-delay:.30s; }
+    .hero h1 .l:nth-child(3){ animation-delay:.42s; }
+    .hero h1 em { font-style: italic; color: #FFE9D2; }
+    .hero h1 .flip { display:inline-block; transform: rotate(180deg); }
+    @keyframes fadeUp { to { opacity:1; transform:none; } }
+
+    .hero .lead { font-size: clamp(15px,1.9vw,19px); color: var(--cream); opacity:0.9; max-width: 480px; margin-bottom: 36px;
+      opacity:0; animation: fadeUp 1s cubic-bezier(.16,1,.3,1) .5s forwards; }
+
+    .signup { max-width: 480px; opacity:0; animation: fadeUp 1s cubic-bezier(.16,1,.3,1) .6s forwards; }
+    .field-row { display:flex; gap:8px; align-items:center; background: rgba(255,255,255,0.18);
+      border:1px solid rgba(255,255,255,0.45); border-radius:100px; padding:7px 7px 7px 22px;
+      backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); transition: border-color .25s, box-shadow .25s; }
+    .field-row:focus-within { border-color: rgba(255,255,255,0.8); box-shadow: 0 12px 36px rgba(60,20,10,0.25); }
+    .field-row input { flex:1; border:none; background:transparent; outline:none; min-width:0;
+      font-family:'Inter',sans-serif; font-size:16px; color: var(--cream); }
+    .field-row input::placeholder { color: rgba(255,255,255,0.7); }
+    .field-row button { border:none; background: var(--cream); color: var(--ink);
+      font-family:'Fraunces',serif; font-weight:400; font-size:15px; padding:14px 26px; border-radius:100px; cursor:pointer;
+      white-space:nowrap; transition: transform .2s, background .25s; }
+    .field-row button:hover { background:#fff; transform: translateY(-1px); }
+    .form-note { font-size:13px; color: var(--cream); opacity:0.8; margin-top:14px; }
+    .success { display:none; font-family:'Fraunces',serif; font-size:18px; color: var(--cream);
+      padding:16px 20px; background: rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.4); border-radius:16px; }
+    .success em { font-style:italic; color:#FFE9D2; }
+
+    /* hero footer stat — BIG rolling number */
+    .hero-foot { position:relative; z-index:2; display:flex; align-items:flex-end; gap:18px; padding: 0 0 40px;
+      opacity:0; animation: fadeUp 1s cubic-bezier(.16,1,.3,1) .8s forwards; }
+    .hero-foot .numroll { color: var(--cream); font-size: clamp(64px, 12vw, 120px); }
+    .hero-foot .cap { color: var(--cream); opacity:0.85; font-size:13px; letter-spacing:0.18em; text-transform:uppercase; padding-bottom: 18px; max-width: 160px; }
+
+    /* ===== "in one place" section ===== */
+    .dial-sec { padding: 110px 0 100px; text-align:center; }
+    .kicker { font-size:12px; letter-spacing:0.3em; text-transform:uppercase; color: var(--olive); margin-bottom: 18px; }
+    .dial-sec h2 { font-family:'Fraunces',serif; font-weight:300; font-size: clamp(28px,4vw,46px); letter-spacing:-0.02em; margin-bottom: 60px; }
+    .dial-sec h2 em { font-style:italic; color: var(--clay); }
+
+    /* ---- physics drop zone — products fall in and pile up on the floor ---- */
+    #dropZone { position: relative; width: 100%; aspect-ratio: 1; max-width: 620px; pointer-events: none; align-self: stretch; }
+    #dropZone .dropper { position: absolute; top: 0; left: 0; user-select: none; -webkit-user-drag: none;
+      will-change: transform; filter: drop-shadow(0 10px 14px rgba(20,15,8,0.30)) drop-shadow(0 2px 4px rgba(20,15,8,0.20)); }
+    @media (max-width:900px) { #dropZone { max-width: 100%; height: 60vh; aspect-ratio: auto; } }
+
+    /* ===== STATS (big rolling numbers in glass) ===== */
+    .stats { padding: 30px 0 110px; }
+    .stats-grid { display:grid; grid-template-columns: repeat(3,1fr); gap:20px; }
+    .stat { padding: 40px 32px; border-radius: 30px; text-align:left;
+      background: var(--glass-bg); border:1px solid var(--glass-brd);
+      backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+      box-shadow: 0 18px 50px rgba(30,27,22,0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+      opacity:0; transform: translateY(30px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); }
+    .stat.in { opacity:1; transform:none; }
+    .stat .big { display:flex; align-items:baseline; color: var(--ink); margin-bottom: 12px; }
+    .stat .big .numroll { font-size: clamp(56px,7vw,84px); }
+    .stat .big .suf { font-family:'Fraunces',serif; font-weight:300; font-size: clamp(40px,5vw,60px); color: var(--clay); letter-spacing:-0.02em; }
+    .stat h3 { font-family:'Fraunces',serif; font-weight:400; font-size:19px; margin-bottom:6px; }
+    .stat p { font-size:14px; color: var(--ink-soft); }
+
+    /* ===== POSTER (editorial flipped type on gradient) ===== */
+    .poster { position:relative; min-height: 86vh; overflow:hidden; display:flex; }
+    .poster .mesh .p1 { background: var(--ember); }
+    .poster .mesh .p2 { background: var(--orange); }
+    .poster .mesh .p3 { background: var(--amber); }
+    .poster .mesh .p4 { background: var(--clay); }
+    .poster-inner { position:relative; z-index:2; flex:1; padding: 56px 0; }
+    .poster .corner { position:absolute; font-family:'Fraunces',serif; color: var(--cream); font-size:13px; line-height:1.5; letter-spacing:0.04em; opacity:0.92; }
+    .poster .tl { top:48px; left:28px; }
+    .poster .tr { top:48px; right:28px; text-align:right; }
+    .poster .words { position:absolute; inset:0; }
+    .poster .w { position:absolute; font-family:'Fraunces',serif; font-weight:300; color: var(--cream);
+      font-size: clamp(56px,12vw,150px); letter-spacing:-0.03em; line-height:0.9; }
+    .poster .w.a { top:30%; left:7%; }
+    .poster .w.b { top:46%; right:8%; font-style:italic; color:#FFE9D2; }
+    .poster .w.c { bottom:12%; left:12%; transform: rotate(180deg); }
+
+    /* ===== CTA + footer ===== */
+    .cta { padding: 110px 0; display:flex; justify-content:center; text-align:center; }
+    .cta-card { max-width: 680px; width:100%; padding: 60px 44px; border-radius: 36px;
+      background: var(--glass-bg); border:1px solid var(--glass-brd);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 18px 50px rgba(30,27,22,0.14), inset 0 1px 0 rgba(255,255,255,0.7); }
+    .cta-card h2 { font-family:'Fraunces',serif; font-weight:300; font-style:italic; font-size: clamp(28px,4.4vw,46px);
+      letter-spacing:-0.01em; line-height:1.16; max-width:520px; margin:0 auto 30px; }
+    .cta-card .signup { margin: 0 auto; }
+    .cta-card .field-row { background: rgba(255,255,255,0.6); border:1px solid var(--glass-brd); }
+    .cta-card .field-row input { color: var(--ink); }
+    .cta-card .field-row input::placeholder { color: rgba(92,85,74,0.6); }
+    .cta-card .field-row button { background: var(--ink); color: var(--cream); }
+    .cta-card .form-note { color: var(--ink-soft); opacity:1; }
+    .cta-card .success { color: var(--ink); background: rgba(255,255,255,0.5); border-color: var(--glass-brd); }
+    .cta-card .success em { color: var(--clay); }
+
+    footer { border-top:1px solid rgba(30,27,22,0.12); padding: 30px 0; }
+    .footer-in { display:flex; align-items:center; justify-content:space-between; font-size:13px; color: var(--ink-soft); }
+    .footer-in .logo { color: var(--ink); font-size:18px; }
+    .footer-in .logo span { color: var(--clay); opacity:1; }
+    footer a { color: var(--ink-soft); text-decoration:none; }
+    footer a:hover { color: var(--ink); }
+
+    @media (max-width: 760px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .hero-foot { flex-direction: column; align-items:flex-start; gap:0; }
+      .hero-foot .cap { padding-bottom:0; }
+    }
+    @media (max-width: 460px) {
+      .field-row { flex-direction:column; border-radius:24px; padding:14px; gap:10px; }
+      .field-row input { text-align:center; padding:6px 0; }
+      .field-row button { width:100%; padding:15px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .mesh span { animation: none !important; }
+      .hero h1 .l, .eyebrow, .lead, .signup, .hero-foot { opacity:1 !important; transform:none !important; animation:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero">
+    <div class="mesh"><span class="m1"></span><span class="m2"></span><span class="m3"></span><span class="m4"></span></div>
+    <div class="hero-inner wrap">
+      <nav>
+        <div class="logo">Want<span>d</span></div>
+        <div class="nav-tag">Coming soon</div>
+      </nav>
+
+      <div class="hero-body">
+        <div class="hero-text">
+          <p class="eyebrow">The wishlist, reimagined</p>
+          <h1 class="serif">
+            <span class="l">Save what</span>
+            <span class="l">you <em>truly</em></span>
+            <span class="l">want.</span>
+          </h1>
+          <p class="lead">Every product you love, in one beautiful place — the exact item, the exact link. Share it privately, and let the people who love you give better gifts.</p>
+
+          <form class="signup" id="form1" method="POST">
+            <div class="field-row">
+              <input type="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+              <button type="submit">Join the waitlist</button>
+            </div>
+            <input type="hidden" name="_subject" value="New Wantd waitlist signup" />
+            <p class="form-note">Be the first to know when Wantd opens. No spam, ever.</p>
+            <div class="success">You're on the list. <em>We'll be in touch soon.</em></div>
+          </form>
+        </div>
+
+        <div class="hero-dial" id="dropZone" aria-hidden="true"></div>
+      </div>
+
+      <div class="hero-foot">
+        <span class="cap">By invitation only. The waitlist is open.</span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ===== STATS ===== -->
+  <section class="stats">
+    <div class="wrap stats-grid">
+      <div class="stat">
+        <div class="big"><span class="numroll" data-target="1" data-reveal="1"></span><span class="suf">tap</span></div>
+        <h3 class="serif">Save anything</h3>
+        <p>Paste a link from any store and Wantd captures the exact product, photo and price.</p>
+      </div>
+      <div class="stat">
+        <div class="big"><span class="numroll" data-target="100" data-reveal="1"></span><span class="suf">%</span></div>
+        <h3 class="serif">Private by default</h3>
+        <p>Your list is yours. Share it only with the people you choose — nothing is ever public.</p>
+      </div>
+      <div class="stat">
+        <div class="big"><span class="numroll" data-target="0" data-reveal="1"></span><span class="suf">doubles</span></div>
+        <h3 class="serif">Never the same gift twice</h3>
+        <p>Friends quietly reserve items so no one buys the same thing — and can group-gift together.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== POSTER ===== -->
+  <section class="poster">
+    <div class="mesh"><span class="m1 p1"></span><span class="m2 p2"></span><span class="m3 p3"></span><span class="m4 p4"></span></div>
+    <div class="poster-inner wrap">
+      <div class="corner tl">Wantd<br />the wishlist, reimagined</div>
+      <div class="corner tr">Coming soon<br />2026</div>
+      <div class="words">
+        <span class="w a serif">want</span>
+        <span class="w b serif">it.</span>
+        <span class="w c serif">give</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="cta">
+    <div class="cta-card">
+      <h2 class="serif">Gifting, finally done with intention.</h2>
+      <form class="signup" id="form2" method="POST">
+        <div class="field-row">
+          <input type="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+          <button type="submit">Reserve your spot</button>
+        </div>
+        <input type="hidden" name="_subject" value="New Wantd waitlist signup" />
+        <p class="form-note">No spam, ever. One letter when your place opens.</p>
+        <div class="success">You're on the list. <em>We'll be in touch soon.</em></div>
+      </form>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap footer-in">
+      <div class="logo serif">Want<span>d</span></div>
+      <div>© <span class="numroll" data-target="2026" data-static="1" style="font-size:13px;"></span> Wantd · <a href="mailto:support@sedonatech.uk">support@sedonatech.uk</a></div>
+    </div>
+  </footer>
+
+  <script>
+    /* ---------- rolling number helper (numericText) ---------- */
+    function ensureSlots(el, count) {
+      let slots = el.querySelectorAll('.slot');
+      while (slots.length < count) {
+        const slot = document.createElement('span'); slot.className = 'slot enter';
+        const reel = document.createElement('span'); reel.className = 'reel';
+        for (let d = 0; d <= 9; d++) { const s = document.createElement('span'); s.textContent = d; reel.appendChild(s); }
+        slot.appendChild(reel); el.appendChild(slot);
+        slot.addEventListener('animationend', () => slot.classList.remove('enter'), { once: true });
+        slots = el.querySelectorAll('.slot');
+      }
+      while (el.querySelectorAll('.slot').length > count) el.removeChild(el.querySelector('.slot:last-of-type'));
+    }
+    function rollTo(el, value) {
+      const digits = String(value).split('');
+      ensureSlots(el, digits.length);
+      const slots = el.querySelectorAll('.slot');
+      digits.forEach((d, i) => { slots[i].querySelector('.reel').style.transform = `translateY(${-parseInt(d,10)}em)`; });
+    }
+    function animateRoller(el) {
+      if (el.dataset.done) return; el.dataset.done = '1';
+      const target = parseInt(el.dataset.target, 10);
+      if (el.dataset.static) { rollTo(el, 0); setTimeout(() => rollTo(el, target), 200); return; }
+      let cur = 0; rollTo(el, 0);
+      const step = () => {
+        cur += Math.max(1, Math.round((target - cur) / 9));
+        if (cur >= target) cur = target;
+        rollTo(el, cur);
+        if (cur < target) setTimeout(step, 85);
+      };
+      setTimeout(step, 200);
+    }
+
+    /* load-time rollers */
+    document.querySelectorAll('.numroll[data-load], .numroll[data-static]').forEach(el => {
+      setTimeout(() => animateRoller(el), 600);
+    });
+
+    /* ---------- reveal on scroll (stats + their rollers) ---------- */
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          const r = e.target.querySelector('.numroll[data-reveal]');
+          if (r) setTimeout(() => animateRoller(r), 200);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.2 });
+    document.querySelectorAll('.stat').forEach((el, i) => { el.style.transitionDelay = (i * 0.1) + 's'; io.observe(el); });
+
+    /* ---------- forms: straight into the Wantd waitlist (CloudKit via the
+       reserve worker — the same list the app's gate feeds) ---------- */
+    document.querySelectorAll('form.signup').forEach(form => {
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const ok = () => {
+          form.querySelector('.field-row').style.display = 'none';
+          form.querySelector('.form-note').style.display = 'none';
+          form.querySelector('.success').style.display = 'block';
+        };
+        const email = form.querySelector('input[type=email]').value.trim();
+        if (!email) return;
+        const button = form.querySelector('button');
+        button.disabled = true;
+        try {
+          const res = await fetch('https://wantd-reserve.wantd-reserve.workers.dev/waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const r = await res.json();
+          if (r.ok) { ok(); } else { button.disabled = false; }
+        } catch (_) { button.disabled = false; }
+      });
+    });
+
+    /* ---------- physics drop animation (products fall + bounce + settle) ---------- */
+    (function(){
+      const zone = document.getElementById('dropZone');
+      if (!zone) return;
+      const SRCS = [
+        'dial-component/products/p1.png','dial-component/products/p2.png','dial-component/products/p3.png',
+        'dial-component/products/p4.png','dial-component/products/p5.png','dial-component/products/p6.png',
+        'dial-component/products/p7.png','dial-component/products/p8.png','dial-component/products/p9.png'
+      ];
+      const items = [];
+
+      function spawn(src, delay){
+        const el = document.createElement('img');
+        el.className = 'dropper';
+        el.draggable = false;
+        el.src = src;
+        zone.appendChild(el);
+        el.onload = () => {
+          // Scale each item to ~ 22% of zone width, keep aspect
+          const targetW = zone.clientWidth * (0.18 + Math.random() * 0.08);
+          const ratio = el.naturalWidth / el.naturalHeight;
+          const w = targetW;
+          const h = w / (ratio || 1);
+          el.style.width = w + 'px'; el.style.height = h + 'px';
+          items.push({
+            el,
+            w, h,
+            x: Math.random() * Math.max(1, zone.clientWidth - w),
+            y: -h - 200 - Math.random() * 900 - delay,
+            vx: (Math.random() - 0.5) * 1.6,
+            vy: 0,
+            rot: (Math.random() - 0.5) * 40,
+            omega: (Math.random() - 0.5) * 4,
+            settled: false
+          });
+        };
+      }
+
+      SRCS.forEach((src, i) => spawn(src, i * 80));
+
+      function floorFor(it){
+        let f = zone.clientHeight - it.h;
+        for (const o of items){
+          if (!o.settled || o === it) continue;
+          if (it.x + it.w > o.x + 4 && it.x < o.x + o.w - 4){
+            f = Math.min(f, o.y - it.h);
+          }
+        }
+        return f;
+      }
+
+      const G = 0.55, BOUNCE = 0.42, FRIC = 0.86;
+      function step(){
+        const W = zone.clientWidth;
+        for (const it of items){
+          if (it.settled) continue;
+          it.vy += G;
+          it.x += it.vx;
+          it.y += it.vy;
+          it.rot += it.omega;
+          // Walls
+          if (it.x < 0){ it.x = 0; it.vx *= -0.5; }
+          if (it.x + it.w > W){ it.x = W - it.w; it.vx *= -0.5; }
+          // Floor / stacking
+          const f = floorFor(it);
+          if (it.y >= f){
+            it.y = f;
+            if (Math.abs(it.vy) < 1.2 && Math.abs(it.vx) < 0.3){
+              it.vy = 0; it.vx = 0; it.omega = 0; it.settled = true;
+            } else {
+              it.vy *= -BOUNCE;
+              it.vx *= FRIC;
+              it.omega *= FRIC;
+            }
+          }
+          it.el.style.transform = 'translate(' + it.x.toFixed(1) + 'px,' + it.y.toFixed(1) + 'px) rotate(' + it.rot.toFixed(1) + 'deg)';
+        }
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    })();
+  </script>
+</body>
+</html>
