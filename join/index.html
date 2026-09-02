@@ -228,7 +228,11 @@
     email.addEventListener('focus', refresh);
     email.addEventListener('blur', refresh);
 
-    /* Straight into the Wantd waitlist: the same CloudKit list the app's gate feeds. */
+    /* Straight into the Wantd waitlist: the same CloudKit list the app's gate
+       feeds. The link's ?s= (pinterest, instagram, tiktok) rides along so the
+       admin page can say where each email walked in from. */
+    var src = (new URLSearchParams(location.search).get('s')
+               || new URLSearchParams(location.search).get('utm_source') || '').toLowerCase();
     document.getElementById('waitlist').addEventListener('submit', async function (e) {
       e.preventDefault();
       var v = email.value.trim();
@@ -240,7 +244,7 @@
         var res = await fetch('https://wantd-reserve.wantd-reserve.workers.dev/waitlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: v })
+          body: JSON.stringify(src ? { email: v, source: src } : { email: v })
         });
         var r = await res.json();
         if (!r.ok) throw new Error('waitlist');
