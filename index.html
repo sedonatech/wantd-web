@@ -360,6 +360,12 @@ const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
 // Day-one switch (SED-619): flip to true the day Apple approves, push, done.
 // Until then the bare root keeps showing the sample board.
 const LAUNCHED = false;
+// Before launch that App Store page does not exist yet, so every "get the
+// app" door leads to the waitlist instead. The channel the visitor arrived
+// on rides along (?s=pinterest) so the admin page knows where each email
+// walked in from, exactly like the /join links do.
+const CHANNEL = (new URLSearchParams(location.search).get("s") || "board").toLowerCase();
+const APP_DOOR = LAUNCHED ? APP_STORE_URL : "/join?s=" + encodeURIComponent(CHANNEL);
 // The reservation worker (SED-609): blank until deployed; the page behaves
 // exactly as before while it is.
 const RESERVE_API = "https://wantd-reserve.wantd-reserve.workers.dev";
@@ -453,7 +459,9 @@ function startPage(profile, items, lists) {
   document.getElementById("whoName").textContent = profile.name;
   document.getElementById("whoFacts").textContent =
     "@" + profile.handle + " · " + items.length + (items.length === 1 ? " want" : " wants");
-  document.getElementById("createOwn").href = APP_STORE_URL;
+  const own = document.getElementById("createOwn");
+  own.href = APP_DOOR;
+  if (!LAUNCHED) { own.removeAttribute("target"); own.textContent = "Join the waitlist"; }
 
   // "Let them choose" (SED-611): a giver who cannot decide promises an
   // amount on the whole list; she picks in the app; he keeps a link.
@@ -581,7 +589,7 @@ function openPiece(it) {
     buildPotFlow(links, it);
   } else {
     const rs = document.createElement("a");
-    rs.href = APP_STORE_URL; rs.target = "_blank"; rs.rel = "noopener";
+    rs.href = APP_DOOR; if (LAUNCHED) { rs.target = "_blank"; rs.rel = "noopener"; }
     rs.textContent = "Reserve this gift in Wantd";
     links.append(rs);
   }
