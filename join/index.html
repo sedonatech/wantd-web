@@ -233,6 +233,14 @@
        admin page can say where each email walked in from. */
     var src = (new URLSearchParams(location.search).get('s')
                || new URLSearchParams(location.search).get('utm_source') || '').toLowerCase();
+    if (!src) {
+      // No marked link? The referrer still names the shore the visitor
+      // sailed from (l.pinterest.com, l.instagram.com, tiktok redirects).
+      var ref = (document.referrer || '').toLowerCase();
+      if (ref.indexOf('pinterest') !== -1) src = 'pinterest';
+      else if (ref.indexOf('instagram') !== -1) src = 'instagram';
+      else if (ref.indexOf('tiktok') !== -1) src = 'tiktok';
+    }
     document.getElementById('waitlist').addEventListener('submit', async function (e) {
       e.preventDefault();
       var v = email.value.trim();
