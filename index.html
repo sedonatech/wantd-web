@@ -357,9 +357,8 @@ const HANDLE = new URLSearchParams(location.search).get("handle")
 // cannot live in a public page — so reserving belongs to the app. The web
 // page reads, and sends you to the app to act.
 const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
-// Day-one switch (SED-619): flip to true the day Apple approves, push, done.
-// Until then the bare root keeps showing the sample board.
-const LAUNCHED = false;
+// Day-one switch (SED-619): flipped 2026-09-05, Wantd 1.0 is on the App Store.
+const LAUNCHED = true;
 // Before launch that App Store page does not exist yet, so every "get the
 // app" door leads to the waitlist instead. The channel the visitor arrived
 // on rides along (?s=pinterest) so the admin page knows where each email
