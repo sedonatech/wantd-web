@@ -392,6 +392,12 @@ const GIFTCARDS = {
   "apm.mc": "https://www.apm.mc/products/gift-card",
   "aloyoga.com": "https://www.aloyoga.com/products/gift-card",
   "mejuri.com": "https://mejuri.com/shop/t/gift-cards",
+  // Dior sells a card for its BEAUTY house only. Beside a Book Tote it would
+  // be a card that cannot buy the piece, so the line shows on beauty pieces
+  // and nowhere else (Agathe, 2026-09-07). A house listed with `path` only
+  // answers for the part of its site that its card can actually pay for.
+  "dior.com": { path: "/beauty/",
+                url: "https://www.dior.com/en_gb/beauty/products/dior-beauty-e-gift-card-Y74290.html" },
 };
 
 const SAMPLE = {
@@ -605,8 +611,12 @@ function openPiece(it) {
   // The gift card line (SED-612), asleep until SKIMLINKS_ID wakes it.
   if (SKIMLINKS_ID && it.url) {
     try {
-      const gcHost = new URL(it.url).hostname.replace(/^www\d?\./, "");
-      const gc = GIFTCARDS[gcHost];
+      const gcURL = new URL(it.url);
+      const gcHost = gcURL.hostname.replace(/^www\d?\./, "");
+      const entry = GIFTCARDS[gcHost];
+      const gc = typeof entry === "string" ? entry
+               : entry && gcURL.pathname.includes(entry.path) ? entry.url
+               : null;
       if (gc) {
         const a = document.createElement("a");
         a.href = shopURL(gc); a.target = "_blank"; a.rel = "noopener";
