@@ -1,0 +1,3 @@
+Images sources des pins Pinterest du compte wantd_app.
+Servies depuis le domaine revendique wantd.sedonatech.uk pour que
+Pinterest attribue chaque pin au domaine (bonus SEO + logo Wantd sur les pins).
