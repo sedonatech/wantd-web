@@ -1049,7 +1049,7 @@ function buildPledgeEntry(profile) {
         return;
       }
       try { localStorage.setItem("wantd.pledge." + profile.handle, r.token); } catch {}
-      const keepURL = location.origin + "/?promise=" + r.token;
+      const keepURL = location.origin + "/board/?promise=" + r.token;
       host.replaceChildren();
       host.append(note("Your promise is with " + (profile.name || "them") + ". They will choose a piece in the app."));
       const keep = document.createElement("a");
