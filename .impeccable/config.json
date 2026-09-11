@@ -7,7 +7,7 @@
         "rule": "cramped-padding",
         "value": "*",
         "files": [
-          "landing/index.html"
+          "index.html"
         ],
         "createdAt": "2026-09-11T16:35:38.439Z",
         "reason": "Claude, evidence: sections carry padding clamp(52px, 8vh, 88px) 0, measured 52px live; the detector does not evaluate clamp() and read it as no inset. The hairline plus vertical inset is the cartel grammar itself."

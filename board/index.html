@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wantd</title>
+<meta name="robots" content="noindex">
+<meta name="p:domain_verify" content="2544d0421d56b57314d3167f310886ec"/>
+<meta property="og:title" content="Wantd.">
+<meta property="og:description" content="A wishlist, kept beautifully. See what they truly want.">
+<meta property="og:image" content="https://wantd.sedonatech.uk/og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
+<style>
+  :root {
+    --paper: rgb(247,247,245);
+    --paper-deep: rgb(238,238,235);
+    --card: rgb(252,252,251);
+    --ink: rgb(20,20,18);
+    --ink-soft: rgb(122,120,116);
+    --accent: rgb(39,67,214);
+    --hairline: rgba(20,20,18,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: rgb(9,9,9);
+      --paper-deep: rgb(20,20,20);
+      --card: rgb(16,16,16);
+      --ink: rgb(243,242,240);
+      --ink-soft: rgb(140,139,136);
+      --accent: rgb(99,122,255);
+      --hairline: rgba(243,242,240,0.10);
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Helvetica Neue", -apple-system, "SF Pro Text", Arial, sans-serif;
+  }
+  .serif { font-family: Georgia, "Times New Roman", serif; }
+
+  /* ------------------------------------------------------------------ */
+  /* The page mirrors the app's own profile screen, piece for piece.     */
+  /* ------------------------------------------------------------------ */
+  #app { max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
+
+  header.profile {
+    display: flex; align-items: center; gap: 12px;
+    padding: 26px 4px 4px;
+  }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 24%;
+    background: var(--paper-deep);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex: none;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar .letter {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 20px; color: var(--accent);
+  }
+  .who .name {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 19px; font-weight: 400; line-height: 1.15;
+  }
+  .who .facts { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+
+  /* List tabs, exactly the app's quiet row of words. */
+  nav.lists {
+    display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none;
+    padding: 18px 4px 10px;
+  }
+  nav.lists::-webkit-scrollbar { display: none; }
+  nav.lists button {
+    appearance: none; background: none; border: 0; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 400; color: var(--ink-soft);
+    padding: 6px 0; white-space: nowrap;
+  }
+  nav.lists button.on {
+    color: var(--ink); font-weight: 500;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  /* The masonry: the same balanced columns, the same cartel per card. */
+  #grid { display: flex; gap: 12px; align-items: flex-start; padding-top: 6px; }
+  .col { flex: 1 1 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06), inset 0 0 0 0.5px var(--hairline);
+    padding: 8px;
+    cursor: pointer;
+    opacity: 0; transform: translateY(10px);
+    animation: settle 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  @keyframes settle { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card { animation: none; opacity: 1; transform: none; } }
+  .card .ph {
+    border-radius: 14px; overflow: hidden; background: var(--paper-deep);
+    position: relative;
+  }
+  .card .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .ph .blank { width: 100%; padding-top: 110%; }
+  .card .cartel { padding: 10px 6px 8px; }
+  .card .store {
+    font-size: 9px; font-weight: 400; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card .nm {
+    font-family: Georgia, serif; font-size: 14px; font-weight: 400;
+    line-height: 1.25; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card .pz {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 13px; font-weight: 400; margin-top: 3px;
+  }
+  .card .kept { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+
+  /* The piece sheet: the app's product card, breath for breath. */
+  #piece {
+    position: fixed; inset: 0; display: none; z-index: 30;
+  }
+  #piece.on { display: block; }
+  #piece .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.34); }
+  #piece .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; top: max(28px, env(safe-area-inset-top));
+    background: var(--paper);
+    border-radius: 22px 22px 0 0;
+    overflow-y: auto; overscroll-behavior: contain;
+    animation: rise 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes rise { from { transform: translateY(24px); opacity: 0.4; } }
+  @media (min-width: 720px) {
+    #piece .sheet { left: 50%; transform: translateX(-50%); width: 560px; }
+  }
+  #piece .grab {
+    width: 38px; height: 4px; border-radius: 2px;
+    background: var(--hairline); margin: 10px auto 0;
+  }
+  #piece .photo {
+    margin: 14px 16px 0; border-radius: 18px; overflow: hidden;
+    background: var(--paper-deep);
+  }
+  #piece .photo img { width: 100%; display: block; }
+  #piece .info { padding: 22px 24px 40px; }
+  #piece .store {
+    font-size: 10px; font-weight: 400; letter-spacing: 1.6px;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  #piece .nm {
+    font-family: Georgia, serif; font-size: 24px; font-weight: 400;
+    line-height: 1.2; margin-top: 6px;
+  }
+  #piece .pz {
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 17px; margin-top: 10px;
+  }
+  #piece .host { font-size: 12px; font-weight: 300; color: var(--ink-soft); margin-top: 4px; }
+  #piece .kept { font-size: 13px; font-weight: 300; color: var(--ink-soft); margin-top: 10px; }
+
+  /* One black bar for the main act, quiet underlined words below: the
+     museum grammar of the app's product card. */
+  .bar {
+    display: block; text-align: center; text-decoration: none;
+    background: var(--ink); color: var(--paper);
+    font-size: 13px; font-weight: 400;
+    padding: 15px 0; margin-top: 22px;
+  }
+  .bar:active { opacity: 0.85; }
+  .quiet-links { margin-top: 18px; display: flex; flex-direction: column; gap: 13px; }
+  .quiet-links a {
+    color: var(--ink); font-size: 13px; font-weight: 400;
+    text-decoration: underline; text-underline-offset: 2px;
+    align-self: flex-start;
+  }
+  /* The app's confirm alert, cloned: veil, small centered card, two acts. */
+  .alert-wrap { position: fixed; inset: 0; z-index: 60; display: none;
+    align-items: center; justify-content: center; padding: 20px; }
+  .alert-wrap.on { display: flex; }
+  .alert-wrap .veil { position: absolute; inset: 0; background: rgba(0,0,0,0.42); }
+  .alert-card { position: relative; width: 276px; border-radius: 14px;
+    background: var(--paper); overflow: hidden; text-align: center;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.28); }
+  .alert-card h3 { font-size: 15px; font-weight: 600; color: var(--ink);
+    padding: 19px 18px 5px; margin: 0; }
+  .alert-card p { font-size: 13px; font-weight: 300; color: var(--ink);
+    line-height: 1.4; padding: 0 18px 17px; margin: 0; }
+  .alert-acts { display: flex; border-top: 0.5px solid var(--hairline); }
+  .alert-acts button { flex: 1; font: inherit; font-size: 15px; font-weight: 400;
+    padding: 12px 0; border: 0; background: none; color: var(--ink); cursor: pointer; }
+  .alert-acts button + button { border-left: 0.5px solid var(--hairline); font-weight: 600; }
+  .alert-acts button:active { background: var(--paper-deep); }
+
+  /* Group gift, the app's museum grammar: light serif numbers, a 2px rule
+     that fills, contributors flat on the wall. */
+  .gg-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .gg-nums { display: flex; align-items: baseline; gap: 7px; margin-top: 12px; }
+  .gg-collected { font-family: Georgia, serif; font-style: italic; font-weight: 300;
+    font-size: 22px; letter-spacing: -0.2px; color: var(--ink); }
+  .gg-target, .gg-pct, .gg-amt { font-family: Georgia, serif; font-style: italic;
+    font-weight: 300; font-size: 12px; color: var(--ink-soft); }
+  .gg-pct { margin-left: auto; }
+  .gg-rule { position: relative; height: 2px; margin-top: 8px; overflow: hidden; }
+  .gg-rule::before { content: ""; position: absolute; inset: 0;
+    background: var(--ink-soft); opacity: 0.25; }
+  .gg-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--ink); transition: width 0.7s cubic-bezier(0.3, 0.9, 0.3, 1); }
+  .gg-people { margin-top: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .gg-person { display: flex; align-items: center; gap: 8px; }
+  .gg-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--paper-deep);
+    display: flex; align-items: center; justify-content: center; flex: none;
+    font-family: Georgia, serif; font-weight: 300; font-size: 11px; color: var(--ink); }
+  .gg-name { font-size: 13px; font-weight: 300; color: var(--ink); }
+  .gg-amt { margin-left: auto; }
+  .gg-links { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .gg-links a.soft { color: var(--ink-soft); }
+
+  /* The contribution sheet, cloned: italic serif headline, capsule fields,
+     one full-width ink act. */
+  .gg-h { font-family: Georgia, serif; font-style: italic; font-weight: 300;
+    font-size: 22px; color: var(--ink); text-align: center; margin-top: 6px; }
+  .gg-sub { font-size: 12px; font-weight: 300; color: var(--ink-soft); text-align: center;
+    margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gg-field label { display: block; font-size: 9px; font-weight: 300;
+    letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft);
+    margin: 14px 2px 6px; }
+  .gg-field input { width: 100%; box-sizing: border-box; font: inherit;
+    font-weight: 300; font-size: 16px; padding: 12px 16px;
+    border: 0.5px solid var(--hairline); border-radius: 999px;
+    background: var(--card); color: var(--ink); outline: none; }
+  .gg-cta { display: block; width: 100%; margin-top: 18px; font: inherit;
+    font-size: 13px; font-weight: 300; letter-spacing: 0.3px; padding: 14px 0;
+    border: 0; border-radius: 999px; background: var(--ink); color: var(--paper);
+    cursor: pointer; }
+  .gg-cta:disabled { opacity: 0.35; }
+  .gg-cancel, .quiet-links a.gg-cancel { display: block; text-align: center;
+    margin-top: 13px; font-size: 13px; color: var(--ink-soft);
+    text-decoration: underline; text-underline-offset: 2px; align-self: stretch; }
+
+  /* The promise (SED-611): a quiet underlined line, then the keep-page. */
+  .pledge-link { display: inline-block; margin-top: 8px; font-size: 12px;
+    font-weight: 300; color: var(--ink-soft); text-decoration: underline;
+    text-underline-offset: 2px; }
+  .pledge-form { display: flex; gap: 8px; margin-top: 10px; max-width: 460px; }
+  .promise { max-width: 460px; margin: 0 auto; padding: 60px 24px 60px;
+    text-align: center; }
+  .promise .mark { font-size: 24px; font-weight: 700; letter-spacing: -0.6px;
+    color: var(--accent); margin-bottom: 26px; }
+  .promise .line { font-family: Georgia, serif; font-style: italic;
+    font-size: 21px; color: var(--ink); }
+  .promise .ph { width: 100%; border-radius: 18px; margin-top: 26px; }
+  .promise .nm { font-family: Georgia, serif; font-size: 22px; margin-top: 18px; }
+  .promise .pz { font-family: Georgia, serif; font-style: italic;
+    font-size: 16px; margin-top: 6px; }
+  .promise .bar { margin-top: 24px; }
+  .promise .appline { margin-top: 16px; }
+
+  /* The Secret Santa guest card (SED-603): the app's cobalt invitation,
+     handed to a grandmother by link. */
+  body.santaroom { background: #0228b2; }
+  .santa { min-height: 100svh; max-width: 460px; margin: 0 auto;
+    padding: 20px 30px 52px; display: flex; flex-direction: column;
+    color: #f6f4ee; box-sizing: border-box; }
+  .santa .mark { font-size: 22px; font-weight: 600; letter-spacing: -0.5px;
+    padding-top: 12px; color: #f6f4ee; }
+  .santa .room { margin-top: auto; }
+  .santa .chapter { font-size: 13px; font-weight: 300; opacity: .68; }
+  .santa .lead { font-size: 28px; font-weight: 300; letter-spacing: -0.6px;
+    margin-top: 10px; }
+  .santa .target { font-size: 46px; font-weight: 300; letter-spacing: -1px;
+    margin-top: 6px; overflow-wrap: anywhere; }
+  .santa .meta { font-size: 13px; font-weight: 300; opacity: .68;
+    margin-top: 14px; }
+  .santa .foot { margin-top: auto; padding-top: 44px; text-align: center; }
+  .santa .hush { font-size: 12px; font-weight: 300; opacity: .55;
+    margin-bottom: 16px; }
+  .santa .open { display: block; background: #f6f4ee; color: #0228b2;
+    text-decoration: none; font-size: 13px; letter-spacing: .3px;
+    padding: 15px 0; border-radius: 999px; }
+  .santa .line { font-family: Georgia, serif; font-style: italic;
+    font-size: 20px; margin-top: 40svh; text-align: center; opacity: .9; }
+
+  /* The day-one landing (SED-619): quiet room, one act. */
+
+  .appline { margin-top: 22px; font-size: 11px; font-weight: 300; color: var(--ink-soft); }
+
+  footer.house {
+    margin-top: 44px; padding: 0 4px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  footer.house .mark {
+    font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: var(--accent);
+  }
+  footer.house a { color: var(--ink); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+
+  .empty {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-soft); font-size: 14px; font-weight: 300;
+  }
+</style>
+</head>
+<body>
+<div id="app" hidden>
+  <header class="profile">
+    <div class="avatar" id="avatar"><span class="letter" id="avatarLetter"></span></div>
+    <div class="who">
+      <div class="name" id="whoName"></div>
+      <div class="facts" id="whoFacts"></div>
+      <div id="pledge"></div>
+    </div>
+  </header>
+  <nav class="lists" id="tabs"></nav>
+  <div id="grid"></div>
+  <footer class="house">
+    <span class="mark">Wantd.</span>
+    <a id="createOwn" href="#" target="_blank" rel="noopener">Create your own</a>
+  </footer>
+</div>
+
+<div id="piece">
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="photo" id="pPhoto"></div>
+    <div class="info" id="pInfo"></div>
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Data. Preview (no handle in URL) renders sample matter so the design can be
+// judged by opening the page. Production reads CloudKit (SED-519).
+// ---------------------------------------------------------------------------
+// Skimlinks affiliation (SED-586): a blank id leaves every URL untouched.
+const SKIMLINKS_ID = "308847X1797169";   // Sedona Tech Ltd, wantd.sedonatech.uk (2026-09-05)
+function shopURL(u) {
+  if (!SKIMLINKS_ID || !u) return u;
+  // xcust names the channel, so the dashboard can tell the board from the app.
+  return "https://go.skimresources.com/?id=" + SKIMLINKS_ID + "&url=" + encodeURIComponent(u) + "&xcust=web";
+}
+const HANDLE = new URLSearchParams(location.search).get("handle")
+            || location.pathname.match(/@([\w-]+)/)?.[1];
+
+// Reserving writes to someone's wishlist, and the key that allows writes
+// cannot live in a public page — so reserving belongs to the app. The web
+// page reads, and sends you to the app to act.
+const APP_STORE_URL = "https://apps.apple.com/app/id6787658989";
+// Day-one switch (SED-619): flipped 2026-09-05, Wantd 1.0 is on the App Store.
+const LAUNCHED = true;
+// Before launch that App Store page does not exist yet, so every "get the
+// app" door leads to the waitlist instead. The channel the visitor arrived
+// on rides along (?s=pinterest) so the admin page knows where each email
+// walked in from, exactly like the /join links do.
+const CHANNEL = (new URLSearchParams(location.search).get("s") || "board").toLowerCase();
+const APP_DOOR = LAUNCHED ? APP_STORE_URL : "/join?s=" + encodeURIComponent(CHANNEL);
+// The reservation worker (SED-609): blank until deployed; the page behaves
+// exactly as before while it is.
+const RESERVE_API = "https://wantd-reserve.wantd-reserve.workers.dev";
+
+// "Send a gift card instead" (SED-612): the last-minute gesture when
+// shipping is dead. Only merchants with a real, stable gift card page are
+// mapped; the line only appears once affiliate links are live, because its
+// whole point is the click count Skimlinks will report.
+// Every page below was opened and read before being listed (07/09/2026).
+// Houses that simply do not sell a card online are absent on purpose, and
+// their pieces show no line at all: Saint Laurent (the biggest shop on the
+// boards), Hermes, Rhode, SKIMS, Celine, Shein.
+const GIFTCARDS = {
+  "zara.com": "https://www.zara.com/fr/fr/giftcard-l1052.html",
+  "asos.com": "https://www.asos.com/gift-vouchers/",
+  "sephora.fr": "https://www.sephora.fr/carte-cadeau.html",
+  "sephora.com": "https://www.sephora.com/beauty/giftcards",
+  "zalando.fr": "https://www.zalando.fr/carte-cadeau-home/",
+  "hm.com": "https://www2.hm.com/fr_fr/carte-cadeau.html",
+  "farfetch.com": "https://www.farfetch.com/fr/gift-card",
+  "net-a-porter.com": "https://www.net-a-porter.com/fr-fr/gift-cards/",
+  "chanel.com": "https://www.chanel.com/gb/gift-card/",
+  "cartier.com": "https://cargiftcard.cartier.com/",
+  "apm.mc": "https://www.apm.mc/products/gift-card",
+  "aloyoga.com": "https://www.aloyoga.com/products/gift-card",
+  "mejuri.com": "https://mejuri.com/shop/t/gift-cards",
+  // Dior sells a card for its BEAUTY house only. Beside a Book Tote it would
+  // be a card that cannot buy the piece, so the line shows on beauty pieces
+  // and nowhere else (Agathe, 2026-09-07). A house listed with `path` only
+  // answers for the part of its site that its card can actually pay for.
+  "dior.com": { path: "/beauty/",
+                url: "https://www.dior.com/en_gb/beauty/products/dior-beauty-e-gift-card-Y74290.html" },
+};
+
+const SAMPLE = {
+  profile: { name: "Agathe", handle: "wtd-agathe" },
+  items: [
+    { name: "Eau Rihla", price: "255 €", store: "Diptyque",
+      img: "https://diptyqueparis.com/cdn/shop/files/diptyque-eau-rihla-eau-de-parfum-MEASTP75C_side.webp?v=1759147564%5Cu0026width=2048",
+      url: "https://diptyqueparis.com/fr-fr/products/eau-de-parfum-eau-rihla-meastp75c" },
+    { name: "Heirloom Earrings in Snow", price: "IDR 59.940.000", store: "Realfine Studio",
+      img: "https://realfinestudio.com/cdn/shop/files/15_b_b1f4e1c0-e276-4a89-a368-a68b0a642bee.png?v=1760465604%5Cu0026width=1920",
+      url: "https://realfinestudio.com/collections/earrings/products/heirloom-earrings" },
+    { name: "Topshop - Bomber en imitation daim - Fauve", price: "€54,99", store: "ASOS",
+      img: "https://images.asos-media.com/products/topshop-bomber-en-imitation-daim-a-col-cheminee-fauve/209098303-1-tan?$n_960w$",
+      url: "https://www.asos.com/fr/prd/209098303" },
+    { name: "Delina La Rosée Eau de Parfum (30ml)", price: "175 €", store: "Parfums de Marly",
+      img: "https://parfums-de-marly.com/cdn/shop/files/DELINA_LAROSEE-PERFUME-30-PACK1-1X1_CENTERED_e6d10cdd-4278-4718-a32d-9a0b6fb0aa4b.png?v=1759501422%5Cu0026width=1080",
+      url: "https://parfums-de-marly.com/products/delina-la-rosee-30ml" },
+    { name: "Black Ruches Nappa Leather Loafers", price: "$1.120", store: "Miu Miu",
+      img: "https://www.miumiu.com/content/dam/miumiubkg_products/5/5D3/5D341E/EFXF0002/5D341E_EFX_F0002_F_D005_MDR.jpg",
+      url: "https://www.miumiu.com/us/en/p/ruches-nappa-leather-loafers/5D341E_EFX_F0002_F_D005" },
+    { name: "Small shopping bag", price: "€6.200", store: "Chanel",
+      img: "https://www.chanel.com/images/as///f_auto//-80644081.jpg",
+      url: "https://www.chanel.com/be-nl/mode/p/AS6288B2424894305/small-shopping-bag-kaviaar-kalfsleer-goudkleurig-metaal/" },
+    { name: "AirWash™ dry shampoo 4oz", price: "$48.00", store: "K18",
+      img: "https://www.k18hair.com/cdn/shop/files/Airwash_altimages_1650x2259_MAIN.jpg?v=1710849567&width=1024",
+      url: "https://www.k18hair.com/products/airwash-dry-shampoo-4oz" },
+    { name: "LED Face Mask", price: "£399.99", store: "CurrentBody",
+      img: "https://www.currentbody.com/cdn/shop/files/series_2_red_light_mask_face_on_2.png?v=1769185981%5Cu0026width=1920",
+      url: "https://www.currentbody.com/products/currentbody-skin-led-light-therapy-mask" },
+    { name: "Panthère de Cartier", price: "£29 000", store: "Selfridges",
+      img: "https://images.selfridges.com/is/image/selfridges/R04267746_GOLD_M",
+      url: "https://www.selfridges.com/GB/en/product/cartier-crwjpn0053_R04267746/" },
+    { name: "London. Portrait of a City.", price: "€60", store: "TASCHEN",
+      img: "https://taschen.makaira.media/taschen/image/upload/f_webp,w_1200/v1693206866/products-live/8a0bd52af076d7a3db4d0d7c16a1cd3b.png",
+      url: "https://www.taschen.com/en/books/photography/05753/london-portrait-of-a-city/" },
+    { name: "the rhode kit", price: "$117.00", store: "Rhode",
+      img: "https://www.rhodeskin.com/cdn/shop/files/rhodekitmainimage_1_1024x1024.png?v=1746036049",
+      url: "https://www.rhodeskin.com/en-gb/products/full-rhode-kit" }
+  ]
+};
+
+// ---------------------------------------------------------------------------
+// The render: the app's own profile screen, rebuilt in HTML. Header, list
+// tabs, balanced masonry, and the product sheet with its black Shop bar —
+// so ordering a gift from this link asks nothing of anyone (SED, 2026-08-30).
+// ---------------------------------------------------------------------------
+let ALL = [], LISTS = [], CURRENT = "all";
+
+function startPage(profile, items, lists) {
+  ALL = items; LISTS = lists || [];
+  document.getElementById("app").hidden = false;
+
+  const avatar = document.getElementById("avatar");
+  if (profile.avatar) {
+    const img = new Image(); img.src = profile.avatar; img.alt = "";
+    avatar.replaceChildren(img);
+  } else {
+    // The 26 letters she drew in the icon's cobalt: the avatar IS the app
+    // icon, personalized — identical to the app's AvatarView.
+    const letter = ((profile.name || "?").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().match(/[A-Z]/) || [null])[0];
+    if (letter) {
+      const img = new Image(); img.src = "/avatars/" + letter + ".jpg"; img.alt = "";
+      img.onerror = () => {
+        avatar.replaceChildren(document.getElementById("avatarLetter") || document.createElement("span"));
+        const sp = document.createElement("span"); sp.className = "letter";
+        sp.textContent = letter; avatar.replaceChildren(sp);
+      };
+      avatar.replaceChildren(img);
+    } else {
+      document.getElementById("avatarLetter").textContent = "?";
+    }
+  }
+  document.getElementById("whoName").textContent = profile.name;
+  document.getElementById("whoFacts").textContent =
+    "@" + profile.handle + " · " + items.length + (items.length === 1 ? " want" : " wants");
+  const own = document.getElementById("createOwn");
+  own.href = APP_DOOR;
+  if (!LAUNCHED) { own.removeAttribute("target"); own.textContent = "Join the waitlist"; }
+
+  // "Let them choose" (SED-611): a giver who cannot decide promises an
+  // amount on the whole list; she picks in the app; he keeps a link.
+  if (RESERVE_API && profile.handle) buildPledgeEntry(profile);
+
+  const tabs = document.getElementById("tabs");
+  tabs.replaceChildren();
+  const mk = (label, key) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.dataset.key = key;
+    if (key === CURRENT) b.classList.add("on");
+    b.addEventListener("click", () => { CURRENT = key; renderTabs(); renderGrid(); });
+    tabs.append(b);
+  };
+  mk("All", "all");
+  // The Main list is the invisible default drawer: All is its only face,
+  // and only NAMED lists earn a tab (same rule as the app, 2026-08-30).
+  const named = LISTS.filter(l => !l.main);
+  for (const l of named) mk(l.name, l.uuid);
+  if (named.length === 0) tabs.style.display = "none";
+
+  function renderTabs() {
+    for (const b of tabs.querySelectorAll("button"))
+      b.classList.toggle("on", b.dataset.key === CURRENT);
+  }
+  renderGrid();
+}
+
+function visibleItems() {
+  if (CURRENT === "all") return ALL;
+  return ALL.filter(it => (it.listIDs || []).includes(CURRENT));
+}
+
+function renderGrid() {
+  const grid = document.getElementById("grid");
+  grid.replaceChildren();
+  const items = visibleItems();
+  const nCols = innerWidth >= 720 ? 3 : 2;
+  lastCols = nCols;
+  const cols = [];
+  const heights = [];
+  for (let c = 0; c < nCols; c++) {
+    const col = document.createElement("div");
+    col.className = "col";
+    grid.append(col);
+    cols.push(col); heights.push(0);
+  }
+  items.forEach((it, i) => {
+    const c = heights.indexOf(Math.min(...heights));
+    heights[c] += (it.ratio || 1.2) + 0.32;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.animationDelay = Math.min(i * 0.03, 0.45) + "s";
+    const ph = document.createElement("div"); ph.className = "ph";
+    ph.style.aspectRatio = "1 / " + (it.ratio || 1.2);
+    if (it.img) {
+      const img = new Image(); img.src = it.img; img.alt = it.name; img.loading = "lazy";
+      ph.append(img);
+    } else {
+      const blank = document.createElement("div"); blank.className = "blank";
+      ph.append(blank);
+    }
+    const cartel = document.createElement("div"); cartel.className = "cartel";
+    if (it.store) {
+      const s = document.createElement("div"); s.className = "store";
+      s.textContent = it.store; cartel.append(s);
+    }
+    const nm = document.createElement("div"); nm.className = "nm serif";
+    nm.textContent = it.name; cartel.append(nm);
+    if (it.price) {
+      const pz = document.createElement("div"); pz.className = "pz";
+      pz.textContent = it.price; cartel.append(pz);
+    }
+    if (it.keptWith) {
+      const k = document.createElement("div"); k.className = "kept";
+      k.textContent = "Kept with " + it.keptWith; cartel.append(k);
+    }
+    // Only the browser that reserved it knows: the token never leaves
+    // localStorage, so the owner and everyone else keep seeing nothing.
+    if (it.recordName && localStorage.getItem("wantd.reserved." + it.recordName)) {
+      const r = document.createElement("div"); r.className = "kept";
+      r.textContent = "Reserved by you"; cartel.append(r);
+    }
+    card.append(ph, cartel);
+    card.addEventListener("click", () => openPiece(it));
+    cols[c].append(card);
+  });
+}
+
+function openPiece(it) {
+  let host = "";
+  try { host = new URL(it.url).hostname.replace(/^www\./, ""); } catch {}
+
+  const photo = document.getElementById("pPhoto");
+  photo.replaceChildren();
+  if (it.img) { const img = new Image(); img.src = it.img; img.alt = it.name; photo.append(img); }
+
+  const info = document.getElementById("pInfo");
+  info.replaceChildren();
+  const add = (cls, text, serif) => {
+    const d = document.createElement("div");
+    d.className = cls + (serif ? " serif" : "");
+    d.textContent = text;
+    info.append(d);
+    return d;
+  };
+  if (it.store) add("store", it.store);
+  add("nm", it.name, true);
+  if (it.price) add("pz", it.price, true);
+  if (host) add("host", host);
+  if (it.keptWith) add("kept", "A gift here pleases " + it.keptWith + " too.");
+
+  if (it.url) {
+    const bar = document.createElement("a");
+    bar.className = "bar"; bar.href = shopURL(it.url);
+    bar.target = "_blank"; bar.rel = "noopener";
+    bar.textContent = "Shop";
+    info.append(bar);
+  }
+
+  const links = document.createElement("div"); links.className = "quiet-links";
+  if (RESERVE_API && it.recordName) {
+    buildReserveFlow(links, it);
+    buildPotFlow(links, it);
+  } else {
+    const rs = document.createElement("a");
+    rs.href = APP_DOOR; if (LAUNCHED) { rs.target = "_blank"; rs.rel = "noopener"; }
+    rs.textContent = "Reserve this gift in Wantd";
+    links.append(rs);
+  }
+  // The gift card line (SED-612), asleep until SKIMLINKS_ID wakes it.
+  if (SKIMLINKS_ID && it.url) {
+    try {
+      const gcURL = new URL(it.url);
+      const gcHost = gcURL.hostname.replace(/^www\d?\./, "");
+      const entry = GIFTCARDS[gcHost];
+      const gc = typeof entry === "string" ? entry
+               : entry && gcURL.pathname.includes(entry.path) ? entry.url
+               : null;
+      if (gc) {
+        const a = document.createElement("a");
+        a.href = shopURL(gc); a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "Send a gift card instead";
+        links.append(a);
+      }
+    } catch {}
+  }
+  info.append(links);
+  if (!(RESERVE_API && it.recordName)) {
+    const line = document.createElement("div"); line.className = "appline";
+    line.textContent = "Reserving and group gifts live in the Wantd app.";
+    info.append(line);
+  }
+
+  document.getElementById("piece").classList.add("on");
+  document.querySelector("#piece .sheet").scrollTop = 0;
+}
+
+// Reserving from the web, with just a first name (SED-609). The board
+// itself never shows who reserved what — the owner reads her own link, and
+// the surprise is the product. The truth only answers the person ABOUT to
+// reserve: "someone already took this one."
+//
+// The undo works two ways: the token localStorage kept, or — because
+// WhatsApp's little in-app browser forgets localStorage — the same first
+// name that reserved. Within a circle of people who love the same person,
+// a first name is proof enough.
+
+// The app's alert, cloned: "Reserve this gift?" over a veil, Cancel | act.
+function showConfirm(title, message, okLabel) {
+  return new Promise((resolve) => {
+    let wrap = document.getElementById("confirm");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "confirm"; wrap.className = "alert-wrap";
+      wrap.innerHTML = '<div class="veil"></div>' +
+        '<div class="alert-card"><h3></h3><p></p>' +
+        '<div class="alert-acts"><button type="button"></button><button type="button"></button></div></div>';
+      document.body.append(wrap);
+    }
+    wrap.querySelector("h3").textContent = title;
+    wrap.querySelector("p").textContent = message;
+    const [cancel, ok] = wrap.querySelectorAll("button");
+    cancel.textContent = "Cancel"; ok.textContent = okLabel;
+    const done = (v) => { wrap.classList.remove("on"); resolve(v); };
+    cancel.onclick = () => done(false);
+    ok.onclick = () => done(true);
+    wrap.querySelector(".veil").onclick = () => done(false);
+    wrap.classList.add("on");
+  });
+}
+
+function webAPI(p, b) {
+  return fetch(RESERVE_API + p, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(b)
+  }).then(r => r.json()).catch(() => ({ error: "net" }));
+}
+
+function quietLink(text, fn, soft) {
+  const a = document.createElement("a");
+  a.href = "#"; a.textContent = text;
+  if (soft) a.className = "soft";
+  a.addEventListener("click", (e) => { e.preventDefault(); fn(a); });
+  return a;
+}
+
+function quietNote(text) {
+  const d = document.createElement("div");
+  d.className = "appline"; d.style.marginTop = "4px";
+  d.textContent = text;
+  return d;
+}
+
+function capsuleField(labelText, placeholder, opts) {
+  const w = document.createElement("div"); w.className = "gg-field";
+  const l = document.createElement("label"); l.textContent = labelText;
+  const i = document.createElement("input");
+  i.placeholder = placeholder; i.autocomplete = "off";
+  if (opts && opts.decimal) i.inputMode = "decimal";
+  if (opts && opts.max) i.maxLength = opts.max;
+  w.append(l, i);
+  return { wrap: w, input: i };
+}
+
+function buildReserveFlow(container, it) {
+  const key = "wantd.reserved." + it.recordName;
+  const box = document.createElement("div");
+  container.append(box);
+
+  function render() {
+    box.replaceChildren();
+    const mine = localStorage.getItem(key);
+    if (mine) {
+      box.append(quietLink("You reserved this. Tap to undo", async (a) => {
+        a.textContent = "One moment\u2026";
+        const r = await webAPI("/unreserve", { itemID: it.recordName, token: mine });
+        localStorage.removeItem(key);
+        box.replaceChildren(quietNote(r.ok ? "Reservation removed." : "This reservation was not yours to undo."));
+      }));
+      return;
+    }
+    box.append(quietLink("Reserve this gift", () => nameForm()));
+  }
+
+  function nameForm() {
+    box.replaceChildren();
+    const form = document.createElement("form");
+    const name = capsuleField("Your name", "e.g. Camille", { max: 30 });
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Reserve";
+    const back = quietLink("Cancel", () => render());
+    back.className = "gg-cancel";
+    form.append(name.wrap, go, back);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      if (!n) { name.input.focus(); return; }
+      // The app's own breath before committing, word for word.
+      const sure = await showConfirm("Reserve this gift?",
+        "Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.",
+        "Reserve");
+      if (!sure) return;
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/reserve", { itemID: it.recordName, name: n });
+      if (r.ok) {
+        localStorage.setItem(key, r.token);
+        box.replaceChildren(quietNote("Reserved. Nobody else will offer it."),
+          noteLink(r.token),
+          undoLink());
+      } else if (r.error === "taken") {
+        box.replaceChildren(quietNote("Someone already reserved this one."),
+          quietLink("It was me \u2014 undo my reservation", () => undoByName(), true));
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    name.input.focus();
+  }
+
+  // The unwrapping note (SED-614): one line that travels with the gift and
+  // unveils the day she shelves the piece. Written veiled by the worker.
+  function noteLink(token) {
+    return quietLink("Leave a note with it", (a) => {
+      const wrap = a.parentNode;
+      const form = document.createElement("form");
+      form.style.cssText = "display:flex;gap:8px;align-items:stretch;margin-top:10px";
+      const input = document.createElement("input");
+      input.placeholder = "Happy birthday..."; input.maxLength = 280;
+      input.autocomplete = "off";
+      input.style.cssText = "flex:1;min-width:0;font:inherit;font-weight:300;font-size:16px;padding:10px 14px;border:0.5px solid var(--hairline);border-radius:999px;background:var(--card);color:var(--ink);outline:none";
+      const go = document.createElement("button");
+      go.type = "submit"; go.textContent = "Ink it";
+      go.style.cssText = "flex:none;font:inherit;font-size:14px;padding:10px 16px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);cursor:pointer";
+      form.append(input, go);
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const note = input.value.trim();
+        if (!note) { input.focus(); return; }
+        go.textContent = "One moment\u2026"; go.disabled = true;
+        const res = await webAPI("/reserve-note", { itemID: it.recordName, token, note });
+        form.replaceWith(quietNote(res.ok
+          ? "Inked. They read it the day the gift reaches their hands."
+          : "That did not go through. Try again in a moment."));
+      });
+      a.replaceWith(form);
+      input.focus();
+    });
+  }
+
+  function undoLink() {
+    return quietLink("Undo my reservation", async (a) => {
+      a.textContent = "One moment\u2026";
+      const r = await webAPI("/unreserve", { itemID: it.recordName, token: localStorage.getItem(key) || "" });
+      localStorage.removeItem(key);
+      box.replaceChildren(quietNote(r.ok ? "Reservation removed." : "That did not go through. Try again in a moment."));
+    }, true);
+  }
+
+  // WhatsApp forgot the token: the reserving first name undoes it instead.
+  function undoByName() {
+    box.replaceChildren();
+    const form = document.createElement("form");
+    const name = capsuleField("Your name", "The name you reserved with", { max: 30 });
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Undo my reservation";
+    const back = quietLink("Cancel", () => render());
+    back.className = "gg-cancel";
+    form.append(name.wrap, go, back);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      if (!n) { name.input.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/unreserve", { itemID: it.recordName, name: n });
+      if (r.ok) {
+        localStorage.removeItem(key);
+        box.replaceChildren(quietNote("Reservation removed."));
+      } else if (r.error === "notyours") {
+        box.replaceChildren(quietNote("That name does not match this reservation."));
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    name.input.focus();
+  }
+
+  render();
+}
+
+// Chipping in from the web (SED-610), so a papa never needs the app — drawn
+// exactly like the app's GroupGiftSection: light serif numbers, a 2px rule
+// that fills, contributors flat on the wall, and the same sheet to give.
+// Same passivity rule as reserving: in the app the owner never sees her own
+// group gift, and the web cannot know who is looking, so the pot only
+// answers whoever taps the word.
+function buildPotFlow(container, it) {
+  const memKey = "wantd.chip." + it.recordName;
+  const box = document.createElement("div");
+  container.append(box);
+  let pot = null;
+
+  const money = (amount, code) => {
+    const sym = { EUR: "\u20ac", USD: "$", GBP: "\u00a3" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+  const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+  const myLine = () => {
+    const n = localStorage.getItem(memKey);
+    if (!n || !pot || !pot.active) return null;
+    return (pot.contributors || []).find((c) => same(c.name, n)) || null;
+  };
+
+  function section() {
+    box.replaceChildren();
+    const gg = document.createElement("div");
+
+    const title = document.createElement("div");
+    title.className = "gg-title"; title.textContent = "Group gift";
+    gg.append(title);
+
+    if (pot.active) {
+      const target = pot.target || 0;
+      const nums = document.createElement("div"); nums.className = "gg-nums";
+      const big = document.createElement("span"); big.className = "gg-collected";
+      big.textContent = money(pot.collected, pot.currency);
+      nums.append(big);
+      if (target > 0) {
+        const t = document.createElement("span"); t.className = "gg-target";
+        t.textContent = "/ " + money(target, pot.currency);
+        const pct = document.createElement("span"); pct.className = "gg-pct";
+        pct.textContent = Math.round(Math.min(1, pot.collected / target) * 100) + "%";
+        nums.append(t, pct);
+      }
+      gg.append(nums);
+      if (target > 0) {
+        const rule = document.createElement("div"); rule.className = "gg-rule";
+        const fill = document.createElement("div"); fill.className = "gg-fill";
+        rule.append(fill); gg.append(rule);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          fill.style.width = (Math.min(1, pot.collected / target) * 100) + "%";
+        }));
+      }
+      const people = document.createElement("div"); people.className = "gg-people";
+      (pot.contributors || []).forEach((c) => {
+        const row = document.createElement("div"); row.className = "gg-person";
+        const dot = document.createElement("div"); dot.className = "gg-dot";
+        dot.textContent = (c.name || "?").trim().charAt(0).toUpperCase();
+        const nm = document.createElement("div"); nm.className = "gg-name";
+        nm.textContent = c.name;
+        const amt = document.createElement("div"); amt.className = "gg-amt";
+        amt.textContent = money(c.amount, pot.currency);
+        row.append(dot, nm, amt);
+        people.append(row);
+      });
+      gg.append(people);
+
+      const acts = document.createElement("div"); acts.className = "gg-links";
+      const mine = myLine();
+      if (mine) {
+        acts.append(
+          quietLink("Edit my contribution", () => giveForm(mine)),
+          quietLink("Remove my contribution", async (a) => {
+            a.textContent = "One moment\u2026";
+            const r = await webAPI("/uncontribute", { itemID: it.recordName, name: localStorage.getItem(memKey) });
+            if (r.ok) { pot = r; section(); }
+            else { box.replaceChildren(quietNote("That did not go through. Try again in a moment.")); }
+          }, true));
+      } else {
+        acts.append(quietLink("Add my contribution", () => giveForm(null)));
+      }
+      gg.append(acts);
+    } else {
+      // Untouched, the group gift is one underlined word — the app's own.
+      const acts = document.createElement("div"); acts.className = "gg-links";
+      acts.style.marginTop = "10px";
+      acts.append(quietLink("Start a group gift", () => giveForm(null)));
+      gg.append(acts);
+    }
+    box.append(gg);
+  }
+
+  // The app's ContributeSheet, cloned: italic serif headline, the piece's
+  // name under it, two capsule fields, one full-width ink act.
+  function giveForm(initial) {
+    box.replaceChildren();
+    const form = document.createElement("form");
+
+    const h = document.createElement("div"); h.className = "gg-h";
+    h.textContent = "Your contribution";
+    const sub = document.createElement("div"); sub.className = "gg-sub";
+    sub.textContent = it.name;
+    form.append(h, sub);
+
+    const name = capsuleField("Your name", "e.g. Camille", { max: 30 });
+    const code = (pot && pot.currency) || "EUR";
+    const amount = capsuleField("Amount (" + code + ")", "50", { decimal: true });
+    if (initial) {
+      name.input.value = localStorage.getItem(memKey) || initial.name;
+      amount.input.value = Number.isInteger(initial.amount) ? String(initial.amount) : String(initial.amount);
+    } else if (localStorage.getItem(memKey)) {
+      name.input.value = localStorage.getItem(memKey);
+    }
+    form.append(name.wrap, amount.wrap);
+
+    const hint = quietNote(""); hint.style.display = "none"; hint.style.marginTop = "10px";
+    form.append(hint);
+
+    const go = document.createElement("button");
+    go.type = "submit"; go.className = "gg-cta"; go.textContent = "Confirm contribution";
+    const back = quietLink("Cancel", () => pot ? section() : entry());
+    back.className = "gg-cancel";
+    form.append(go, back);
+
+    // A returning name replaces its own line, never stacks a second one —
+    // say so before it happens.
+    const refreshHint = () => {
+      const other = pot && pot.active &&
+        (pot.contributors || []).find((c) => same(c.name, name.input.value) &&
+          !(initial && same(c.name, initial.name)));
+      if (other) {
+        hint.textContent = other.name + " already chipped in " +
+          money(other.amount, pot.currency) + ". Confirming replaces that line.";
+        hint.style.display = "block";
+      } else { hint.style.display = "none"; }
+    };
+    name.input.addEventListener("input", refreshHint);
+    refreshHint();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const n = name.input.value.trim();
+      const a = parseFloat(amount.input.value.replace(",", "."));
+      if (!n) { name.input.focus(); return; }
+      if (!(a > 0)) { amount.input.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await webAPI("/contribute", { itemID: it.recordName, name: n, amount: a });
+      if (r.ok) {
+        localStorage.setItem(memKey, n);
+        pot = r; section();
+      } else {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+      }
+    });
+    box.append(form);
+    (initial || localStorage.getItem(memKey) ? amount.input : name.input).focus();
+  }
+
+  function entry() {
+    box.replaceChildren();
+    box.append(quietLink("Chip in for a group gift", async (a) => {
+      a.textContent = "One moment\u2026";
+      const r = await webAPI("/pot", { itemID: it.recordName });
+      if (r.error) {
+        box.replaceChildren(quietNote("That did not go through. Try again in a moment."));
+        return;
+      }
+      pot = r; section();
+    }));
+  }
+
+  entry();
+}
+
+// The promise (SED-611): "Offer an amount, let them choose." No money ever
+// touches Wantd — the giver promises, she picks a piece in the app, and his
+// kept link turns into the piece and its shop.
+function buildPledgeEntry(profile) {
+  const host = document.getElementById("pledge");
+  if (!host) return;
+  host.replaceChildren();
+
+  const link = document.createElement("a");
+  link.href = "#"; link.className = "pledge-link";
+  link.textContent = "Not sure what to pick? Offer an amount, let them choose";
+  link.addEventListener("click", (e) => { e.preventDefault(); form(); });
+  host.append(link);
+
+  function note(text) {
+    const d = document.createElement("div");
+    d.className = "appline"; d.style.marginTop = "6px";
+    d.textContent = text;
+    return d;
+  }
+
+  function form() {
+    host.replaceChildren();
+    const f = document.createElement("form");
+    f.className = "pledge-form";
+    const inputCSS = "min-width:0;font:inherit;font-weight:300;font-size:16px;padding:12px 16px;border:0.5px solid var(--hairline);border-radius:999px;background:var(--card);color:var(--ink);outline:none";
+    const nameIn = document.createElement("input");
+    nameIn.placeholder = "Your name"; nameIn.maxLength = 30;
+    nameIn.autocomplete = "off"; nameIn.style.cssText = "flex:1.4;" + inputCSS;
+    const amountIn = document.createElement("input");
+    amountIn.placeholder = "Amount (\u20ac)"; amountIn.inputMode = "decimal";
+    amountIn.autocomplete = "off"; amountIn.style.cssText = "flex:1;" + inputCSS;
+    const go = document.createElement("button");
+    go.type = "submit"; go.textContent = "Promise it";
+    go.style.cssText = "flex:none;font:inherit;font-size:14px;font-weight:400;padding:12px 18px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);cursor:pointer";
+    f.append(nameIn, amountIn, go);
+    f.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = nameIn.value.trim();
+      const amount = parseFloat(amountIn.value.replace(",", "."));
+      if (!name) { nameIn.focus(); return; }
+      if (!(amount > 0)) { amountIn.focus(); return; }
+      go.textContent = "One moment\u2026"; go.disabled = true;
+      const r = await fetch(RESERVE_API + "/pledge", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle: profile.handle, name, amount, currency: "EUR" })
+      }).then(x => x.json()).catch(() => ({ error: "net" }));
+      if (!r.ok) {
+        host.replaceChildren(note("That did not go through. Try again in a moment."));
+        return;
+      }
+      try { localStorage.setItem("wantd.pledge." + profile.handle, r.token); } catch {}
+      const keepURL = location.origin + "/?promise=" + r.token;
+      host.replaceChildren();
+      host.append(note("Your promise is with " + (profile.name || "them") + ". They will choose a piece in the app."));
+      const keep = document.createElement("a");
+      keep.href = keepURL; keep.className = "pledge-link";
+      keep.textContent = "Keep this link to see what they chose";
+      host.append(keep);
+    });
+    host.append(f);
+    nameIn.focus();
+  }
+}
+
+// The kept link: /?promise=<token> shows what became of the promise.
+function showPromise(token) {
+  document.title = "Wantd";
+  const wrap = document.createElement("div");
+  wrap.className = "promise";
+  document.body.append(wrap);
+
+  const money = (amount, code) => {
+    const sym = { EUR: "\u20ac", USD: "$", GBP: "\u00a3" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+
+  fetch(RESERVE_API + "/pledge-status", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  }).then(x => x.json()).catch(() => ({ error: "net" })).then((r) => {
+    if (r.error) {
+      wrap.innerHTML = '<div class="line serif">This promise could not be found.</div>';
+      return;
+    }
+    const mark = '<div class="mark">Wantd.</div>';
+    if (r.status === "offered" || !r.chosen) {
+      wrap.innerHTML = mark +
+        '<div class="line serif">Your promise of ' + money(r.amount, r.currency) + ' is on its way.</div>' +
+        '<div class="appline">Nothing chosen yet. Keep this link and come back.</div>';
+      return;
+    }
+    const c = r.chosen;
+    wrap.innerHTML = mark +
+      '<div class="line serif">They chose this one.</div>' +
+      (c.image ? '<img class="ph" src="' + c.image + '" alt="">' : "") +
+      '<div class="nm serif">' + (c.name || "A piece from the wishlist") + "</div>" +
+      (c.priceAmount ? '<div class="pz serif">' + money(c.priceAmount, c.priceCurrency || "EUR") + "</div>" : "") +
+      (c.url ? '<a class="bar" target="_blank" rel="noopener" href="' + shopURL(c.url) + '">Shop it</a>' : "") +
+      '<div class="appline">Your promise of ' + money(r.amount, r.currency) + ', kept the way you meant it.</div>';
+  });
+}
+
+// The Secret Santa guest card (SED-603): /?santa=<circle>&t=<token>. A
+// participant without the app opens their personal link and reads the one
+// name they drew — the worker only ever answers the token's own slice.
+function showSanta(group, token) {
+  document.title = "Wantd";
+  document.body.classList.add("santaroom");
+  const wrap = document.createElement("div");
+  wrap.className = "santa";
+  document.body.append(wrap);
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (amount, code) => {
+    const sym = { EUR: "€", USD: "$", GBP: "£" }[code];
+    const n = Math.round(amount * 100) / 100;
+    const v = Number.isInteger(n) ? String(n) : n.toFixed(2);
+    return sym ? sym + v : v + " " + (code || "");
+  };
+
+  fetch(RESERVE_API + "/santa-guest", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group, t: token })
+  }).then(x => x.json()).catch(() => ({ error: "net" })).then((r) => {
+    const mark = '<div class="mark">Wantd.</div>';
+    if (r.error) {
+      wrap.innerHTML = mark +
+        '<div class="line">This draw could not be found.</div>';
+      return;
+    }
+    const day = r.eventDate
+      ? new Date(r.eventDate).toLocaleDateString("en-US",
+          { month: "long", day: "numeric" })
+      : null;
+    const chapter = r.name ? (r.name.endsWith(".") ? r.name : r.name + ".")
+                          : "Secret Santa.";
+    const meta = [
+      r.budget ? "Keep it around " + money(r.budget, r.currency) + "." : null,
+      day ? "For " + day + "." : null,
+    ].filter(Boolean).join(" ");
+    wrap.innerHTML = mark +
+      '<div class="room">' +
+        '<div class="chapter">' + esc(chapter) + "</div>" +
+        '<div class="lead">' + esc(r.you) + ", this year you spoil</div>" +
+        '<div class="target">' + esc(r.targetName) + ".</div>" +
+        (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") +
+      "</div>" +
+      '<div class="foot">' +
+        '<div class="hush">Not a word to anyone.</div>' +
+        (r.targetHandle
+          ? '<a class="open" href="/@' + esc(r.targetHandle) + '">Open their wishlist</a>'
+          : "") +
+      "</div>";
+  });
+}
+
+document.querySelector("#piece .scrim").addEventListener("click",
+  () => document.getElementById("piece").classList.remove("on"));
+
+// Pull the sheet down to leave, exactly the gesture the app taught every
+// thumb (Agathe, 2026-08-30: tapping the void is not instinctive).
+(function () {
+  const piece = document.getElementById("piece");
+  const sheet = document.querySelector("#piece .sheet");
+  let startY = null, dy = 0, dragging = false;
+  const baseX = () => matchMedia("(min-width: 720px)").matches ? "translateX(-50%) " : "";
+  sheet.addEventListener("touchstart", (e) => {
+    if (sheet.scrollTop > 0) { startY = null; return; }
+    startY = e.touches[0].clientY; dy = 0; dragging = false;
+  }, { passive: true });
+  sheet.addEventListener("touchmove", (e) => {
+    if (startY == null) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy > 0 && sheet.scrollTop <= 0) {
+      dragging = true;
+      sheet.style.transition = "none";
+      sheet.style.transform = baseX() + "translateY(" + dy + "px)";
+      e.preventDefault();
+    }
+  }, { passive: false });
+  sheet.addEventListener("touchend", () => {
+    if (startY == null) return;
+    startY = null;
+    if (!dragging) return;
+    sheet.style.transition = "transform 0.3s cubic-bezier(0.16,1,0.3,1)";
+    if (dy > 90) {
+      sheet.style.transform = baseX() + "translateY(105%)";
+      setTimeout(() => {
+        piece.classList.remove("on");
+        sheet.style.transition = ""; sheet.style.transform = "";
+      }, 280);
+    } else {
+      sheet.style.transform = "";
+    }
+  });
+})();
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.getElementById("piece").classList.remove("on");
+});
+let lastCols = 0;
+addEventListener("resize", () => {
+  // iOS fires resize as its bars collapse mid-scroll: re-rendering then
+  // reads as the whole page jumping. Only a real column change matters.
+  const n = innerWidth >= 720 ? 3 : 2;
+  if (n !== lastCols) renderGrid();
+});
+
+// Real product images: measure natural ratios before laying the grid out.
+function preload(items) {
+  return Promise.all(items.map(it => new Promise(resolve => {
+    if (!it.img) { resolve({ ...it, ratio: 1.2 }); return; }
+    const img = new Image();
+    let settled = false;
+    const done = (ratio) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll); clearTimeout(timer);
+      resolve({ ...it, ratio });
+    };
+    const measure = () => {
+      if (img.naturalWidth > 0) {
+        const r = img.naturalHeight / Math.max(1, img.naturalWidth);
+        done(Math.min(1.6, Math.max(0.72, r)));
+      }
+    };
+    const poll = setInterval(measure, 60);
+    const timer = setTimeout(() => done(1.2), 4000);
+    img.onload = measure;
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll); clearTimeout(timer);
+      resolve({ ...it, img: null, ratio: 1.2 });
+    };
+    img.src = it.img;
+  })));
+}
+
+// ---------------------------------------------------------------------------
+// CloudKit, read only. The token is minted in the CloudKit console
+// (Tokens & Keys) and only allows what the schema already exposes publicly.
+// ---------------------------------------------------------------------------
+const CK = {
+  container: "iCloud.com.sedonatech.WANTD",
+  env: "production",
+  token: "81be7b7770829e83e23ba86168bfcda9676868818687c83b269e560a9271bf54"
+};
+
+let RATES = null;   // USD-based, same source as the app
+async function loadRates() {
+  try {
+    const r = await fetch("https://open.er-api.com/v6/latest/USD");
+    RATES = (await r.json()).rates || null;
+  } catch (e) { RATES = null; }
+}
+
+function formatPrice(amount, currency, fallback) {
+  if (typeof amount !== "number" || !currency) return fallback;
+  try {
+    let cur = currency.toUpperCase(), value = amount;
+    // Everyone reads this page in euros, exactly as the app decided
+    // (2026-08-30): a foreign price is real but mute.
+    if (cur !== "EUR" && RATES && RATES[cur] > 0 && RATES.EUR) {
+      value = Math.round(amount / RATES[cur] * RATES.EUR);
+      cur = "EUR";
+    }
+    const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(cur);
+    return new Intl.NumberFormat(navigator.language || "en", {
+      style: "currency",
+      currency: cur,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: noCents ? 0 : 2
+    }).format(value);
+  } catch (e) {
+    return fallback;   // an unknown currency code must never blank a price
+  }
+}
+
+async function ckQuery(query, continuationMarker) {
+  const url = "https://api.apple-cloudkit.com/database/1/" + CK.container +
+              "/" + CK.env + "/public/records/query?ckAPIToken=" +
+              encodeURIComponent(CK.token);
+  const body = { query, resultsLimit: 200 };
+  if (continuationMarker) body.continuationMarker = continuationMarker;
+  const res = await fetch(url, { method: "POST", body: JSON.stringify(body) });
+  if (!res.ok) throw new Error("CloudKit " + res.status);
+  return res.json();
+}
+
+async function loadWishlist(handle) {
+  const profRes = await ckQuery({
+    recordType: "Profile",
+    filterBy: [{ fieldName: "handle", comparator: "EQUALS", fieldValue: { value: handle } }]
+  });
+  const prof = (profRes.records || []).filter(r => !r.serverErrorCode)[0];
+  if (!prof) throw new Error("no profile");
+  const pf = prof.fields;
+  const profile = {
+    name: pf.displayName?.value || handle,
+    handle: pf.handle?.value || handle,
+    avatar: pf.avatarAsset?.value?.downloadURL?.replace("${f}", "avatar") || null
+  };
+
+  // Which of her lists are private. A private list is where people put the
+  // things they are a little ashamed of wanting, and nobody is ever meant to
+  // see it: not a friend, not a stranger with the link (Agathe, 2026-08-28).
+  const privateLists = new Set();
+  // Co-owned lists live on every member's board: the other members' pieces
+  // on her shared, PUBLIC lists join it (SED-598). Private ones never do.
+  const sharedPublicLists = new Set();
+  // Public lists become the page's tabs, exactly the app's own row.
+  const publicLists = [];
+  try {
+    const listRes = await ckQuery({
+      recordType: "List",
+      filterBy: [{ fieldName: "ownerID", comparator: "EQUALS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    });
+    for (const r of (listRes.records || []).filter(r => !r.serverErrorCode)) {
+      const uuid = r.fields.listUUID?.value;
+      if (!uuid) continue;
+      if ((r.fields.isPrivate?.value ?? 0) === 1) { privateLists.add(uuid); continue; }
+      publicLists.push({ uuid, name: r.fields.name?.value || "List",
+                         main: (r.fields.isMain?.value ?? 0) === 1 });
+      if ((r.fields.memberIDs?.value || []).length) sharedPublicLists.add(uuid);
+    }
+  } catch (e) {
+    // A lookup we could not perform must never be read as "nothing is
+    // private": sooner an empty board than a private list on the internet.
+    throw new Error("private lists unavailable");
+  }
+  try {
+    // Lists she was invited into, created by someone else. Additive only:
+    // if this fails the board is merely incomplete, never leaky.
+    const joined = await ckQuery({
+      recordType: "List",
+      filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    });
+    for (const r of (joined.records || []).filter(r => !r.serverErrorCode)) {
+      const uuid = r.fields.listUUID?.value;
+      if (uuid && (r.fields.isPrivate?.value ?? 0) !== 1) {
+        sharedPublicLists.add(uuid);
+        if (!publicLists.some(l => l.uuid === uuid))
+          publicLists.push({ uuid, name: r.fields.name?.value || "List", main: false });
+      }
+    }
+  } catch (e) { /* incomplete, not leaky */ }
+  publicLists.sort((a, b) => (b.main - a.main) || a.name.localeCompare(b.name));
+
+  // Who keeps each shared list, so every shared card can say so: a gift on a
+  // co-owned list pleases two people, and the giver deserves to know it
+  // before buying (same rule as in the app, 2026-08-28).
+  const sharedWith = new Map();   // listUUID -> "Agathe" / "Agathe, Sedona"
+  try {
+    const memberIDsByList = new Map();
+    const allMemberIDs = new Set();
+    for (const q of [
+      { fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: pf.ownerID.value } },
+      { fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: pf.ownerID.value } }
+    ]) {
+      const res = await ckQuery({ recordType: "List", filterBy: [q] });
+      for (const r of (res.records || []).filter(r => !r.serverErrorCode)) {
+        const uuid = r.fields.listUUID?.value;
+        if (!uuid || !sharedPublicLists.has(uuid)) continue;
+        const ids = new Set(r.fields.memberIDs?.value || []);
+        if (r.fields.ownerID?.value) ids.add(r.fields.ownerID.value);
+        ids.delete(pf.ownerID.value);
+        memberIDsByList.set(uuid, [...ids]);
+        for (const id of ids) allMemberIDs.add(id);
+      }
+    }
+    const names = new Map();
+    for (const id of allMemberIDs) {
+      const res = await ckQuery({
+        recordType: "Profile",
+        filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: id } }]
+      });
+      const p = (res.records || []).filter(r => !r.serverErrorCode)[0];
+      if (p) names.set(id, p.fields.displayName?.value || p.fields.handle?.value || "");
+    }
+    for (const [uuid, ids] of memberIDsByList) {
+      const label = ids.map(id => names.get(id)).filter(Boolean).join(", ");
+      sharedWith.set(uuid, label || "someone");
+    }
+  } catch (e) { /* names are a courtesy, never a blocker */ }
+
+  let records = [], marker = null;
+  do {
+    const page = await ckQuery({
+      recordType: "Item",
+      filterBy: [{ fieldName: "ownerID", comparator: "EQUALS",
+                   fieldValue: { value: pf.ownerID.value } }]
+    }, marker);
+    records = records.concat((page.records || []).filter(r => !r.serverErrorCode));
+    marker = page.continuationMarker || null;
+  } while (marker);
+
+  // The co-members' pieces on her shared public lists.
+  for (const uuid of sharedPublicLists) {
+    try {
+      const extra = await ckQuery({
+        recordType: "Item",
+        filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS",
+                     fieldValue: { value: uuid } }]
+      });
+      records = records.concat((extra.records || []).filter(r => !r.serverErrorCode));
+    } catch (e) { /* incomplete, not leaky */ }
+  }
+  // One card per record: her own pieces came back in both queries.
+  records = [...new Map(records.map(r => [r.recordName, r])).values()];
+
+  const items = records
+    .sort((a, b) => (a.fields.sortIndex?.value ?? 0) - (b.fields.sortIndex?.value ?? 0))
+    .map(r => {
+      const f = r.fields;
+      let img = f.imageURLString?.value || null;
+      if (!img && f.imageAsset?.value?.downloadURL)
+        img = f.imageAsset.value.downloadURL.replace("${f}", "image");
+      return {
+        name: f.name?.value || "",
+        // Same rule as the app: when the numeric amount and its currency are
+        // known, format them for the reader; otherwise fall back to the string
+        // scraped from the shop (2026-08-28). Deliberately no parsing of the
+        // scraped string: "£29.000" is twenty-nine thousand pounds.
+        price: formatPrice(f.priceAmount?.value, f.priceCurrency?.value,
+                           f.priceText?.value || ""),
+        store: f.store?.value || f.brand?.value || "",
+        img,
+        url: f.urlString?.value || "",
+        listIDs: (f.listIDs?.value || []).filter(id => !privateLists.has(id)),
+        // The board never reveals a reservation. The owner opens her own
+        // link too, and reading "Reserved" on her own gift is exactly the
+        // surprise we promise to keep (2026-08-24).
+        // She marked it as already hers: it leaves the public board exactly
+        // as it leaves her wishlist in the app (2026-08-28). Only
+        // "purchased" is dropped, never "reserved": a reservation is a
+        // friend's secret, and a vanished piece would reveal it by absence.
+        spoiled: (f.status?.value || "") === "purchased",
+        // The co-owned list this piece sits on, if any: its card says so.
+        keptWith: (f.listIDs?.value || []).map(id => sharedWith.get(id)).find(Boolean) || null,
+        // Filed ONLY in private lists, so it stays off the board. A piece in
+        // no list at all predates lists and stays visible, exactly as the app
+        // decides it.
+        hidden: (() => {
+          const ids = f.listIDs?.value || [];
+          return ids.length > 0 && ids.every(id => privateLists.has(id));
+        })(),
+        recordName: r.recordName
+      };
+    })
+    .filter(it => it.name && !it.spoiled && !it.hidden);
+  if (!items.length) throw new Error("no items");
+
+  // Tabs only for lists that actually show something.
+  const lists = publicLists.filter(l => items.some(it => (it.listIDs || []).includes(l.uuid)));
+  return { profile, items, lists };
+}
+
+function showEmpty() {
+  document.body.insertAdjacentHTML("beforeend",
+    '<div class="empty">This wishlist could not be found.</div>');
+}
+
+const PROMISE = new URLSearchParams(location.search).get("promise");
+const SANTA_G = new URLSearchParams(location.search).get("santa");
+const SANTA_T = new URLSearchParams(location.search).get("t");
+if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
+    && SANTA_T && /^[0-9a-f]{12}$/.test(SANTA_T)) {
+  showSanta(SANTA_G.toUpperCase(), SANTA_T);
+} else if (PROMISE && /^[0-9a-f]{12}$/.test(PROMISE)) {
+  showPromise(PROMISE);
+} else if (!HANDLE && LAUNCHED) {
+  // The landing lives at the root now.
+  location.replace("/");
+} else if (!HANDLE) {
+  preload(SAMPLE.items).then(items => startPage(SAMPLE.profile, items, []));
+} else if (CK.token.startsWith("__")) {
+  showEmpty();
+} else {
+  loadRates().then(() => loadWishlist(HANDLE))
+    .then(({ profile, items, lists }) =>
+      preload(items).then(loaded => startPage(profile, loaded, lists)))
+    .catch(showEmpty);
+}
+</script>
+<!-- Skimlinks (SED-586): the reviewers look for this tag on the declared domain.
+     Our own outbound links are already wrapped by shopURL(); the script leaves
+     go.skimresources.com links alone. -->
+<script type="text/javascript" src="https://s.skimresources.com/js/308847X1797169.skimlinks.js"></script>
+</body>
+</html>
