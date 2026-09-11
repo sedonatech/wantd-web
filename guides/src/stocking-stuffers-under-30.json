@@ -1,0 +1,131 @@
+{
+  "slug": "stocking-stuffers-under-30",
+  "title": "Stocking stuffers under $30",
+  "kicker": "Gift guide",
+  "say": "Small things, chosen with care. Twelve pieces that fit in a stocking and would not look out of place under the tree.",
+  "description": "Twelve stocking stuffers under $30, chosen by hand: a peptide lip balm, a stoneware sipper, ruffle socks, a beaded phone charm. The shop's own photos and prices.",
+  "channel": "guide-stocking-stuffers",
+  "currency": "USD",
+  "updated": "2026-09-11",
+  "published": false,
+  "draft_in_index": true,
+  "items": [
+    {
+      "id": "bubble-tell-all-coffee",
+      "brand": "Bubble",
+      "name": "Tell All coffee lip balm",
+      "price": "$9",
+      "url": "https://hellobubble.com/products/tell-all-coffee",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/bubble-tell-all-lip-balm.png",
+      "alt": "Bubble Tell All lip balm in its coffee brown tube.",
+      "note": "Coffee and cream flavor, with a keychain to clip it on."
+    },
+    {
+      "id": "touchland-velvet-peach",
+      "brand": "Touchland",
+      "name": "Velvet Peach Power Mist hand sanitizer",
+      "price": "$10",
+      "url": "https://touchland.com/products/velvet-peach-power-mist",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/touchland-power-mist.png",
+      "alt": "Touchland Power Mist, a flat peach coloured bottle of hydrating hand sanitizer, 1 fl oz.",
+      "note": "A fine mist that leaves hands soft. One fluid ounce, pocket sized."
+    },
+    {
+      "id": "anthropologie-double-ruffle-socks",
+      "brand": "Anthropologie",
+      "name": "Double ruffle socks",
+      "price": "$12",
+      "url": "https://www.anthropologie.com/shop/by-anthropologie-double-ruffle-socks",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/an-ruffle-socks.jpg",
+      "alt": "A pair of socks with a double ruffle at the cuff, by Anthropologie."
+    },
+    {
+      "id": "sonix-beaded-phone-charm",
+      "brand": "Sonix",
+      "name": "Beaded phone charm",
+      "price": "$19",
+      "url": "https://www.anthropologie.com/anthrohome/shop/sonix-beaded-phone-charm",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/sonix-beaded-phone-chain.png",
+      "alt": "A Sonix phone charm of amber, olive and blue glass beads, hanging from a pink phone case.",
+      "note": "Glass beads on a wristlet. It hooks onto any phone case."
+    },
+    {
+      "id": "frank-body-glide-n-go",
+      "brand": "Frank Body",
+      "name": "Glide 'n' Go body oil stick",
+      "price": "$20",
+      "url": "https://us.frankbody.com/products/glide-n-go-body-oil-stick",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/frank-body-oil-stick.png",
+      "alt": "Frank Body Glide 'n' Go, a solid body oil in a twist up stick.",
+      "note": "A solid body oil for elbows and knees, no mess. It smells of vanilla and coconut."
+    },
+    {
+      "id": "pipe-dream-pottery-demi-sipper",
+      "brand": "Pipe Dream Pottery",
+      "name": "Stoneware demi sipper",
+      "price": "$22",
+      "url": "https://www.anthropologie.com/anthrohome/shop/pipe-dream-pottery-stoneware-demi-sipper",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/an-pipe-dream-sipper-030.jpg",
+      "alt": "A small stoneware sipper cup by Pipe Dream Pottery, glazed in a soft colour.",
+      "note": "Stoneware, made by Pipe Dream Pottery for Anthropologie. A small cup for the first coffee."
+    },
+    {
+      "id": "eadem-le-chouchou",
+      "brand": "EADEM",
+      "name": "Le Chouchou peptide lip balm",
+      "price": "$24",
+      "url": "https://www.sephora.com/product/eadem-le-chouchou-exfoliating-softening-peptide-lip-balm-P511921",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/eadem-le-chouchou.png",
+      "alt": "EADEM Le Chouchou lip balm in its tube.",
+      "note": "A jelly balm that softens and smooths, with a peptide and hibiscus enzymes."
+    },
+    {
+      "id": "summer-fridays-lip-butter-balm",
+      "brand": "Summer Fridays",
+      "name": "Lip butter balm",
+      "price": "$24",
+      "url": "https://www.sephora.com/product/summer-fridays-lip-butter-balm-P455936",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/summer-fridays-lip-butter.png",
+      "alt": "Summer Fridays Lip Butter Balm in its cream coloured tube.",
+      "note": "Shea and murumuru butters, a soft shine. Several flavors."
+    },
+    {
+      "id": "anthropologie-ribbon-stripe-tumbler",
+      "brand": "Anthropologie",
+      "name": "The Ribbon Stripe glass tumbler with lid",
+      "price": "$24",
+      "url": "https://www.anthropologie.com/anthrohome/shop/the-ribbon-stripe-glass-tumbler-with-lid",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/an-ribbon-stripe-tumbler.jpg",
+      "alt": "A striped glass tumbler with a lid and a straw, by Anthropologie."
+    },
+    {
+      "id": "hydrojug-slim-can-cooler",
+      "brand": "HydroJug",
+      "name": "Slim can cooler",
+      "price": "$24.99",
+      "url": "https://www.anthropologie.com/anthrohome/shop/hydrojug-slim-can-cooler",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/hydrojug-can-cooler.jpg",
+      "alt": "A HydroJug slim can cooler in red gingham with a red screw-top lid.",
+      "note": "Insulated steel with a screw-top lid, made for slim cans. This one in red gingham."
+    },
+    {
+      "id": "rhode-pocket-blush",
+      "brand": "rhode",
+      "name": "Pocket blush",
+      "price": "$25",
+      "url": "https://www.rhodeskin.com/products/pocket-blush-piggy",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/cutouts/pocket-blush.png",
+      "alt": "rhode pocket blush, a cream blush stick in a tan case with a raspberry pink bullet.",
+      "note": "A cream blush in a stick, for cheeks and lips."
+    },
+    {
+      "id": "emily-lex-watercolor-workbook",
+      "brand": "Anthropologie",
+      "name": "Emily Lex Studio watercolor workbook",
+      "price": "$28",
+      "url": "https://www.anthropologie.com/shop/emily-lex-studio-watercolor-workbook",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/emily-lex-watercolor-workbook.jpg",
+      "alt": "The Emily Lex Studio watercolor workbook, a Christmas edition, lying open."
+    }
+  ]
+}
