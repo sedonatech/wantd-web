@@ -12,6 +12,6 @@
 <meta http-equiv="refresh" content="0;url=/board/?handle=wtd-you">
 </head>
 <body>
-<script>location.replace("/board/?handle=wtd-you");</script>
+<script>location.replace("/board/?handle=wtd-you" + (location.search ? "&" + location.search.slice(1) : ""));</script>
 </body>
 </html>

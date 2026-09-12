@@ -90,7 +90,7 @@
     // the path, and this page replaces the path. Hand it over as a query
     // instead, which index.html also understands.
     var h = location.pathname.match(/^\/@([\w-]+)\/?$/);
-    if (h) { location.replace('/board/?handle=' + encodeURIComponent(h[1])); return; }
+    if (h) { location.replace('/board/?handle=' + encodeURIComponent(h[1]) + (location.search ? '&' + location.search.slice(1) : '')); return; }
     var m = location.pathname.match(/^\/i\/([0-9a-fA-F-]{36})\/?$/);
     if (!m) { location.replace('/'); return; }
     var deep = 'wantd://item/' + m[1].toLowerCase();

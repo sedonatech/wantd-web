@@ -12,6 +12,6 @@
 <meta http-equiv="refresh" content="0;url=/board/?handle=wtd-sedona">
 </head>
 <body>
-<script>location.replace("/board/?handle=wtd-sedona");</script>
+<script>location.replace("/board/?handle=wtd-sedona" + (location.search ? "&" + location.search.slice(1) : ""));</script>
 </body>
 </html>

@@ -73,6 +73,8 @@
     padding: 18px 4px 10px;
   }
   nav.lists::-webkit-scrollbar { display: none; }
+  /* The one line a list kept for an occasion carries (SED-613). */
+  .occasion { font-style: italic; font-weight: 300; font-size: 15px; color: var(--ink-soft); padding: 0 4px 12px; margin: 0; }
   nav.lists button {
     appearance: none; background: none; border: 0; cursor: pointer;
     font: inherit; font-size: 14px; font-weight: 400; color: var(--ink-soft);
@@ -314,6 +316,7 @@
     </div>
   </header>
   <nav class="lists" id="tabs"></nav>
+  <p class="occasion serif" id="occasion" hidden></p>
   <div id="grid"></div>
   <footer class="house">
     <span class="mark">Wantd.</span>
@@ -473,6 +476,10 @@ function startPage(profile, items, lists) {
   // amount on the whole list; she picks in the app; he keeps a link.
   if (RESERVE_API && profile.handle) buildPledgeEntry(profile);
 
+  // A list passed around on its own (?list=<uuid>, SED-613) opens on its tab.
+  const wanted = (new URLSearchParams(location.search).get("list") || "").toUpperCase();
+  if (wanted && LISTS.some(l => l.uuid === wanted)) CURRENT = wanted;
+
   const tabs = document.getElementById("tabs");
   tabs.replaceChildren();
   const mk = (label, key) => {
@@ -493,8 +500,30 @@ function startPage(profile, items, lists) {
   function renderTabs() {
     for (const b of tabs.querySelectorAll("button"))
       b.classList.toggle("on", b.dataset.key === CURRENT);
+    renderOccasion();
   }
   renderGrid();
+  renderOccasion();
+}
+
+// The sentence under the tabs, word for word the app's own (SED-613).
+function occasionLine(l) {
+  if (!l || !l.occasion) return null;
+  const d = l.eventDate ? new Date(l.eventDate) : null;
+  const month = d ? d.toLocaleDateString("en-US", { month: "long", year: "numeric" }) : null;
+  const day = d ? d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : null;
+  switch (l.occasion) {
+    case "baby": return d ? "A baby, due " + month + "." : "A baby is on the way.";
+    case "wedding": return d ? "A wedding, " + day + "." : "A wedding is on the way.";
+    case "home": return d ? "A new home, " + month + "." : "A new home is on the way.";
+  }
+  return null;
+}
+function renderOccasion() {
+  const el = document.getElementById("occasion");
+  const line = occasionLine(LISTS.find(l => l.uuid === CURRENT));
+  el.textContent = line || "";
+  el.hidden = !line;
 }
 
 function visibleItems() {
@@ -1324,7 +1353,9 @@ async function loadWishlist(handle) {
       if (!uuid) continue;
       if ((r.fields.isPrivate?.value ?? 0) === 1) { privateLists.add(uuid); continue; }
       publicLists.push({ uuid, name: r.fields.name?.value || "List",
-                         main: (r.fields.isMain?.value ?? 0) === 1 });
+                         main: (r.fields.isMain?.value ?? 0) === 1,
+                         occasion: r.fields.occasion?.value || null,
+                         eventDate: r.fields.eventDate?.value || null });
       if ((r.fields.memberIDs?.value || []).length) sharedPublicLists.add(uuid);
     }
   } catch (e) {
@@ -1345,7 +1376,9 @@ async function loadWishlist(handle) {
       if (uuid && (r.fields.isPrivate?.value ?? 0) !== 1) {
         sharedPublicLists.add(uuid);
         if (!publicLists.some(l => l.uuid === uuid))
-          publicLists.push({ uuid, name: r.fields.name?.value || "List", main: false });
+          publicLists.push({ uuid, name: r.fields.name?.value || "List", main: false,
+                             occasion: r.fields.occasion?.value || null,
+                             eventDate: r.fields.eventDate?.value || null });
       }
     }
   } catch (e) { /* incomplete, not leaky */ }
