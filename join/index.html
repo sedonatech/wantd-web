@@ -207,6 +207,7 @@
       <div class="grow" aria-hidden="true"></div>
     </section>
 
+    <p class="foot s s7"><a id="store" href="https://apps.apple.com/app/apple-store/id6787658989?pt=126758834&amp;ct=web-join&amp;mt=8">Already invited? Get Wantd on the App Store.</a></p>
     <p class="foot s s7"><a href="mailto:support@sedonatech.uk">support@sedonatech.uk</a></p>
   </main>
 
@@ -240,6 +241,13 @@
       if (ref.indexOf('pinterest') !== -1) src = 'pinterest';
       else if (ref.indexOf('instagram') !== -1) src = 'instagram';
       else if (ref.indexOf('tiktok') !== -1) src = 'tiktok';
+    }
+    /* The App Store door carries the same origin to Apple's campaign report
+       (ct=pinterest-profile, instagram-profile...), so installs that walked in
+       through a profile link get counted next to the pins' own campaigns. */
+    if (src) {
+      var store = document.getElementById('store');
+      store.href = store.href.replace('ct=web-join', 'ct=' + src + '-profile');
     }
     document.getElementById('waitlist').addEventListener('submit', async function (e) {
       e.preventDefault();
