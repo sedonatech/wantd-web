@@ -52,25 +52,28 @@
   .hero .say { font-size: clamp(19px, 2.2vw, 24px); line-height: 1.4; margin-top: 24px; max-width: 30em; }
   .hero .meta { margin-top: 22px; font-size: 13px; font-weight: 300; color: var(--ink-soft); }
 
-  /* The pieces: a ruled list, one hairline per row, like cartels along a wall. */
-  .pieces { list-style: none; border-top: 1px solid var(--hairline); }
-  .piece { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px 48px;
-           padding: 36px 0; border-bottom: 1px solid var(--hairline); align-items: start; }
-  .piece figure img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--paper-deep); }
-  .cartel { padding-top: 4px; }
-  .cartel .k { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 22px;
+  /* The pieces: a wall of prints with a cartel under each, two across on a
+     phone like the wishlist itself, three on a desk. No boxes, no rules
+     between them: the paper does the spacing. */
+  .pieces { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 40px 20px; padding-top: 32px; border-top: 1px solid var(--hairline); }
+  @media (min-width: 900px) { .pieces { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 32px; padding-top: 40px; } }
+  .piece { min-width: 0; }
+  .piece figure img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--paper-deep);
+                      border-radius: 14px; }
+  .cartel { padding-top: 14px; }
+  .cartel .head { display: flex; align-items: baseline; gap: 10px; }
+  .cartel .k { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 18px;
                color: var(--cobalt); line-height: 1; }
-  .cartel .maker { margin-top: 18px; font-size: 13px; font-weight: 400; color: var(--ink-soft); }
-  .cartel h2 { margin-top: 6px; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.22; letter-spacing: -0.01em; }
+  .cartel .maker { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
+  .cartel h2 { margin-top: 6px; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.3; letter-spacing: -0.005em;
+               overflow-wrap: anywhere; }
   .cartel h2 .price { color: var(--ink-soft); }
-  .cartel .note { margin-top: 14px; font-size: 16px; font-weight: 300; line-height: 1.5; max-width: 34em; }
-  .cartel .shop { display: inline-block; margin-top: 18px; font-size: 14px; font-weight: 400;
-                  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink-soft); }
+  .cartel .note { margin-top: 8px; font-size: 14px; font-weight: 300; line-height: 1.5; color: var(--ink); }
+  .cartel .shop { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 400;
+                  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink-soft);
+                  overflow-wrap: anywhere; }
   .cartel .shop:hover { text-decoration-color: var(--ink); }
-  @media (max-width: 640px) {
-    .piece { grid-template-columns: 1fr; gap: 16px; padding: 28px 0; }
-    .piece figure { max-width: 300px; }
-  }
 
   section.ask { padding: clamp(52px, 8vh, 88px) 0; }
   .ask h2 { font-size: clamp(30px, 4.6vw, 48px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; max-width: 760px; }
@@ -116,8 +119,7 @@
         <li class="piece" id="p1">
           <figure><img src="../img/stocking-stuffers-under-30/01-bubble-tell-all-coffee.jpg" width="900" height="1200" alt="Bubble Tell All lip balm in its coffee brown tube."></figure>
           <div class="cartel">
-            <p class="k">1</p>
-            <p class="maker">Bubble</p>
+            <p class="head"><span class="k">1</span><span class="maker">Bubble</span></p>
             <h2 class="say">Tell All coffee lip balm<span class="price">, $9</span></h2>
           <p class="note">Coffee and cream flavor, with a keychain to clip it on.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fhellobubble.com%2Fproducts%2Ftell-all-coffee&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at hellobubble.com</a>
@@ -126,8 +128,7 @@
         <li class="piece" id="p2">
           <figure><img src="../img/stocking-stuffers-under-30/02-touchland-velvet-peach.jpg" width="900" height="1200" alt="Touchland Power Mist, a flat peach coloured bottle of hydrating hand sanitizer, 1 fl oz."></figure>
           <div class="cartel">
-            <p class="k">2</p>
-            <p class="maker">Touchland</p>
+            <p class="head"><span class="k">2</span><span class="maker">Touchland</span></p>
             <h2 class="say">Velvet Peach Power Mist hand sanitizer<span class="price">, $10</span></h2>
           <p class="note">A fine mist that leaves hands soft. One fluid ounce, pocket sized.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Ftouchland.com%2Fproducts%2Fvelvet-peach-power-mist&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at touchland.com</a>
@@ -136,8 +137,7 @@
         <li class="piece" id="p3">
           <figure><img src="../img/stocking-stuffers-under-30/03-anthropologie-double-ruffle-socks.jpg" width="900" height="1200" alt="A pair of socks with a double ruffle at the cuff, by Anthropologie." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">3</p>
-            <p class="maker">Anthropologie</p>
+            <p class="head"><span class="k">3</span><span class="maker">Anthropologie</span></p>
             <h2 class="say">Double ruffle socks<span class="price">, $12</span></h2>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fshop%2Fby-anthropologie-double-ruffle-socks&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
           </div>
@@ -145,8 +145,7 @@
         <li class="piece" id="p4">
           <figure><img src="../img/stocking-stuffers-under-30/04-sonix-beaded-phone-charm.jpg" width="900" height="1200" alt="A Sonix phone charm of amber, olive and blue glass beads, hanging from a pink phone case." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">4</p>
-            <p class="maker">Sonix</p>
+            <p class="head"><span class="k">4</span><span class="maker">Sonix</span></p>
             <h2 class="say">Beaded phone charm<span class="price">, $19</span></h2>
           <p class="note">Glass beads on a wristlet. It hooks onto any phone case.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fanthrohome%2Fshop%2Fsonix-beaded-phone-charm&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
@@ -155,8 +154,7 @@
         <li class="piece" id="p5">
           <figure><img src="../img/stocking-stuffers-under-30/05-frank-body-glide-n-go.jpg" width="900" height="1200" alt="Frank Body Glide &#x27;n&#x27; Go, a solid body oil in a twist up stick." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">5</p>
-            <p class="maker">Frank Body</p>
+            <p class="head"><span class="k">5</span><span class="maker">Frank Body</span></p>
             <h2 class="say">Glide &#x27;n&#x27; Go body oil stick<span class="price">, $20</span></h2>
           <p class="note">A solid body oil for elbows and knees, no mess. It smells of vanilla and coconut.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fus.frankbody.com%2Fproducts%2Fglide-n-go-body-oil-stick&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at us.frankbody.com</a>
@@ -165,8 +163,7 @@
         <li class="piece" id="p6">
           <figure><img src="../img/stocking-stuffers-under-30/06-pipe-dream-pottery-demi-sipper.jpg" width="900" height="1200" alt="A small stoneware sipper cup by Pipe Dream Pottery, glazed in a soft colour." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">6</p>
-            <p class="maker">Pipe Dream Pottery</p>
+            <p class="head"><span class="k">6</span><span class="maker">Pipe Dream Pottery</span></p>
             <h2 class="say">Stoneware demi sipper<span class="price">, $22</span></h2>
           <p class="note">Stoneware, made by Pipe Dream Pottery for Anthropologie. A small cup for the first coffee.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fanthrohome%2Fshop%2Fpipe-dream-pottery-stoneware-demi-sipper&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
@@ -175,8 +172,7 @@
         <li class="piece" id="p7">
           <figure><img src="../img/stocking-stuffers-under-30/07-eadem-le-chouchou.jpg" width="900" height="1200" alt="EADEM Le Chouchou lip balm in its tube." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">7</p>
-            <p class="maker">EADEM</p>
+            <p class="head"><span class="k">7</span><span class="maker">EADEM</span></p>
             <h2 class="say">Le Chouchou peptide lip balm<span class="price">, $24</span></h2>
           <p class="note">A jelly balm that softens and smooths, with a peptide and hibiscus enzymes.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.sephora.com%2Fproduct%2Feadem-le-chouchou-exfoliating-softening-peptide-lip-balm-P511921&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at sephora.com</a>
@@ -185,8 +181,7 @@
         <li class="piece" id="p8">
           <figure><img src="../img/stocking-stuffers-under-30/08-summer-fridays-lip-butter-balm.jpg" width="900" height="1200" alt="Summer Fridays Lip Butter Balm in its cream coloured tube." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">8</p>
-            <p class="maker">Summer Fridays</p>
+            <p class="head"><span class="k">8</span><span class="maker">Summer Fridays</span></p>
             <h2 class="say">Lip butter balm<span class="price">, $24</span></h2>
           <p class="note">Shea and murumuru butters, a soft shine. Several flavors.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.sephora.com%2Fproduct%2Fsummer-fridays-lip-butter-balm-P455936&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at sephora.com</a>
@@ -195,8 +190,7 @@
         <li class="piece" id="p9">
           <figure><img src="../img/stocking-stuffers-under-30/09-anthropologie-ribbon-stripe-tumbler.jpg" width="900" height="1200" alt="A striped glass tumbler with a lid and a straw, by Anthropologie." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">9</p>
-            <p class="maker">Anthropologie</p>
+            <p class="head"><span class="k">9</span><span class="maker">Anthropologie</span></p>
             <h2 class="say">The Ribbon Stripe glass tumbler with lid<span class="price">, $24</span></h2>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fanthrohome%2Fshop%2Fthe-ribbon-stripe-glass-tumbler-with-lid&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
           </div>
@@ -204,8 +198,7 @@
         <li class="piece" id="p10">
           <figure><img src="../img/stocking-stuffers-under-30/10-hydrojug-slim-can-cooler.jpg" width="900" height="1200" alt="A HydroJug slim can cooler in red gingham with a red screw-top lid." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">10</p>
-            <p class="maker">HydroJug</p>
+            <p class="head"><span class="k">10</span><span class="maker">HydroJug</span></p>
             <h2 class="say">Slim can cooler<span class="price">, $24.99</span></h2>
           <p class="note">Insulated steel with a screw-top lid, made for slim cans. This one in red gingham.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fanthrohome%2Fshop%2Fhydrojug-slim-can-cooler&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
@@ -214,8 +207,7 @@
         <li class="piece" id="p11">
           <figure><img src="../img/stocking-stuffers-under-30/11-rhode-pocket-blush.jpg" width="900" height="1200" alt="rhode pocket blush, a cream blush stick in a tan case with a raspberry pink bullet." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">11</p>
-            <p class="maker">rhode</p>
+            <p class="head"><span class="k">11</span><span class="maker">rhode</span></p>
             <h2 class="say">Pocket blush<span class="price">, $25</span></h2>
           <p class="note">A cream blush in a stick, for cheeks and lips.</p>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.rhodeskin.com%2Fproducts%2Fpocket-blush-piggy&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at rhodeskin.com</a>
@@ -224,8 +216,7 @@
         <li class="piece" id="p12">
           <figure><img src="../img/stocking-stuffers-under-30/12-emily-lex-watercolor-workbook.jpg" width="900" height="1200" alt="The Emily Lex Studio watercolor workbook, a Christmas edition, lying open." loading="lazy"></figure>
           <div class="cartel">
-            <p class="k">12</p>
-            <p class="maker">Anthropologie</p>
+            <p class="head"><span class="k">12</span><span class="maker">Anthropologie</span></p>
             <h2 class="say">Emily Lex Studio watercolor workbook<span class="price">, $28</span></h2>
             <a class="shop" href="https://go.skimresources.com/?id=309668X1798032&url=https%3A%2F%2Fwww.anthropologie.com%2Fshop%2Femily-lex-studio-watercolor-workbook&xcust=guide-stocking-stuffers" rel="sponsored nofollow noopener" target="_blank">Shop at anthropologie.com</a>
           </div>
@@ -250,9 +241,5 @@
     <a href="https://apps.apple.com/app/id6787658989">App Store</a>
   </footer>
 </div>
-<!-- Skimlinks (SED-586): the reviewers look for this tag on the declared domain.
-     Our own outbound links are already wrapped by shopURL(); the script leaves
-     go.skimresources.com links alone. -->
-<script type="text/javascript" src="https://s.skimresources.com/js/309668X1798032.skimlinks.js"></script>
 </body>
 </html>

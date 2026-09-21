@@ -28,7 +28,7 @@ SITE = "https://wantd.sedonatech.uk"
 # Sedona Tech Ltd on Skimlinks (same id as the board). Every outbound shop
 # link goes through the wrapper, never bare: an unmonetised shop simply passes
 # through to its own page (SED-586).
-SKIMLINKS_ID = "308847X1797169"
+SKIMLINKS_ID = "309668X1798032"   # second application, 2026-09-21
 APP_STORE = "https://apps.apple.com/app/id6787658989"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -41,19 +41,57 @@ PLATE_W, PLATE_H = 900, 1200
 # Photos: the shop's own picture, set on a 3:4 plate the colour of its own
 # background, so the plate reads as one piece of paper and never as a crop.
 # --------------------------------------------------------------------------
+PAPER_DEEP = (238, 238, 235)
+
+
+def keyed(im, thresh=42):
+    """A product shot on a plain studio backdrop becomes a cut-out: the
+    backdrop is flooded from the four corners and turned transparent, so the
+    piece can stand on our own plate. Only for the images filed under
+    cutouts/; an editorial photo keeps its light and its shadows."""
+    from PIL import ImageChops, ImageDraw, ImageFilter
+    work = im.convert("RGB").copy()
+    w, h = work.size
+    marker = (255, 0, 255)
+    for pt in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1), (w // 2, 0), (w // 2, h - 1), (0, h // 2), (w - 1, h // 2)):
+        if work.getpixel(pt) != marker:
+            ImageDraw.floodfill(work, pt, marker, thresh=thresh)
+    diff = ImageChops.difference(work, Image.new("RGB", work.size, marker)).convert("L")
+    alpha = diff.point(lambda v: 0 if v == 0 else 255).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+    out = im.convert("RGBA")
+    out.putalpha(alpha)
+    return out
+
+
 def plate(src, dest):
+    """A cut-out stands on the same warm grey plate as every card of the app
+    and the board, with room around it; a shop photo keeps its own backdrop,
+    extended to the 3:4 plate so it reads as one print and never as a crop
+    (Agathe, 2026-09-21: the white and beige rectangles of the first draft
+    looked like a patchwork)."""
     if os.path.exists(dest) and os.path.getmtime(dest) >= os.path.getmtime(src):
         return
-    im = Image.open(src).convert("RGB")
-    w, h = im.size
-    k = max(8, min(w, h) // 40)
-    corners = [im.crop(b).resize((1, 1), Image.BOX).getpixel((0, 0)) for b in
-               ((0, 0, k, k), (w - k, 0, w, k), (0, h - k, k, h), (w - k, h - k, w, h))]
-    bg = tuple(sum(c[i] for c in corners) // 4 for i in range(3))
-    scale = min(PLATE_W / w, PLATE_H / h)
-    fitted = im.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
-    canvas = Image.new("RGB", (PLATE_W, PLATE_H), bg)
-    canvas.paste(fitted, ((PLATE_W - fitted.width) // 2, (PLATE_H - fitted.height) // 2))
+    im = Image.open(src)
+    cut = "/cutouts/" in src.replace(os.sep, "/")
+    if cut or "A" in im.getbands():
+        im = keyed(im) if "A" not in im.getbands() else im.convert("RGBA")
+        im = im.crop(im.getbbox() or (0, 0) + im.size)
+        w, h = im.size
+        scale = min(PLATE_W * 0.70 / w, PLATE_H * 0.70 / h)
+        fitted = im.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
+        canvas = Image.new("RGB", (PLATE_W, PLATE_H), PAPER_DEEP)
+        canvas.paste(fitted, ((PLATE_W - fitted.width) // 2, (PLATE_H - fitted.height) // 2), fitted)
+    else:
+        im = im.convert("RGB")
+        w, h = im.size
+        k = max(8, min(w, h) // 40)
+        corners = [im.crop(b).resize((1, 1), Image.BOX).getpixel((0, 0)) for b in
+                   ((0, 0, k, k), (w - k, 0, w, k), (0, h - k, k, h), (w - k, h - k, w, h))]
+        bg = tuple(sum(c[i] for c in corners) // 4 for i in range(3))
+        scale = min(PLATE_W / w, PLATE_H / h)
+        fitted = im.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
+        canvas = Image.new("RGB", (PLATE_W, PLATE_H), bg)
+        canvas.paste(fitted, ((PLATE_W - fitted.width) // 2, (PLATE_H - fitted.height) // 2))
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     canvas.save(dest, "JPEG", quality=82, optimize=True, progressive=True)
 
@@ -112,25 +150,28 @@ CSS = """
   .hero .say { font-size: clamp(19px, 2.2vw, 24px); line-height: 1.4; margin-top: 24px; max-width: 30em; }
   .hero .meta { margin-top: 22px; font-size: 13px; font-weight: 300; color: var(--ink-soft); }
 
-  /* The pieces: a ruled list, one hairline per row, like cartels along a wall. */
-  .pieces { list-style: none; border-top: 1px solid var(--hairline); }
-  .piece { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px 48px;
-           padding: 36px 0; border-bottom: 1px solid var(--hairline); align-items: start; }
-  .piece figure img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--paper-deep); }
-  .cartel { padding-top: 4px; }
-  .cartel .k { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 22px;
+  /* The pieces: a wall of prints with a cartel under each, two across on a
+     phone like the wishlist itself, three on a desk. No boxes, no rules
+     between them: the paper does the spacing. */
+  .pieces { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 40px 20px; padding-top: 32px; border-top: 1px solid var(--hairline); }
+  @media (min-width: 900px) { .pieces { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 32px; padding-top: 40px; } }
+  .piece { min-width: 0; }
+  .piece figure img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--paper-deep);
+                      border-radius: 14px; }
+  .cartel { padding-top: 14px; }
+  .cartel .head { display: flex; align-items: baseline; gap: 10px; }
+  .cartel .k { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 18px;
                color: var(--cobalt); line-height: 1; }
-  .cartel .maker { margin-top: 18px; font-size: 13px; font-weight: 400; color: var(--ink-soft); }
-  .cartel h2 { margin-top: 6px; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.22; letter-spacing: -0.01em; }
+  .cartel .maker { font-size: 12px; font-weight: 400; color: var(--ink-soft); }
+  .cartel h2 { margin-top: 6px; font-size: clamp(17px, 1.6vw, 21px); line-height: 1.3; letter-spacing: -0.005em;
+               overflow-wrap: anywhere; }
   .cartel h2 .price { color: var(--ink-soft); }
-  .cartel .note { margin-top: 14px; font-size: 16px; font-weight: 300; line-height: 1.5; max-width: 34em; }
-  .cartel .shop { display: inline-block; margin-top: 18px; font-size: 14px; font-weight: 400;
-                  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink-soft); }
+  .cartel .note { margin-top: 8px; font-size: 14px; font-weight: 300; line-height: 1.5; color: var(--ink); }
+  .cartel .shop { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 400;
+                  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--ink-soft);
+                  overflow-wrap: anywhere; }
   .cartel .shop:hover { text-decoration-color: var(--ink); }
-  @media (max-width: 640px) {
-    .piece { grid-template-columns: 1fr; gap: 16px; padding: 28px 0; }
-    .piece figure { max-width: 300px; }
-  }
 
   section.ask { padding: clamp(52px, 8vh, 88px) 0; }
   .ask h2 { font-size: clamp(30px, 4.6vw, 48px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; max-width: 760px; }
@@ -239,8 +280,7 @@ def render_guide(g):
         pieces.append(f"""        <li class="piece" id="p{n}">
           <figure><img src="{rel}" width="{PLATE_W}" height="{PLATE_H}" alt="{escape(it['alt'])}"{' loading="lazy"' if n > 2 else ''}></figure>
           <div class="cartel">
-            <p class="k">{n}</p>
-            <p class="maker">{escape(it['brand'])}</p>
+            <p class="head"><span class="k">{n}</span><span class="maker">{escape(it['brand'])}</span></p>
             <h2 class="say">{escape(it['name'])}<span class="price">, {escape(it['price'])}</span></h2>{note}
             <a class="shop" href="{shop}" rel="sponsored nofollow noopener" target="_blank">Shop at {escape(host(it['url']))}</a>
           </div>
