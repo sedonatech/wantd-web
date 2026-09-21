@@ -6,7 +6,16 @@
   // Board, promise and secret santa links still arrive at the root with a
   // query. Hand them to the board before anything paints.
   (function () { var q = location.search; if (/[?&](handle|promise|santa)=/.test(q)) location.replace('/board/' + q + location.hash); })();
-  document.documentElement.className += ' js';
+  // The invitation lifts once a session, and never for a reader who asked
+  // for stillness. No script, no curtain: the room is simply already there.
+  (function () {
+    var d = document.documentElement, c = ' js';
+    try {
+      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!still && !sessionStorage.getItem('wantd.lit')) { c += ' first'; sessionStorage.setItem('wantd.lit', '1'); }
+    } catch (e) {}
+    d.className += c;
+  })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wantd. A wishlist, kept beautifully.</title>
@@ -67,6 +76,9 @@
     --gate-shadow: 0 18px 44px rgba(17,17,16,0.20), inset 0 0 0 1px rgba(246,244,238,0.10);
     --gutter: clamp(20px, 4.4vw, 64px);
     --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --curtain: cubic-bezier(0.76, 0, 0.24, 1);
+    --veil: rgba(250,250,248,0.60);
+    --lead: 0s;
     --sans: "Franklin", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     --serif: "Newsreader", ui-serif, "New York", Georgia, "Times New Roman", serif;
     color-scheme: light;
@@ -82,6 +94,7 @@
       --rule-2: rgba(244,243,239,0.32);
       --cobalt: #7C9BFF;
       --gate-shadow: 0 20px 50px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(246,244,238,0.18);
+      --veil: rgba(10,10,10,0.62);
       color-scheme: dark;
     }
   }
@@ -140,9 +153,12 @@
   }
   .mark span { color: var(--cobalt); }
   .bar-note {
-    flex: 1 1 auto;
+    flex: 1 1 auto; min-width: 0;
     font-size: 12.5px; font-weight: 400; color: var(--ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: opacity 0.26s var(--ease);
   }
+  .bar-note.turning { opacity: 0; }
   .bar-cta {
     font-size: 13px; font-weight: 500;
     text-decoration: underline; text-decoration-thickness: 1px;
@@ -233,6 +249,9 @@
   }
 
   /* --- The wall ----------------------------------------------------- */
+  /* Two ways into the same room. Without script, on a phone, or for a reader
+     who asked for stillness, the wall is pulled sideways by hand. With room
+     mode on, the page's own scroll walks you along it. */
   .hang {
     display: flex; align-items: center;
     gap: clamp(16px, 2.4vw, 38px);
@@ -245,6 +264,60 @@
   .hang::-webkit-scrollbar { display: none; }
   .hang.dragging { cursor: grabbing; scroll-behavior: auto; }
   .hang.dragging * { pointer-events: none; }
+  .room-floor { display: none; }
+
+  html.room-on .room-stage {
+    position: sticky; top: 0;
+    height: 100vh; height: 100svh;
+    display: flex; align-items: center;
+    overflow: hidden;
+  }
+  html.room-on .hang {
+    flex: none;
+    overflow: visible;
+    padding-block: 0;
+    gap: clamp(26px, 3.4vw, 58px);
+    cursor: default;
+    will-change: transform;
+  }
+  /* In the room the pieces hang at gallery scale, trimmed for short windows. */
+  html.room-on .work { --k: 1.3; flex: 0 0 calc(var(--w) * var(--k)); width: calc(var(--w) * var(--k)); }
+  @media (max-height: 860px) { html.room-on .work { --k: 1.12; } }
+  @media (max-height: 730px) { html.room-on .work { --k: 0.95; } }
+  html.room-on .room-floor {
+    display: block;
+    position: absolute; left: 0; right: 0; bottom: max(26px, 5vh);
+    height: 1px; background: var(--rule);
+  }
+  html.room-on .room-floor span {
+    display: block; height: 1px; width: 0;
+    background: var(--cobalt);
+    transform-origin: left;
+  }
+  /* One piece is taken while you stand in front of it. The veil draws once,
+     the line under it follows, and neither ever comes back. */
+  .work.seal .ph::after {
+    content: ""; position: absolute; inset: 0;
+    background: var(--veil);
+    clip-path: inset(0 100% 0 0);
+    pointer-events: none;
+  }
+  html.room-on .work.seal .kept { opacity: 0; }
+  html.room-on .work.seal.taken .ph::after { animation: veil 0.95s var(--curtain) forwards; }
+  html.room-on .work.seal.taken .kept { animation: fade 0.55s var(--ease) 0.42s forwards; }
+  @keyframes veil { to { clip-path: inset(0 0 0 0); } }
+
+  /* Each piece is hung once, left to right, when the room is entered. */
+  html.room-on .room.armed .work { opacity: 0; transform: translate3d(0, 26px, 0); }
+  html.room-on .room.armed.in .work {
+    animation: hangup 0.9s var(--ease) forwards;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+  @keyframes hangup { to { opacity: 1; transform: none; } }
+  html.room-on .work { transition: box-shadow 0.45s var(--ease); }
+  html.room-on .room:hover .work:hover {
+    box-shadow: 0 22px 48px rgba(0,0,0,0.14), inset 0 0 0 0.5px var(--rule);
+  }
 
   .work {
     flex: 0 0 var(--w);
@@ -254,7 +327,7 @@
     padding: 8px;
     box-shadow: 0 10px 28px rgba(0,0,0,0.075), inset 0 0 0 0.5px var(--rule);
   }
-  .work .ph { border-radius: 14px; overflow: hidden; background: var(--plinth); }
+  .work .ph { position: relative; border-radius: 14px; overflow: hidden; background: var(--plinth); }
   .work .ph img { width: 100%; }
   .cartel { padding: 11px 6px 6px; }
   .cartel .store {
@@ -353,7 +426,7 @@
   .gate { margin: 0; }
   .gate-card {
     display: flex; flex-direction: column;
-    aspect-ratio: 420 / 606;
+    aspect-ratio: 420 / 566;
     padding: 30px 32px 34px;
     background: var(--gate);
     color: var(--gate-ink);
@@ -388,22 +461,45 @@
   .foot-in a:hover { color: var(--ink); }
   .colophon { flex: 1 1 100%; font-family: var(--serif); font-style: italic; font-size: 12.5px; }
 
+  /* --- The invitation, lifted ---------------------------------------- */
+  .curtain { display: none; }
+  html.js.first .curtain {
+    display: flex; align-items: flex-end;
+    position: fixed; inset: 0; z-index: 100;
+    padding: var(--gutter);
+    background: var(--gate); color: var(--gate-ink);
+    animation: lift 0.86s var(--curtain) 0.46s forwards;
+  }
+  html.js.first .curtain span {
+    font-size: clamp(30px, 5.4vw, 62px); font-weight: 600; letter-spacing: -0.03em;
+    opacity: 0; animation: fade 0.34s var(--ease) 0.06s forwards;
+  }
+  html.js.first { --lead: 0.62s; }
+  @keyframes lift { to { transform: translate3d(0, -101%, 0); } }
+  @keyframes fade { to { opacity: 1; } }
+
   /* --- The lights come up ------------------------------------------- */
   @keyframes rise { from { opacity: 0; transform: translate3d(0, 16px, 0); } to { opacity: 1; transform: none; } }
   .js .lift { opacity: 0; animation: rise 0.85s var(--ease) forwards; }
-  .js .lift-1 { animation-delay: 0.05s; }
-  .js .lift-2 { animation-delay: 0.20s; }
-  .js .lift-3 { animation-delay: 0.31s; }
-  .js .lift-4 { animation-delay: 0.42s; }
+  .js .lift-1 { animation-delay: calc(var(--lead) + 0.05s); }
+  .js .lift-2 { animation-delay: calc(var(--lead) + 0.20s); }
+  .js .lift-3 { animation-delay: calc(var(--lead) + 0.31s); }
+  .js .lift-4 { animation-delay: calc(var(--lead) + 0.42s); }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .js .lift { opacity: 1; animation: none; }
+    html.room-on .room.armed .work { opacity: 1; transform: none; animation: none; }
+    html.room-on .work.seal .kept { opacity: 1; }
+    .work.seal .ph::after { display: none; }
+    .curtain { display: none !important; }
     .gate-card, .cta, .quiet, .bar-cta, .foot-in a { transition: none; }
   }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+
+<div class="curtain" aria-hidden="true"><span>Wantd.</span></div>
 
 <header class="bar">
   <div class="page bar-in">
@@ -436,20 +532,21 @@
     </div>
   </section>
 
-  <section class="wall" aria-labelledby="wall-h">
-    <div class="hang" tabindex="0" role="region" aria-label="Pieces on a Wantd list, scroll sideways">
-      <figure class="work" style="--w: clamp(200px, 23vw, 330px)">
-        <div class="ph"><img src="img/wall/chanel.webp" width="771" height="900" alt="A black quilted Chanel small shopping bag." loading="lazy" decoding="async"></div>
+  <section class="wall" aria-labelledby="wall-h" data-head="The wall. Eight pieces from one list.">
+    <div class="room" id="room">
+     <div class="room-stage">
+      <div class="hang" id="hang" tabindex="0" role="region" aria-label="Pieces on a Wantd list, walk along the wall">
+      <figure class="work" style="--i: 0; --w: clamp(200px, 23vw, 330px)">
+        <div class="ph"><img src="img/wall/chanel.webp" width="771" height="900" fetchpriority="high" alt="A black quilted Chanel small shopping bag." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Chanel</span>
           <span class="nm">Small shopping bag</span>
           <span class="pz">€6.200</span>
-          <span class="kept">Someone already reserved this one.</span>
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(150px, 16vw, 230px)">
-        <div class="ph"><img src="img/wall/cartier.webp" width="307" height="400" alt="A gold Panthère de Cartier watch on a white ground." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 1; --w: clamp(150px, 16vw, 230px)">
+        <div class="ph"><img src="img/wall/cartier.webp" width="307" height="400" alt="A gold Panthère de Cartier watch on a white ground." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Selfridges</span>
           <span class="nm">Panthère de Cartier</span>
@@ -457,8 +554,8 @@
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(182px, 20vw, 292px)">
-        <div class="ph"><img src="img/wall/taschen.webp" width="687" height="900" alt="London. Portrait of a City, a Taschen book with a red bus on the cover." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 2; --w: clamp(182px, 20vw, 292px)">
+        <div class="ph"><img src="img/wall/taschen.webp" width="687" height="900" alt="London. Portrait of a City, a Taschen book with a red bus on the cover." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Taschen</span>
           <span class="nm">London. Portrait of a City.</span>
@@ -475,8 +572,8 @@
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(168px, 18vw, 262px)">
-        <div class="ph"><img src="img/wall/rhode.webp" width="900" height="900" alt="The rhode kit: four grey and cream skincare tubes with a pillow." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 3; --w: clamp(168px, 18vw, 262px)">
+        <div class="ph"><img src="img/wall/rhode.webp" width="900" height="900" alt="The rhode kit: four grey and cream skincare tubes with a pillow." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Rhode</span>
           <span class="nm">the rhode kit</span>
@@ -484,17 +581,18 @@
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(158px, 17vw, 244px)">
-        <div class="ph"><img src="img/wall/diptyque.webp" width="675" height="900" alt="Diptyque Eau Rihla eau de parfum, an amber glass bottle." loading="lazy" decoding="async"></div>
+      <figure class="work seal" style="--i: 4; --w: clamp(158px, 17vw, 244px)">
+        <div class="ph"><img src="img/wall/diptyque.webp" width="675" height="900" alt="Diptyque Eau Rihla eau de parfum, an amber glass bottle." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Diptyque</span>
           <span class="nm">Eau Rihla</span>
           <span class="pz">255 €</span>
+          <span class="kept">Someone already reserved this one.</span>
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(210px, 24vw, 345px)">
-        <div class="ph"><img src="img/wall/miumiu.webp" width="900" height="900" alt="A pair of black Miu Miu nappa leather loafers." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 5; --w: clamp(210px, 24vw, 345px)">
+        <div class="ph"><img src="img/wall/miumiu.webp" width="900" height="900" alt="A pair of black Miu Miu nappa leather loafers." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Miu Miu</span>
           <span class="nm">Black Ruches Nappa Leather Loafers</span>
@@ -502,8 +600,8 @@
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(160px, 17vw, 248px)">
-        <div class="ph"><img src="img/wall/realfine.webp" width="900" height="900" alt="A pair of gold Heirloom drop earrings set with white stones." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 6; --w: clamp(160px, 17vw, 248px)">
+        <div class="ph"><img src="img/wall/realfine.webp" width="900" height="900" alt="A pair of gold Heirloom drop earrings set with white stones." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Realfine Studio</span>
           <span class="nm">Heirloom Earrings in Snow</span>
@@ -511,8 +609,8 @@
         </figcaption>
       </figure>
 
-      <figure class="work" style="--w: clamp(176px, 19vw, 274px)">
-        <div class="ph"><img src="img/wall/marly.webp" width="900" height="900" alt="Delina La Rosée eau de parfum by Parfums de Marly, a pale pink bottle." loading="lazy" decoding="async"></div>
+      <figure class="work" style="--i: 7; --w: clamp(176px, 19vw, 274px)">
+        <div class="ph"><img src="img/wall/marly.webp" width="900" height="900" alt="Delina La Rosée eau de parfum by Parfums de Marly, a pale pink bottle." decoding="async"></div>
         <figcaption class="cartel">
           <span class="store">Parfums de Marly</span>
           <span class="nm">Delina La Rosée Eau de Parfum (30ml)</span>
@@ -520,18 +618,21 @@
         </figcaption>
       </figure>
 
+      </div>
+      <div class="room-floor" aria-hidden="true"><span id="walk"></span></div>
+     </div>
     </div>
 
     <div class="wall-text">
       <div class="page grid grid-3">
         <h2 class="margin" id="wall-h">What it is</h2>
         <p class="voice">One place for everything you want. Zara, Sephora, a small ceramic studio you found on Instagram. If it is sold online, it belongs on your list.</p>
-        <p class="wall-note">Eight pieces from one Wantd list, hung as they sit in the app. Drag the wall to walk along it.</p>
+        <p class="wall-note">Eight pieces from one Wantd list, hung as they sit in the app. <span id="walk-hint">Drag the wall to walk along it.</span></p>
       </div>
     </div>
   </section>
 
-  <section aria-labelledby="how-h">
+  <section aria-labelledby="how-h" data-head="How it works.">
     <div class="page grid pad">
       <h2 class="margin" id="how-h">How it works</h2>
       <ul class="rows">
@@ -565,7 +666,7 @@
     </div>
   </section>
 
-  <section class="invite" aria-labelledby="invite-h">
+  <section class="invite" aria-labelledby="invite-h" data-head="The invitation.">
     <div class="page grid pad">
       <div>
         <h2 id="invite-h">Wantd is<br>invitation-only.</h2>
@@ -605,31 +706,181 @@
 </footer>
 
 <script>
-  // The wall is walked, not clicked: a press and a pull move it, and a real
-  // drag never lands as a tap on the piece underneath.
-  (function () {
-    var hang = document.querySelector('.hang');
-    if (!hang) return;
-    var down = false, moved = 0, startX = 0, startLeft = 0;
-    hang.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'mouse') return;
-      down = true; moved = 0; startX = e.clientX; startLeft = hang.scrollLeft;
-    });
-    window.addEventListener('pointermove', function (e) {
-      if (!down) return;
-      var dx = e.clientX - startX;
-      if (Math.abs(dx) > 3) { moved = 1; hang.classList.add('dragging'); }
-      hang.scrollLeft = startLeft - dx;
-    });
-    function release() {
-      if (!down) return;
-      down = false;
-      setTimeout(function () { hang.classList.remove('dragging'); }, 0);
+(function () {
+  var doc = document.documentElement;
+  var hang = document.getElementById('hang');
+  var room = document.getElementById('room');
+  var walk = document.getElementById('walk');
+  var hint = document.getElementById('walk-hint');
+  var note = document.querySelector('.bar-note');
+  if (!hang || !room) return;
+
+  var works = [].slice.call(hang.querySelectorAll('.work'));
+  var seal = hang.querySelector('.work.seal'), sealed = false;
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var HOME = note ? note.textContent : '';
+  var HINT_DRAG = 'Drag the wall to walk along it.';
+  var HINT_ROOM = 'Keep scrolling to walk the room.';
+
+  // --- The running head: the bar names where the reader is standing. -------
+  var shown = HOME, pending = null, turning = 0;
+  function head(text) {
+    if (!note || text === shown) return;
+    shown = text;
+    clearTimeout(turning);
+    note.classList.add('turning');
+    pending = text;
+    turning = setTimeout(function () {
+      note.textContent = pending;
+      note.classList.remove('turning');
+    }, 200);
+  }
+
+  // --- The room: the page's own scroll walks you along the wall. ----------
+  var on = false, len = 0, top = 0, target = 0, cur = 0, raf = 0;
+
+  function roomable() { return window.innerWidth >= 900 && !still.matches; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  // Every measurement the walk needs is taken once, never inside a frame:
+  // reading layout while transforming is what makes a scroll stutter.
+  var mids = [], sealMid = 0, at = -1;
+  function measure() {
+    if (!on) { room.style.height = ''; return; }
+    len = Math.max(0, hang.scrollWidth - window.innerWidth);
+    top = room.getBoundingClientRect().top + window.pageYOffset;
+    room.style.height = (window.innerHeight + len) + 'px';
+    mids = works.map(function (w) { return w.offsetLeft + w.offsetWidth / 2; });
+    sealMid = seal ? seal.offsetLeft + seal.offsetWidth / 2 : 0;
+  }
+
+  function nearest() {
+    var mid = window.innerWidth / 2, best = 0, gap = 1e9;
+    for (var i = 0; i < mids.length; i++) {
+      var d = Math.abs(mids[i] - cur - mid);
+      if (d < gap) { gap = d; best = i; }
     }
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
-    window.addEventListener('blur', release);
-  })();
+    return best;
+  }
+
+  function paint() {
+    hang.style.transform = 'translate3d(' + (-cur).toFixed(2) + 'px,0,0)';
+    if (walk && len) walk.style.width = ((cur / len) * 100).toFixed(2) + '%';
+    if (seal && !sealed && sealMid - cur <= window.innerWidth * 0.62) {
+      sealed = true;
+      seal.classList.add('taken');
+    }
+    var i = nearest();
+    if (i !== at) { at = i; runHead(); }
+  }
+
+  function loop() {
+    cur += (target - cur) * 0.16;
+    if (Math.abs(target - cur) < 0.3) cur = target;
+    paint();
+    raf = cur === target ? 0 : requestAnimationFrame(loop);
+  }
+
+  function follow() {
+    if (!on) return;
+    target = clamp((window.pageYOffset - top) / (len || 1), 0, 1) * len;
+    if (!raf) raf = requestAnimationFrame(loop);
+  }
+
+  function enter() {
+    if (on || !roomable()) return;
+    on = true;
+    doc.classList.add('room-on');
+    hang.scrollLeft = 0;
+    if (hint) hint.textContent = HINT_ROOM;
+    measure();
+    cur = target = 0;
+    follow();
+  }
+  function leave() {
+    if (!on) return;
+    on = false;
+    doc.classList.remove('room-on');
+    hang.style.transform = '';
+    room.style.height = '';
+    if (walk) walk.style.width = '';
+    if (hint) hint.textContent = HINT_DRAG;
+  }
+
+  // --- Standing in the room, the bar names the piece. Elsewhere, the wall. -
+  var marks = [].slice.call(document.querySelectorAll('[data-head]'));
+  function pinned() {
+    var y = window.pageYOffset;
+    return on && y >= top - 40 && y <= top + len;
+  }
+  function runHead() {
+    if (pinned()) {
+      var w = works[at];
+      if (w) head(w.querySelector('.nm').textContent + ', ' + w.querySelector('.store').textContent);
+      return;
+    }
+    var label = HOME;
+    for (var i = 0; i < marks.length; i++) {
+      if (marks[i].getBoundingClientRect().top <= 90) label = marks[i].getAttribute('data-head');
+    }
+    head(label);
+  }
+
+  var ticking = false;
+  function onScroll() {
+    follow();
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { runHead(); ticking = false; });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', function () {
+    if (roomable()) { if (!on) enter(); else measure(); } else leave();
+    follow();
+  });
+  if (window.ResizeObserver) new ResizeObserver(function () { if (on) measure(); }).observe(hang);
+
+  // The pieces are hung once, left to right, the first time the room is met.
+  if (window.IntersectionObserver) {
+    room.classList.add('armed');
+    var io = new IntersectionObserver(function (es, o) {
+      if (es[0].isIntersecting) { room.classList.add('in'); o.disconnect(); }
+    }, { rootMargin: '0px 0px -12% 0px' });
+    io.observe(room);
+    // Whatever happens to the observer, the wall is hung.
+    setTimeout(function () { room.classList.add('in'); }, 1800);
+  }
+
+  window.addEventListener('load', function () { if (on) measure(); follow(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (on) measure(); follow(); });
+
+  if (roomable()) enter(); else if (hint) hint.textContent = HINT_DRAG;
+
+  // --- Without the room, the wall is pulled by hand. -----------------------
+  var down = false, moved = 0, startX = 0, startLeft = 0;
+  hang.addEventListener('pointerdown', function (e) {
+    if (on || e.pointerType !== 'mouse') return;
+    down = true; moved = 0; startX = e.clientX; startLeft = hang.scrollLeft;
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!down) return;
+    var dx = e.clientX - startX;
+    if (Math.abs(dx) > 3) { moved = 1; hang.classList.add('dragging'); }
+    hang.scrollLeft = startLeft - dx;
+  });
+  function release() {
+    if (!down) return;
+    down = false;
+    setTimeout(function () { hang.classList.remove('dragging'); }, 0);
+  }
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  window.addEventListener('blur', release);
+
+  // The curtain has done its work; it never stands between a click and a link.
+  var curtain = document.querySelector('.curtain');
+  if (curtain) setTimeout(function () { curtain.remove(); }, 1600);
+})();
 </script>
 </body>
 </html>
