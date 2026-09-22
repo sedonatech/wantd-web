@@ -1,0 +1,50 @@
+{
+  "slug": "holiday-table",
+  "title": "The holiday table",
+  "kicker": "Gift guide",
+  "say": "Four pieces from McGee & Co. that set a table people remember. The shop's own photos and prices.",
+  "description": "A holiday table in four pieces from McGee & Co.: Halloway mugs, Islington wine glasses, Laurel side plates and Pritchard dinner plates. Prices in dollars, photos from the shop.",
+  "channel": "guide-holiday-table",
+  "items": [
+    {
+      "id": "mg-halloway-mugs",
+      "brand": "Mcgee & Co.",
+      "name": "Halloway Mugs, set of 4",
+      "price": "$58",
+      "url": "https://www.mcgeeandco.com/products/halloway-mugs-set-of-4",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/mg-halloway-mugs.jpg",
+      "alt": "Four white stoneware mugs on a wooden table, set for breakfast."
+    },
+    {
+      "id": "mg-islington-glasses",
+      "brand": "Mcgee & Co.",
+      "name": "Islington Wine Glasses, set of 4",
+      "price": "$58",
+      "url": "https://www.mcgeeandco.com/products/islington-wine-glasses-set-of-4",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/mg-islington-glasses.jpg",
+      "alt": "Four etched wine glasses on a set table."
+    },
+    {
+      "id": "mg-laurel-plates",
+      "brand": "Mcgee & Co.",
+      "name": "Laurel Side Plates, set of 4",
+      "price": "$68",
+      "url": "https://www.mcgeeandco.com/products/laurel-side-plates-set-of-4",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/mg-laurel-plates.jpg",
+      "alt": "A white side plate on a woven charger, on a dark table."
+    },
+    {
+      "id": "mg-pritchard-plates",
+      "brand": "Mcgee & Co.",
+      "name": "Pritchard Dinner Plates, set of 4",
+      "price": "$96",
+      "url": "https://www.mcgeeandco.com/products/pritchard-dinner-plates-set-of-4",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/mg-pritchard-plates.jpg",
+      "alt": "A black-rimmed dinner plate on a ruffled linen placemat."
+    }
+  ],
+  "currency": "USD",
+  "updated": "2026-09-22",
+  "published": false,
+  "draft_in_index": false
+}

@@ -1,0 +1,50 @@
+{
+  "slug": "gifts-for-him-under-100",
+  "title": "Gifts for him under $100",
+  "kicker": "Gift guide",
+  "say": "Four Craighill objects he keeps on the desk: a brass pen, a steel puzzle, a lighter and a match striker. The shop's own photos and prices.",
+  "description": "Gifts for him under $100 from Craighill: the Kepler brass pen, the Tetra steel puzzle, the Swingtop lighter and the Match Striker. Prices in dollars, photos from the shop.",
+  "channel": "guide-gifts-for-him",
+  "items": [
+    {
+      "id": "cr-kepler-pen",
+      "brand": "Craighill",
+      "name": "Kepler Pen",
+      "price": "$78",
+      "url": "https://www.craighill.co/products/kepler-pen",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/cr-kepler-pen.jpg",
+      "alt": "The Kepler pen in brass, leaning on a grey studio backdrop."
+    },
+    {
+      "id": "cr-tetra-puzzle",
+      "brand": "Craighill",
+      "name": "Tetra Puzzle",
+      "price": "$98",
+      "url": "https://www.craighill.co/products/tetra-puzzle",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/cr-tetra-puzzle.jpg",
+      "alt": "The Tetra puzzle in steel, on a grey studio backdrop."
+    },
+    {
+      "id": "cr-swingtop-lighter",
+      "brand": "Craighill",
+      "name": "Swingtop Lighter",
+      "price": "$78",
+      "url": "https://www.craighill.co/products/swingtop-lighter",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/cr-swingtop-lighter.jpg",
+      "alt": "The Swingtop lighter in brushed steel, on a grey studio backdrop."
+    },
+    {
+      "id": "cr-match-striker",
+      "brand": "Craighill",
+      "name": "Match Striker",
+      "price": "$48",
+      "url": "https://www.craighill.co/products/match-striker",
+      "image": "/Users/agathedozo/Desktop/WANTD-Pinterest/sourced/cr-match-striker.jpg",
+      "alt": "The brass Match Striker with red-tipped matches, on a grey studio backdrop."
+    }
+  ],
+  "currency": "USD",
+  "updated": "2026-09-22",
+  "published": false,
+  "draft_in_index": false
+}

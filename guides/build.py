@@ -30,6 +30,9 @@ SITE = "https://wantd.sedonatech.uk"
 # through to its own page (SED-586).
 SKIMLINKS_ID = "309668X1798032"   # second application, 2026-09-21
 APP_STORE = "https://apps.apple.com/app/id6787658989"
+# Apple campaign link: the guide's channel becomes the campaign name (ct), so
+# App Store Connect can count installs per guide (pt = provider token).
+APP_STORE_CAMPAIGN = "https://apps.apple.com/app/apple-store/id6787658989?pt=126758834&mt=8&ct="
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -317,8 +320,8 @@ def render_guide(g):
 """
     html += ASK.substitute(ask_title=escape(g.get("ask_title", "Want one of these?")),
                            ask_say=escape(g.get("ask_say", "Wantd keeps every piece you want on one list, with the photo and the price. Your circle sees it, and nobody spoils the surprise.")),
-                           channel=quote(channel, safe=""), appstore=APP_STORE)
-    html += FOOT.substitute(appstore=APP_STORE)
+                           channel=quote(channel, safe=""), appstore=APP_STORE_CAMPAIGN + quote(channel, safe=""))
+    html += FOOT.substitute(appstore=APP_STORE_CAMPAIGN + quote(channel, safe=""))
     with open(os.path.join(out_dir, "index.html"), "w") as f:
         f.write(html)
     return url, first_img
