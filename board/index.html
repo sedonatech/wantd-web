@@ -359,7 +359,10 @@ const LAUNCHED = true;
 // on rides along (?s=pinterest) so the admin page knows where each email
 // walked in from, exactly like the /join links do.
 const CHANNEL = (new URLSearchParams(location.search).get("s") || "board").toLowerCase();
-const APP_DOOR = LAUNCHED ? APP_STORE_URL : "/join?s=" + encodeURIComponent(CHANNEL);
+// Apple campaign link: the channel becomes the campaign name (ct), so App
+// Store Connect can count installs per channel (pt = provider token).
+const APP_CAMPAIGN_URL = "https://apps.apple.com/app/apple-store/id6787658989?pt=126758834&mt=8&ct=" + encodeURIComponent(CHANNEL);
+const APP_DOOR = LAUNCHED ? APP_CAMPAIGN_URL : "/join?s=" + encodeURIComponent(CHANNEL);
 // The reservation worker (SED-609): blank until deployed; the page behaves
 // exactly as before while it is.
 const RESERVE_API = "https://wantd-reserve.wantd-reserve.workers.dev";
