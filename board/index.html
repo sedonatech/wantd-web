@@ -338,12 +338,39 @@
 // Data. Preview (no handle in URL) renders sample matter so the design can be
 // judged by opening the page. Production reads CloudKit (SED-519).
 // ---------------------------------------------------------------------------
-// Skimlinks affiliation (SED-586): a blank id leaves every URL untouched.
-const SKIMLINKS_ID = "309668X1798032";   // Sedona Tech Ltd, wantd.sedonatech.uk (2026-09-05)
-function shopURL(u) {
-  if (!SKIMLINKS_ID || !u) return u;
-  // xcust names the channel, so the dashboard can tell the board from the app.
-  return "https://go.skimresources.com/?id=" + SKIMLINKS_ID + "&url=" + encodeURIComponent(u) + "&xcust=web";
+// Tracked shop links (SED-855): a shop that accepted Wantd is opened through
+// its network's own link, every other shop as it is. The table and its
+// reader come from the worker (/affiliate.js, loaded beside this page);
+// without them every link stays bare. Decided as the link is touched, so a
+// table that lands late still counts, and the page itself carries only the
+// shop's real address.
+function shopURL(u, meta, door) {
+  try { return (u && window.WantdAffiliate) ? window.WantdAffiliate.shopURL(u, door || "web", meta || {}) : u; }
+  catch (e) { return u; }
+}
+function armShop(e) {
+  const a = e.target && e.target.closest ? e.target.closest("a[data-shop]") : null;
+  if (!a) return;
+  const u = a.getAttribute("data-shop");
+  const t = shopURL(u, { brand: a.getAttribute("data-brand") || "", name: a.getAttribute("data-name") || "" },
+                    a.getAttribute("data-door") || "web");
+  if (t !== u) { a.href = t; a.rel = "sponsored nofollow noopener"; }
+}
+["pointerdown", "touchstart", "mousedown", "auxclick", "focusin", "contextmenu"].forEach(function (ev) {
+  document.addEventListener(ev, armShop, { capture: true, passive: true });
+});
+// A value written inside an HTML attribute.
+function attr(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+// A link to a shop: its real address, and what the reader above needs.
+function shopLink(a, u, meta) {
+  a.href = u;
+  a.setAttribute("data-shop", u);
+  if (meta && meta.brand) a.setAttribute("data-brand", meta.brand);
+  if (meta && meta.name) a.setAttribute("data-name", meta.name);
 }
 const HANDLE = new URLSearchParams(location.search).get("handle")
             || location.pathname.match(/@([\w-]+)/)?.[1];
@@ -615,7 +642,7 @@ function openPiece(it) {
 
   if (it.url) {
     const bar = document.createElement("a");
-    bar.className = "bar"; bar.href = shopURL(it.url);
+    bar.className = "bar"; shopLink(bar, it.url, { brand: it.store, name: it.name });
     bar.target = "_blank"; bar.rel = "noopener";
     bar.textContent = "Shop";
     info.append(bar);
@@ -631,8 +658,8 @@ function openPiece(it) {
     rs.textContent = "Reserve this gift in Wantd";
     links.append(rs);
   }
-  // The gift card line (SED-612), asleep until SKIMLINKS_ID wakes it.
-  if (SKIMLINKS_ID && it.url) {
+  // The gift card line (SED-612).
+  if (it.url) {
     try {
       const gcURL = new URL(it.url);
       const gcHost = gcURL.hostname.replace(/^www\d?\./, "");
@@ -642,7 +669,7 @@ function openPiece(it) {
                : null;
       if (gc) {
         const a = document.createElement("a");
-        a.href = shopURL(gc); a.target = "_blank"; a.rel = "noopener";
+        shopLink(a, gc); a.target = "_blank"; a.rel = "noopener";
         a.textContent = "Send a gift card instead";
         links.append(a);
       }
@@ -1129,7 +1156,7 @@ function showPromise(token) {
       (c.image ? '<img class="ph" src="' + c.image + '" alt="">' : "") +
       '<div class="nm serif">' + (c.name || "A piece from the wishlist") + "</div>" +
       (c.priceAmount ? '<div class="pz serif">' + money(c.priceAmount, c.priceCurrency || "EUR") + "</div>" : "") +
-      (c.url ? '<a class="bar" target="_blank" rel="noopener" href="' + shopURL(c.url) + '">Shop it</a>' : "") +
+      (c.url ? '<a class="bar" target="_blank" rel="noopener" href="' + attr(c.url) + '" data-shop="' + attr(c.url) + '" data-name="' + attr(c.name || "") + '">Shop it</a>' : "") +
       '<div class="appline">Your promise of ' + money(r.amount, r.currency) + ', kept the way you meant it.</div>';
   });
 }
@@ -1523,9 +1550,8 @@ if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
     .catch(showEmpty);
 }
 </script>
-<!-- Skimlinks (SED-586): the reviewers look for this tag on the declared domain.
-     Our own outbound links are already wrapped by shopURL(); the script leaves
-     go.skimresources.com links alone. -->
-<script type="text/javascript" src="https://s.skimresources.com/js/309668X1798032.skimlinks.js"></script>
+<!-- Tracked shop links (SED-855): the table of the shops that accepted Wantd,
+     with its reader. Late or missing, every link stays the shop's own. -->
+<script async src="https://wantd-reserve.wantd-reserve.workers.dev/affiliate.js"></script>
 </body>
 </html>
