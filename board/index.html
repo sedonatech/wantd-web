@@ -1356,6 +1356,11 @@ function basePrice(f) {
   const amount = f.priceAmount?.value, currency = f.priceCurrency?.value;
   const url = f.urlString?.value || "", content = f.netContent?.value || "";
   if (typeof amount !== "number" || !(amount > 0) || !currency || !url || !content) return "";
+  // Douglas pieces only, whatever the country (Agathe, 2026-10-28): the shop
+  // that requires it. Every other shop keeps its price alone.
+  let labels = [];
+  try { labels = new URL(url).hostname.toLowerCase().split("."); } catch (e) { return ""; }
+  if (labels.length < 2 || labels[labels.length - 2] !== "douglas") return "";
   if (f.netContentFor?.value !== Math.round(amount * 100) + " " + currency.toUpperCase() + " " + url) return "";
   const m = /^(\d+(?:\.\d+)?) (ml|g)$/.exec(content);
   if (!m || !(Number(m[1]) > 0)) return "";
