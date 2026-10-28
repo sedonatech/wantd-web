@@ -121,6 +121,8 @@
     font-size: 13px; font-weight: 400; margin-top: 3px;
   }
   .card .kept { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
+  /* The base price (SED-911): per litre or per kilo, under the price, quieter. */
+  .card .bp { font-size: 10px; font-weight: 400; color: var(--ink-soft); margin-top: 1px; }
 
   /* The piece sheet: the app's product card, breath for breath. */
   #piece {
@@ -161,6 +163,7 @@
     font-family: Georgia, serif; font-style: italic;
     font-size: 17px; margin-top: 10px;
   }
+  #piece .bp { font-size: 12px; font-weight: 400; color: var(--ink-soft); margin-top: 2px; }
   #piece .host { font-size: 12px; font-weight: 300; color: var(--ink-soft); margin-top: 4px; }
   #piece .kept { font-size: 13px; font-weight: 300; color: var(--ink-soft); margin-top: 10px; }
 
@@ -600,6 +603,10 @@ function renderGrid() {
     if (it.price) {
       const pz = document.createElement("div"); pz.className = "pz";
       pz.textContent = it.price; cartel.append(pz);
+      if (it.basePrice) {
+        const bp = document.createElement("div"); bp.className = "bp";
+        bp.textContent = it.basePrice; cartel.append(bp);
+      }
     }
     if (it.keptWith) {
       const k = document.createElement("div"); k.className = "kept";
@@ -637,6 +644,7 @@ function openPiece(it) {
   if (it.store) add("store", it.store);
   add("nm", it.name, true);
   if (it.price) add("pz", it.price, true);
+  if (it.price && it.basePrice) add("bp", it.basePrice);
   if (host) add("host", host);
   if (it.keptWith) add("kept", "A gift here pleases " + it.keptWith + " too.");
 
@@ -1338,6 +1346,35 @@ function formatPrice(amount, currency, fallback) {
   }
 }
 
+// The base price (SED-911), as the app tells it: what a litre or a kilo of
+// the piece costs, under its price, in the same money. Only when the piece's
+// net content ("50 ml") was read for the very price and address it shows
+// (netContentFor, "13900 EUR https://..."): a price or an address that moved
+// since leaves nothing to say. Exact to the cent in euros, rounded like the
+// price when converted.
+function basePrice(f) {
+  const amount = f.priceAmount?.value, currency = f.priceCurrency?.value;
+  const url = f.urlString?.value || "", content = f.netContent?.value || "";
+  if (typeof amount !== "number" || !(amount > 0) || !currency || !url || !content) return "";
+  if (f.netContentFor?.value !== Math.round(amount * 100) + " " + currency.toUpperCase() + " " + url) return "";
+  const m = /^(\d+(?:\.\d+)?) (ml|g)$/.exec(content);
+  if (!m || !(Number(m[1]) > 0)) return "";
+  let cur = currency.toUpperCase(), value = amount / (Number(m[1]) / 1000), exact = true;
+  if (cur !== "EUR") {
+    if (!(RATES && RATES[cur] > 0 && RATES.EUR)) return "";
+    value = Math.round(value / RATES[cur] * RATES.EUR);
+    cur = "EUR"; exact = false;
+  }
+  const cents = Math.round(value * 100) / 100;
+  const digits = exact && cents !== Math.round(cents) ? 2 : 0;
+  try {
+    const text = new Intl.NumberFormat(navigator.language || "en", {
+      style: "currency", currency: cur, minimumFractionDigits: digits, maximumFractionDigits: digits
+    }).format(cents);
+    return text + (m[2] === "ml" ? " / 1 l" : " / 1 kg");
+  } catch (e) { return ""; }
+}
+
 async function ckQuery(query, continuationMarker) {
   const url = "https://api.apple-cloudkit.com/database/1/" + CK.container +
               "/" + CK.env + "/public/records/query?ckAPIToken=" +
@@ -1491,6 +1528,7 @@ async function loadWishlist(handle) {
         // scraped string: "£29.000" is twenty-nine thousand pounds.
         price: formatPrice(f.priceAmount?.value, f.priceCurrency?.value,
                            f.priceText?.value || ""),
+        basePrice: basePrice(f),
         store: f.store?.value || f.brand?.value || "",
         img,
         url: f.urlString?.value || "",
