@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.sedonatech.wantd",
+    "sha256_cert_fingerprints": [
+      "D8:1B:6F:D4:64:62:59:3C:E3:42:4F:D2:65:C6:CE:DB:D6:DE:F2:66:D8:37:4A:84:90:10:07:88:35:85:55:7C"
+    ]
+  }
+}]

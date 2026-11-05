@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wantd</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root { --ivory: #FAFAFB; --ink: #0E0E0F; --ink-soft: #666669; --cobalt: #0228B2; }
+  html, body { margin: 0; background: var(--ivory); color: var(--ink); }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100svh; display: flex; }
+  main { margin: auto; padding: 48px 28px; max-width: 420px; width: 100%; box-sizing: border-box; }
+  .mark { font-weight: 600; font-size: 22px; letter-spacing: -0.5px; color: var(--cobalt); margin-bottom: 44px; }
+  p { font-size: 15px; font-weight: 300; line-height: 1.45; color: var(--ink-soft); margin: 0 0 30px; }
+  .cta { display: block; border-radius: 999px; background: var(--cobalt); color: #F6F4EE; font-weight: 500; font-size: 15px; padding: 17px 20px; text-align: center; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">Wantd.</div>
+  <p id="line">Open the Wantd app to finish signing in.</p>
+  <a class="cta" id="open" href="#" hidden>Open Wantd</a>
+</main>
+<script>
+// Where the Android app's link lands when the app did not catch it: the
+// hand-off code is in the fragment (never sent to the server) and the button
+// hands it to the app by its package.
+(function () {
+  var fr = navigator.language && navigator.language.slice(0, 2) === "fr";
+  var h = new URLSearchParams(location.hash.replace(/^#/, "")).get("h") || new URLSearchParams(location.search).get("h");
+  var line = document.getElementById("line"), open = document.getElementById("open");
+  if (fr) { line.textContent = h ? "Ouvrez l’app Wantd pour finir de vous connecter." : "Rien à voir ici."; open.textContent = "Ouvrir Wantd"; }
+  else if (!h) line.textContent = "Nothing to see here.";
+  if (h) {
+    open.hidden = false;
+    open.href = "intent://wantd.sedonatech.uk/feed/connect/done/?h=" + encodeURIComponent(h) + "#Intent;scheme=https;package=com.sedonatech.wantd;end";
+  }
+})();
+</script>
+</body>
+</html>

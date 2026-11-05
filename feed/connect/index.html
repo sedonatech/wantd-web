@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wantd</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FAFAFB">
+<link rel="icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
+<script src="/feed/ck.js?v=1"></script>
+<style>
+  :root { --ivory: #FAFAFB; --ink: #0E0E0F; --ink-soft: #666669; --cobalt: #0228B2; }
+  @font-face { font-family: "Newsreader"; src: url("/fonts/newsreader-italic.woff2") format("woff2"); font-weight: 200 800; font-style: italic; font-display: swap; }
+  @font-face { font-family: "Libre Franklin"; src: url("/fonts/libre-franklin.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  html, body { margin: 0; background: var(--ivory); color: var(--ink); }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Libre Franklin", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; min-height: 100svh; display: flex; flex-direction: column; }
+  main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 28px calc(28px + env(safe-area-inset-bottom)); max-width: 420px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+  .mark { font-weight: 600; font-size: 22px; letter-spacing: -0.5px; color: var(--cobalt); margin-bottom: 44px; }
+  h1 { font-family: "New York", ui-serif, Newsreader, Georgia, serif; font-style: italic; font-weight: 400; font-size: 30px; line-height: 1.15; letter-spacing: -0.4px; margin: 0 0 12px; }
+  p { font-size: 15px; font-weight: 300; line-height: 1.45; color: var(--ink-soft); margin: 0 0 30px; }
+  .cta { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 999px; background: var(--cobalt); color: #F6F4EE; font: 500 15px/1 inherit; font-family: inherit; padding: 17px 20px; text-align: center; text-decoration: none; cursor: pointer; }
+  .cta[disabled] { opacity: .5; cursor: default; }
+  .quiet { display: inline-block; margin-top: 22px; font-size: 13px; font-weight: 300; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; font-family: inherit; }
+  .note { font-size: 13px; color: var(--ink-soft); margin: 18px 0 0; }
+  .ckhidden { position: absolute; left: -9999px; top: 0; width: 1px; height: 1px; overflow: hidden; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">Wantd.</div>
+
+  <section id="sAsk">
+    <h1 id="tAsk">Continue with Apple.</h1>
+    <p id="pAsk">Sign in with the Apple account of your iPhone: your wishlist comes with it.</p>
+    <button class="cta" id="bApple" type="button">Continue with Apple</button>
+  </section>
+
+  <section id="sWait" hidden>
+    <h1 id="tWait">One moment.</h1>
+  </section>
+
+  <section id="sDone" hidden>
+    <h1 id="tDone">Welcome back.</h1>
+    <p id="pDone"></p>
+    <a class="cta" id="bBack" href="#">Back to Wantd</a>
+    <button class="quiet" id="bOut" type="button">Not you? Sign out</button>
+    <p class="note" id="pDebug" hidden></p>
+  </section>
+
+  <section id="sFail" hidden>
+    <h1 id="tFail">That didn't work.</h1>
+    <p id="pFail"></p>
+    <button class="cta" id="bAgain" type="button">Try again</button>
+  </section>
+
+  <div id="ckSignIn" class="ckhidden"></div>
+  <div id="ckSignOut" class="ckhidden"></div>
+</main>
+<script>
+// Continue with Apple, for the Android app (SED-947 / SED-948): CloudKit JS
+// signs her in with her Apple ID (the same member as on her iPhone), the
+// bridge checks the session and answers a one-time hand-off code, and
+// "Back to Wantd" carries that code into the app. The Apple session itself
+// never leaves this page.
+(function () {
+  var BRIDGE = "https://wantd-android.wantd-reserve.workers.dev";
+  var PACKAGE = "com.sedonatech.wantd";
+  var DONE = "https://wantd.sedonatech.uk/feed/connect/done/";
+  var T = {
+    en: { ask: "Continue with Apple.", askLine: "Sign in with the Apple account of your iPhone: your wishlist comes with it.", apple: "Continue with Apple",
+          wait: "One moment.", back: "Back to Wantd", out: "Not you? Sign out", welcome: "Welcome back, {name}.", welcomeNew: "Welcome.",
+          doneLine: "Your wishlist is waiting in the app.", doneLineNew: "The app will ask your name.",
+          fail: "That didn't work.", again: "Try again", refused: "Apple didn't recognise this sign-in. Try again.", offline: "Couldn't reach Wantd. Check your connection and try again." },
+    fr: { ask: "Continuer avec Apple.", askLine: "Connectez-vous avec le compte Apple de votre iPhone : votre liste d’envies vient avec.", apple: "Continuer avec Apple",
+          wait: "Un instant.", back: "Retour dans Wantd", out: "Ce n’est pas vous ? Se déconnecter", welcome: "Bon retour, {name}.", welcomeNew: "Bienvenue.",
+          doneLine: "Votre liste d’envies vous attend dans l’app.", doneLineNew: "L’app vous demandera votre prénom.",
+          fail: "Ça n’a pas marché.", again: "Réessayer", refused: "Apple n’a pas reconnu cette connexion. Réessayez.", offline: "Wantd est injoignable. Vérifiez votre connexion et réessayez." }
+  };
+  var lang = (navigator.language || "en").slice(0, 2) === "fr" ? "fr" : "en";
+  var W = T[lang];
+  document.documentElement.lang = lang;
+  var $ = function (id) { return document.getElementById(id); };
+  $("tAsk").textContent = W.ask; $("pAsk").textContent = W.askLine; $("bApple").textContent = W.apple;
+  $("tWait").textContent = W.wait; $("bBack").textContent = W.back; $("bOut").textContent = W.out;
+  $("tFail").textContent = W.fail; $("bAgain").textContent = W.again;
+  var params = new URLSearchParams(location.search);
+  var debug = params.has("debug");
+
+  function show(id) { ["sAsk", "sWait", "sDone", "sFail"].forEach(function (s) { $(s).hidden = s !== id; }); }
+  function fail(msg) { $("pFail").textContent = msg; show("sFail"); }
+  function cookie(name) {
+    var parts = document.cookie.split(";");
+    for (var i = 0; i < parts.length; i++) { var c = parts[i].trim(); if (c.indexOf(name + "=") === 0) return c.slice(name.length + 1); }
+    return null;
+  }
+  function clickHidden(id) { var b = $(id).querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); }
+
+  var container = null;
+  function handOff() {
+    var cfg = window.WANTD_CK;
+    var token = cookie(cfg.container);
+    if (!token) return fail(W.refused);
+    show("sWait");
+    fetch(BRIDGE + "/v1/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apple: token, handoff: true }) })
+      .then(function (r) { return r.json().then(function (b) { return { status: r.status, body: b }; }); })
+      .then(function (res) {
+        if (res.status !== 200 || !res.body || !res.body.handoff) return fail(res.status === 401 ? W.refused : W.offline);
+        var p = res.body.profile;
+        var name = p && p.displayName ? p.displayName.split(" ")[0] : "";
+        $("tDone").textContent = p ? W.welcome.replace("{name}", name) : W.welcomeNew;
+        $("pDone").textContent = p ? W.doneLine : W.doneLineNew;
+        var code = res.body.handoff;
+        $("bBack").href = "intent://wantd.sedonatech.uk/feed/connect/done/?h=" + encodeURIComponent(code) +
+          "#Intent;scheme=https;package=" + PACKAGE + ";S.browser_fallback_url=" + encodeURIComponent(DONE) + ";end";
+        if (debug) { $("pDebug").hidden = false; $("pDebug").textContent = "account " + res.body.ownerID + (p ? " · " + p.handle : " · no profile"); }
+        show("sDone");
+      })
+      .catch(function () { fail(W.offline); });
+  }
+
+  function setUp() {
+    var cfg = window.WANTD_CK;
+    CloudKit.configure({ containers: [{ containerIdentifier: cfg.container,
+      apiTokenAuth: { apiToken: cfg.token, persist: true, signInButton: { id: "ckSignIn", theme: "black" }, signOutButton: { id: "ckSignOut", theme: "black" } },
+      environment: cfg.env }] });
+    container = CloudKit.getDefaultContainer();
+    container.setUpAuth().then(function (identity) {
+      if (identity) handOff();
+      container.whenUserSignsIn().then(function () { handOff(); }).catch(function () { fail(W.refused); });
+      container.whenUserSignsOut().then(function () { show("sAsk"); setTimeout(function () { location.reload(); }, 300); });
+    }).catch(function () { fail(W.offline); });
+  }
+
+  $("bApple").addEventListener("click", function () { clickHidden("ckSignIn"); });
+  $("bOut").addEventListener("click", function () { clickHidden("ckSignOut"); });
+  $("bAgain").addEventListener("click", function () { location.reload(); });
+
+  var s = document.createElement("script");
+  s.src = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"; s.async = true;
+  s.onload = setUp; s.onerror = function () { fail(W.offline); };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
