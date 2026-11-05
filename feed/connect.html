@@ -95,6 +95,8 @@
   $("tFail").textContent = W.fail; $("bAgain").textContent = W.again;
   var params = new URLSearchParams(location.search);
   var debug = params.has("debug");
+  // "Back to Wantd" only makes sense inside the app's tab (?app=1); on a computer the page just says who she is.
+  var inApp = params.has("app");
 
   function show(id) { ["sAsk", "sWait", "sDone", "sFail"].forEach(function (s) { $(s).hidden = s !== id; }); }
   function fail(msg, why) { if (why) console.warn("wantd connect:", String(why && (why.message || why.reason || why))); $("pFail").textContent = msg; show("sFail"); }
@@ -122,6 +124,7 @@
         var code = res.body.handoff;
         $("bBack").href = "intent://wantd.sedonatech.uk/feed/connect/done/?h=" + encodeURIComponent(code) +
           "#Intent;scheme=https;package=" + PACKAGE + ";S.browser_fallback_url=" + encodeURIComponent(DONE) + ";end";
+        $("bBack").hidden = !inApp;
         if (debug) { $("pDebug").hidden = false; $("pDebug").textContent = "account " + res.body.ownerID + (p ? " · " + p.handle : " · no profile"); }
         show("sDone");
       })
