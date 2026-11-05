@@ -65,7 +65,14 @@
 // bridge checks the session and answers a one-time hand-off code, and
 // "Back to Wantd" carries that code into the app. The Apple session itself
 // never leaves this page.
+//
+// This page lives at /feed/connect.html on purpose: CloudKit JS keeps its
+// session in a cookie whose path is the page's folder, and reads back the
+// LAST cookie of that name. A second folder under /feed/ would leave two
+// cookies and "Could not read or write ckSession". Same folder, one cookie.
 (function () {
+  // The one stray cookie an earlier /feed/connect/ address left behind.
+  document.cookie = "iCloud.com.sedonatech.WANTD=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/feed/connect";
   var BRIDGE = "https://wantd-android.wantd-reserve.workers.dev";
   var PACKAGE = "com.sedonatech.wantd";
   var DONE = "https://wantd.sedonatech.uk/feed/connect/done/";
