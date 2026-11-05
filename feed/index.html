@@ -299,6 +299,125 @@
     .cartel .body { padding: 24px 16px calc(40px + env(safe-area-inset-bottom)); }
 
   }
+
+  /* ---------------------------------------------------------------- */
+  /* Wishlist: her header, her list tabs, Sort / Filter, the plus.      */
+  /* ---------------------------------------------------------------- */
+  #wDoor { padding-top: 120px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+  #wDoor p { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
+  .whdr { display: flex; align-items: center; gap: 12px; padding: 12px 4px 0; }
+  .wavatar { width: 40px; height: 40px; border-radius: 24%; background: var(--cobalt); color: #FFFFFF; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
+  .wavatar img { width: 100%; height: 100%; object-fit: cover; }
+  .wavatar .letter { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; }
+  .wwho { min-width: 0; flex: 1; }
+  .wwho .line1 { display: flex; align-items: baseline; gap: 7px; }
+  .wwho .name { font-family: var(--serif); font-size: 18px; font-weight: 300; font-style: italic; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wwho .founder { font-size: 11px; color: var(--ink); white-space: nowrap; }
+  .wwho .facts { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .whdr .icon-btn { width: 36px; height: 36px; }
+  .wmenu { position: relative; }
+  .wmenubox { position: absolute; right: 0; top: 40px; background: var(--surface); border-radius: 14px; box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12), var(--shadow-pill); padding: 10px 14px; z-index: 5; min-width: 160px; }
+  .wtabs { display: flex; align-items: center; gap: 20px; overflow-x: auto; scrollbar-width: none; padding: 14px 2px 2px; }
+  .wtabs::-webkit-scrollbar { display: none; }
+  .wtab { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; font-size: 14px; font-weight: 400; color: var(--ink-soft); white-space: nowrap; }
+  .wtab.on { color: var(--ink); font-weight: 500; }
+  .wtab.on span { text-decoration: underline; text-underline-offset: 3px; }
+  .wicon { width: 9px; height: 9px; stroke: currentColor; fill: none; stroke-width: 1; stroke-linecap: round; }
+  .wedit { font-size: 12px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; margin-left: -12px; padding: 6px 0; }
+  .wplus { padding: 6px 0; color: var(--ink-soft); display: inline-flex; }
+  .wplus svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+  .wctl { display: flex; align-items: center; gap: 10px; padding: 14px 0 0; }
+  .wctl .text { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--ink); position: relative; }
+  .wctl .text .val { font-weight: 300; color: var(--ink-soft); }
+  .wctl .text .chev { width: 8px; height: 8px; stroke: var(--ink-soft); fill: none; stroke-width: 1.2; stroke-linecap: round; }
+  .wctl select.cover { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font: inherit; }
+  .wctl .spacer { flex: 1; }
+  .wctl .gridsel { position: relative; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
+  .wctl .gridsel svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1; }
+  .wadd { width: 36px; height: 36px; border-radius: 9px; background: var(--ink); color: var(--ivory); display: inline-flex; align-items: center; justify-content: center; }
+  .wadd svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+  .card .tocheck { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 1px; }
+  .cartel .wline { display: inline-block; font-size: 13px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-align: left; }
+  .cartel .wline.soft { color: var(--ink-soft); }
+
+  /* The sheet: centred on the Mac, from the foot on a phone. */
+  #wSheet { position: fixed; inset: 0; z-index: 45; display: none; }
+  #wSheet.on { display: block; }
+  #wSheet .scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity 0.3s ease; }
+  #wSheet.in .scrim { opacity: 1; }
+  #wSheet .panel {
+    position: absolute; left: 50%; top: 50%; width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 88px);
+    transform: translate(-50%, calc(-50% + 24px)); opacity: 0; overflow: auto; overscroll-behavior: contain;
+    background: var(--ivory); border-radius: 22px; box-shadow: var(--shadow-cartel); padding: 0 22px 20px;
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  }
+  #wSheet.in .panel { opacity: 1; transform: translate(-50%, -50%); }
+  @media (min-width: 768px) { #wSheet .panel { min-height: min(60vh, 600px); } }
+  #wSheet .grab { width: 38px; height: 4px; border-radius: 2px; background: var(--ink-soft); opacity: 0.3; margin: 10px auto 0; }
+  .whead { text-align: center; padding: 18px 0 20px; }
+  .whead.left { text-align: left; padding-top: 18px; }
+  .wtitle { font-family: var(--serif); font-size: 28px; font-weight: 300; font-style: italic; color: var(--ink); }
+  .wsub { font-size: 13px; font-weight: 300; color: var(--ink-soft); margin-top: 6px; }
+  .wcap { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 5%, transparent); margin-bottom: 12px; }
+  .wcapicon { display: inline-flex; width: 14px; height: 14px; color: var(--ink-soft); flex: none; }
+  .wcapicon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+  .wcap input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: 15px; color: var(--ink); padding: 12px 0; }
+  .wcap input::placeholder { color: var(--ink-soft); opacity: 0.8; }
+  .wcap input:focus { outline: none; }
+  .wbody { margin-top: 12px; }
+  .wreading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 28px 0; font-size: 13px; font-weight: 300; color: var(--ink-soft); }
+  .wreading .spin { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--ink); border-top-color: transparent; animation: spin 0.9s linear infinite; display: inline-block; }
+  .werror { border-radius: 18px; background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 20px 16px; text-align: center; font-size: 13px; color: var(--ink-soft); }
+  .wnote { font-size: 12px; font-weight: 300; color: var(--ink-soft); text-align: center; min-height: 16px; }
+  .wcard { position: relative; border-radius: 24px; background: color-mix(in srgb, var(--surface) 60%, transparent); box-shadow: 0 0 0 0.5px rgba(14,14,15,0.08); padding: 8px; }
+  .wphoto { border-radius: 18px; overflow: hidden; background: var(--ivory-deep); min-height: 120px; display: flex; align-items: center; justify-content: center; }
+  .wphoto img { width: 100%; max-height: 420px; object-fit: contain; }
+  .wfields { padding: 14px 8px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .wfield { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+  .wlabel { font-size: 11px; font-weight: 300; color: var(--ink-soft); }
+  .wfield input, .wfield textarea, .wfield select { font: inherit; font-size: 15px; font-weight: 300; color: var(--ink); background: none; border: 0; border-bottom: 0.5px solid rgba(102,102,105,0.3); padding: 4px 0; border-radius: 0; width: 100%; resize: none; }
+  .wfield input:focus, .wfield textarea:focus, .wfield select:focus { outline: none; border-bottom-color: var(--cobalt); }
+  .wrow { display: flex; gap: 10px; }
+  .wrow .wfield:last-child { flex: 0 0 120px; }
+  .wstrip { display: flex; gap: 8px; overflow-x: auto; padding: 8px 8px 4px; scrollbar-width: none; }
+  .wstrip::-webkit-scrollbar { display: none; }
+  .wthumb { flex: none; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; background: var(--ivory-deep); box-shadow: 0 0 0 0.5px rgba(102,102,105,0.15); }
+  .wthumb.on { box-shadow: 0 0 0 2px var(--cobalt); }
+  .wthumb img { width: 100%; height: 100%; object-fit: cover; }
+  .walready { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ivory) 92%, transparent); box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12); font-size: 12px; color: var(--ink); }
+  .walready i { width: 7px; height: 7px; border-radius: 50%; background: var(--cobalt); }
+  .wlistsel { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .wlistsel .wlabel { font-size: 13px; font-weight: 400; padding-left: 4px; }
+  .wchips { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 0 4px; scrollbar-width: none; }
+  .wchips::-webkit-scrollbar { display: none; }
+  .wchip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; font-size: 13px; font-weight: 300; color: var(--ink); white-space: nowrap; }
+  .wchip.on { color: var(--cobalt); font-weight: 400; text-decoration: underline; text-underline-offset: 2px; }
+  .wchip.soft { color: var(--ink-soft); }
+  .wdot { color: var(--ink-soft); opacity: 0.6; font-size: 13px; }
+  .wfoot { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+  .wbar { display: block; width: 100%; text-align: center; padding: 15px 0; background: var(--ink); color: var(--ivory); font-size: 13px; }
+  .wbar:disabled { opacity: 0.4; }
+  .wline { font-size: 13px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-align: left; align-self: flex-start; padding: 2px 0; }
+  .wline.soft { color: var(--ink-soft); }
+  .wline.cobalt { color: var(--cobalt); }
+  .wbig { width: 100%; border: 0; background: none; font: inherit; font-size: 26px; font-weight: 500; color: var(--cobalt); padding: 6px 0; margin-top: 8px; border-bottom: 0.5px solid rgba(102,102,105,0.3); }
+  .wbig::placeholder { color: var(--ink); opacity: 0.18; }
+  .wbig:focus { outline: none; border-bottom-color: var(--cobalt); }
+
+  /* The alert, as the Mac's: a small centred card, two capsules. */
+  #wAlert { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: var(--scrim); }
+  #wAlert .acard { width: 300px; background: var(--surface); border-radius: 18px; padding: 20px 20px 16px; box-shadow: var(--shadow-cartel); }
+  #wAlert .atitle { font-size: 13px; font-weight: 600; color: var(--ink); }
+  #wAlert .abody { font-size: 13px; color: var(--ink); margin-top: 8px; line-height: 1.35; }
+  #wAlert .abtns { display: flex; gap: 10px; margin-top: 18px; }
+  #wAlert .abtns button { flex: 1; padding: 8px 0; border-radius: 999px; background: var(--ivory-deep); color: var(--ink); font-size: 13px; }
+  #wAlert .abtns button:disabled { opacity: 0.5; }
+
+  @media (max-width: 767px) {
+    #wSheet .panel { left: 0; top: auto; bottom: 0; width: 100%; max-height: calc(100vh - 60px); transform: translate(0, 40px); border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+    #wSheet.in .panel { transform: translate(0, 0); }
+    .wctl .gridsel { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -308,7 +427,7 @@
   <nav class="pill" aria-label="Wantd">
     <button type="button" id="tabFeed" aria-current="page"><span data-t="feed">Feed</span></button>
     <button type="button" id="tabFriends" aria-disabled="true"><span data-t="friends">Friends</span></button>
-    <button type="button" id="tabWishes" aria-disabled="true"><span data-t="wishlist">Wishlist</span></button>
+    <button type="button" id="tabWishes"><span data-t="wishlist">Wishlist</span></button>
   </nav>
   <span class="spacer"></span>
 </header>
@@ -349,7 +468,47 @@
     <div class="wall" id="storeWall"></div>
     <div class="sentinel" id="storeMore"></div>
   </section>
+
+  <!-- Her wishlist -->
+  <section id="wishes" hidden>
+    <div id="wDoor">
+      <p id="wKeeps"></p>
+      <div id="ckSignIn"></div>
+    </div>
+    <div id="wHome" hidden>
+      <div class="whdr">
+        <div class="wavatar" id="wAvatar"></div>
+        <div class="wwho">
+          <div class="line1"><span class="name" id="wName"></span><span class="founder" id="wFounder" hidden></span></div>
+          <div class="facts" id="wFacts"></div>
+        </div>
+        <div class="wmenu">
+          <button type="button" class="icon-btn" id="wMenu" aria-label="Menu"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+          <div class="wmenubox" id="wMenuBox" hidden><div id="ckSignOut"></div></div>
+        </div>
+      </div>
+      <div class="wtabs" id="wTabs"></div>
+      <div class="wctl">
+        <span class="text"><span id="wSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><span class="val" id="wSortValue"></span><select class="cover" id="wSort"></select></span>
+        <button type="button" class="text" id="wFilter"><span id="wFilterLabel"></span><span class="val" id="wFilterValue"></span></button>
+        <span class="spacer"></span>
+        <span class="gridsel"><svg viewBox="0 0 14 14"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg><select class="cover" id="wGrid"></select></span>
+        <button type="button" class="wadd" id="wAdd"><svg viewBox="0 0 16 16"><path d="M8 2v12M2 8h12"/></svg></button>
+      </div>
+      <div id="wState" class="state" hidden></div>
+      <div class="wall" id="wWall"></div>
+    </div>
+  </section>
 </main>
+
+<!-- A sheet: add a want, a list, an edit, the budget -->
+<div id="wSheet" role="dialog" aria-modal="true">
+  <div class="scrim" id="wSheetScrim"></div>
+  <div class="panel" id="wSheetPanel"></div>
+</div>
+<div id="wAlert" role="alertdialog" hidden>
+  <div class="acard"><div class="atitle"></div><div class="abody"></div><div class="abtns"><button type="button" class="acancel" data-t="cancel">Cancel</button><button type="button" class="aok">Delete</button></div></div>
+</div>
 
 <!-- One piece -->
 <div id="piece" role="dialog" aria-modal="true">
@@ -378,7 +537,7 @@ const T = FR ? {
   open: (h) => `Ouvrir ${h}`, shop: "Acheter", from: (n) => `Repérée par ${n}`,
   community: (n, more) => `${n}${more ? "+" : ""} ${n === 1 ? "envie" : "envies"} de la communauté`,
   emptyTitle: "Rien ici pour l’instant", emptyBody: "Les envies apparaîtront ici, à mesure qu’on les ajoute.",
-  back: "Retour", close: "Fermer", clear: "Effacer",
+  back: "Retour", close: "Fermer", clear: "Effacer", cancel: "Annuler", toCheck: "Prix à vérifier",
 } : {
   feed: "Feed", friends: "Friends", wishlist: "Wishlist",
   stores: "Popular Stores", search: "Search", searchPrompt: "Search the feed",
@@ -388,7 +547,7 @@ const T = FR ? {
   open: (h) => `Open ${h}`, shop: "Shop", from: (n) => `From ${n}`,
   community: (n, more) => `${n}${more ? "+" : ""} ${n === 1 ? "want" : "wants"} from the community`,
   emptyTitle: "Nothing here yet", emptyBody: "As people add wants, they'll show up here.",
-  back: "Back", close: "Close", clear: "Clear",
+  back: "Back", close: "Close", clear: "Clear", cancel: "Cancel", toCheck: "Price to check",
 };
 document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[el.dataset.t]; });
 document.getElementById("q").placeholder = T.searchPrompt;
@@ -630,6 +789,7 @@ function card(it, opts) {
   const name = document.createElement("div"); name.className = "name"; name.textContent = it.n || ""; text.appendChild(name);
   const p = priceOf(it);
   if (p) { const pr = document.createElement("div"); pr.className = "price num"; pr.textContent = p; pr._item = it; text.appendChild(pr); }
+  else if (o.own) { const tc = document.createElement("div"); tc.className = "tocheck"; tc.textContent = T.toCheck; text.appendChild(tc); }
   if (o.owner) {
     const who = o.owner(it);
     if (who) { const w = document.createElement("div"); w.className = "owner"; w.textContent = who; text.appendChild(w); }
@@ -968,6 +1128,7 @@ function openPiece(it, fromHistory) {
     a.addEventListener("click", () => { a.href = shopURL(it.u, { brand: it.b || it.s || "", name: it.n || "" }); });
     acts.appendChild(a);
   }
+  if (window.Wishes && window.Wishes.isMine(it)) for (const line of window.Wishes.ownActions(it)) acts.appendChild(line);
   body.appendChild(acts);
   clearTimeout(pieceTimer);
   pieceEl.classList.remove("out");
@@ -997,27 +1158,38 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pieceOpe
 // ---------------------------------------------------------------------------
 // Where she is: /feed/, ?store=zara.com, ?p=<id>. The browser's own back.
 // ---------------------------------------------------------------------------
-const stateNow = (extra) => Object.assign({ store: store.host || "", name: store.name || "" }, extra || {});
+const stateNow = (extra) => Object.assign({ store: store.host || "", name: store.name || "", tab: document.getElementById("wishes").hidden ? "" : "wishes" }, extra || {});
 function show(section) {
   document.getElementById("river").hidden = section !== "river";
   document.getElementById("store").hidden = section !== "store";
+  document.getElementById("wishes").hidden = section !== "wishes";
+  const feedTab = section !== "wishes";
+  document.getElementById("tabFeed").toggleAttribute("aria-current", feedTab);
+  if (feedTab) document.getElementById("tabFeed").setAttribute("aria-current", "page");
+  document.getElementById("tabWishes").toggleAttribute("aria-current", !feedTab);
+  if (!feedTab) document.getElementById("tabWishes").setAttribute("aria-current", "page");
   window.scrollTo(0, 0);
 }
 function go(dest) {
   const u = new URL(location.href);
   u.search = "";
   if (dest.store) u.searchParams.set("store", dest.store);
-  history.pushState({ store: dest.store || "", name: dest.name || "" }, "", u);
-  render({ store: dest.store || "", name: dest.name || "" });
+  if (dest.tab) u.searchParams.set("tab", dest.tab);
+  const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "" };
+  history.pushState(st, "", u);
+  render(st);
 }
 function render(st) {
   if (pieceOpen) closePiece(true);
-  if (st.store) { show("store"); openStore(st.store, st.name); }
+  if (st.tab === "wishes") { show("wishes"); if (window.Wishes) window.Wishes.enter(); }
+  else if (st.store) { show("store"); openStore(st.store, st.name); }
   else { show("river"); }
 }
+document.getElementById("tabFeed").addEventListener("click", () => { if (document.getElementById("river").hidden || document.getElementById("store").hidden === false) go({}); else window.scrollTo({ top: 0, behavior: "smooth" }); });
+document.getElementById("tabWishes").addEventListener("click", () => { if (document.getElementById("wishes").hidden) go({ tab: "wishes" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
 window.addEventListener("popstate", (e) => {
   const u = new URL(location.href);
-  const st = e.state || { store: u.searchParams.get("store") || "", name: "" };
+  const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "" };
   const p = u.searchParams.get("p");
   if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) render(st); return; }
   render(st);
@@ -1034,7 +1206,7 @@ function openDeepLink() {
 }
 (function start() {
   const u = new URL(location.href);
-  const st = { store: u.searchParams.get("store") || "", name: "" };
+  const st = { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "" };
   history.replaceState(st, "", u);
   render(st);
   loadRiver();
@@ -1058,5 +1230,6 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
+<script src="/feed/wishes.js"></script>
 </body>
 </html>
