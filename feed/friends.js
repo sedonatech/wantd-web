@@ -102,6 +102,39 @@ function daysToBirthday(ms) {
   return Math.round((next - now) / 86400000);
 }
 
+// The circle as the page last saw it, kept in the browser (FriendsView's
+// own cache): painted at once, dealt again behind.
+const CACHE = "wantd.circle.v1";
+function restoreCircle() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE) || "null");
+    if (!c || c.me !== me().id) return false;
+    circle.following = c.following || []; circle.mutual = new Set(c.mutual || []); circle.friends = c.friends || []; circle.pending = c.pending || []; circle.loaded = true; circle.at = c.at || 0;
+    return true;
+  } catch (e) { return false; }
+}
+function saveCircle() {
+  try { localStorage.setItem(CACHE, JSON.stringify({ me: me().id, at: circle.at, following: circle.following, mutual: [...circle.mutual], friends: circle.friends, pending: circle.pending })); } catch (e) {}
+}
+
+/// Her circle in one question to the worker (/circle), the portraits beside
+/// it; one /member a friend took four seconds each.
+async function circlePages(owners) {
+  const out = {};
+  for (let i = 0; i < owners.length; i += 50) {
+    const chunk = owners.slice(i, i + 50);
+    let page = null;
+    try { page = await getJSON("/circle?owners=" + chunk.join(",")); } catch (e) { page = null; }
+    if (page && page.circle) { for (const c of page.circle) out[c.o] = c; continue; }
+    // The worker of before this route: one member at a time.
+    await Promise.all(chunk.map(async (owner) => {
+      const m = await memberPage(owner);
+      if (m && m.profile) { const items = (m.items || []).filter((it) => it.n && it.u); out[owner] = { o: owner, profile: m.profile, count: items.length, latest: items.filter(hasPhoto).sort((a, b) => b.at - a.at).slice(0, 12) }; }
+    }));
+  }
+  return out;
+}
+
 async function loadCircle() {
   if (circle.loading) return;
   circle.loading = true; circle.error = null; paintCircle();
@@ -109,29 +142,24 @@ async function loadCircle() {
     // On a local try, three members of the community stand in for her circle.
     const following = K.DEMO ? ((await getJSON("/people?q=mar&limit=3")).people || []).map((p) => p.o) : await followedIDs();
     const mutual = K.DEMO ? new Set(following) : await mutualIDs(following);
-    const friends = [];
-    await Promise.all([...mutual].map(async (owner) => {
-      if (blocked.has(owner)) return;
-      const page = await memberPage(owner);
-      if (!page || !page.profile) return;
-      const items = (page.items || []).filter((it) => it.n && it.u);
-      const seen = new Set();
-      const latest = items.filter(hasPhoto).sort((a, b) => b.at - a.at).filter((it) => { const k = urlKey(it.u); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 6);
-      friends.push({ owner, profile: page.profile, wantCount: items.length, latest });
-    }));
+    const friendIDs = [...mutual].filter((o) => !blocked.has(o));
     const pendingIDs = following.filter((id) => !mutual.has(id));
+    const [pages, faces] = await Promise.all([circlePages(friendIDs.concat(pendingIDs)), portraits(friendIDs.concat(pendingIDs))]);
+    const friends = [];
+    for (const owner of friendIDs) {
+      const c = pages[owner]; if (!c || !c.profile) continue;
+      const seen = new Set();
+      const latest = (c.latest || []).filter(hasPhoto).sort((a, b) => b.at - a.at).filter((it) => { const k = urlKey(it.u); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 6);
+      friends.push({ owner, profile: Object.assign({}, c.profile, faces[owner] || {}), wantCount: c.count || 0, latest });
+    }
     const pending = [];
-    await Promise.all(pendingIDs.map(async (owner) => {
-      const known = river.profiles[owner];
-      if (known) { pending.push({ owner, h: known.h, n: known.n }); return; }
-      const page = await memberPage(owner);
-      if (page && page.profile) pending.push({ owner, h: page.profile.h, n: page.profile.n });
-    }));
+    for (const owner of pendingIDs) {
+      const c = pages[owner]; const known = (c && c.profile) || river.profiles[owner];
+      if (known) pending.push(Object.assign({ owner, h: known.h, n: known.n }, faces[owner] || {}));
+    }
     pending.sort((a, b) => (a.n || "").localeCompare(b.n || ""));
-    const faces = await portraits(friends.map((fr) => fr.owner).concat(pending.map((p) => p.owner)));
-    for (const fr of friends) Object.assign(fr.profile, faces[fr.owner] || {});
-    for (const p of pending) Object.assign(p, faces[p.owner] || {});
     circle.following = following; circle.mutual = mutual; circle.friends = friends; circle.pending = pending; circle.loaded = true; circle.at = Date.now();
+    saveCircle();
   } catch (e) { circle.error = String(e && (e.message || e)); console.log("friends load failed", e); }
   circle.loading = false;
   paintCircle();
@@ -675,12 +703,13 @@ window.Friends = {
     const signedIn = !!me().id;
     if (handle) { if (signedIn) { if (visit.handle !== handle) openProfile(handle); else paintVisit(); } else { visit.handle = handle; paintVisit(); } }
     else { visit.handle = ""; paintVisit(); }
+    if (signedIn && !circle.loaded && !circle.loading && restoreCircle()) { paintCircle(); if (Date.now() - circle.at > 60000) loadCircle(); return; }
     paintCircle();
     if (signedIn && !circle.loaded && !circle.loading) loadCircle();
   },
   othersActions,
   ownerName, ownerHandle,
-  onAuth() { circle.loaded = false; circle.friends = []; circle.pending = []; if (!$("friends").hidden) window.Friends.enter(visit.handle); },
+  onAuth() { circle.loaded = false; circle.loading = false; circle.friends = []; circle.pending = []; if (!$("friends").hidden) window.Friends.enter(visit.handle); },
   isBlocked: (owner) => blocked.has(owner),
 };
 if (!document.getElementById("friends").hidden) window.Friends.enter(new URL(location.href).searchParams.get("u") || "");
