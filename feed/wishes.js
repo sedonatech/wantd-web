@@ -24,6 +24,7 @@ const W = FR ? {
   deleteAsk: "Supprimer cette envie ?", deleteBody: "Elle quitte votre liste d’envies, et votre marque d’envie disparaît partout.",
   yourBudget: "Votre budget", reset: "Réinitialiser", done: "OK", shop: "Acheter", lists: "Listes", listName: "Nom de la liste", privateList: "Liste privée", deleteList: "Supprimer cette liste",
   deleteListKeep: "Supprimer, garder ses envies",
+  signIn: "Se connecter avec Apple", signOut: "Se déconnecter",
 } : {
   keeps: "Wantd keeps your list in iCloud.", wishes: "wants", founder: "Founder",
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
@@ -42,6 +43,7 @@ const W = FR ? {
   deleteAsk: "Delete this want?", deleteBody: "It leaves your wishlist, and your want mark comes off everywhere.",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", listName: "List name", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
+  signIn: "Sign in with Apple", signOut: "Sign out",
 };
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
@@ -639,6 +641,11 @@ function wireControls() {
   $("wKeeps").textContent = W.keeps;
   $("wFounder").textContent = W.founder;
   $("wMenu").addEventListener("click", () => { const m = $("wMenuBox"); m.hidden = !m.hidden; });
+  // Apple's standard button, and CloudKit's own behind it for the click.
+  $("wAppleText").textContent = W.signIn;
+  $("wApple").addEventListener("click", () => { const b = $("ckSignIn").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); });
+  $("wSignOut").textContent = W.signOut;
+  $("wSignOut").addEventListener("click", () => { const b = $("ckSignOut").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); $("wMenuBox").hidden = true; });
 }
 function openFilterSheet() {
   openSheet((panel) => {
