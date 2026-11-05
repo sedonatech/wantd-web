@@ -724,7 +724,13 @@ const dateOf = (ms) => new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: 
 // ---------------------------------------------------------------------------
 function photoSources(it) {
   const list = [];
-  if (it.op) list.push(WORKER + "/photo/" + it.id);
+  // Her own picture first (a photo from her camera roll, a crop): the
+  // signed asset address when the index or her own read carries it, then
+  // the worker's copy; the shop's pictures only after, never instead.
+  if (it.op) {
+    if (it.ia && /^https?:/.test(it.ia)) list.push(it.ia);
+    list.push(WORKER + "/photo/" + it.id);
+  }
   if (it.i) list.push(it.i);
   for (const c of it.ic || []) if (!list.includes(c)) list.push(c);
   if (!it.op && it.ia) list.push(WORKER + "/photo/" + it.id);
@@ -1248,6 +1254,6 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=2"></script>
+<script src="/feed/wishes.js?v=3"></script>
 </body>
 </html>
