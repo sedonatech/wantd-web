@@ -471,6 +471,7 @@ async function savePiece(d, selected) {
   if (d.note) fields.personalNote = f(d.note, "STRING");
   if (d.ic && d.ic.length) fields.imageCandidateURLs = f(d.ic.slice(0, 20), "STRING_LIST");
   if (me.profile && me.profile.h) fields.ownerHandle = f(me.profile.h, "STRING");
+  if (d.rf) fields.rewantedFrom = f(d.rf, "STRING");
   const res = await db().saveRecords([{ recordType: "Item", recordName: id, fields }]);
   if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
   const saved = itemFromRecord(res.records[0]);
@@ -486,6 +487,15 @@ async function savePiece(d, selected) {
     } catch (e) {}
   }, 1500);
   return saved;
+}
+
+/// Her copy of someone else's piece (ProductDetailView.repostFromCard): a
+/// new piece of hers, the origin kept, on the lists she chose or the main one.
+async function saveCopy(from, selected) {
+  const srcs = photoSources(from);
+  const d = { n: from.n || "", s: from.s || "", b: from.b || undefined, pa: typeof from.pa === "number" ? from.pa : undefined, pc: from.pc || undefined,
+              u: from.u || "", i: srcs[0] || null, ic: (from.ic || []).slice(0, 20), rf: from.rf || from.o || undefined };
+  return savePiece(d, selected || new Set());
 }
 
 async function ensureMainList() {
@@ -599,15 +609,19 @@ function openEditSheet(it) {
     foot.appendChild(go);
   });
 }
-function confirmDelete(it) {
+/// The Mac's alert: a title, a line, Cancel and one act.
+function alertBox(title, body, okLabel, onOk) {
   const root = $("wAlert");
-  root.querySelector(".atitle").textContent = W.deleteAsk;
-  root.querySelector(".abody").textContent = W.deleteBody;
-  const ok = root.querySelector(".aok"); ok.textContent = it.rf ? W.unwant : W.delete;
+  root.querySelector(".atitle").textContent = title;
+  root.querySelector(".abody").textContent = body;
+  const ok = root.querySelector(".aok"); ok.textContent = okLabel; ok.disabled = false;
   root.hidden = false;
   const close = () => { root.hidden = true; ok.onclick = null; };
   root.querySelector(".acancel").onclick = close;
-  ok.onclick = async () => { ok.disabled = true; try { await deletePiece(it); close(); closePiece(); } catch (e) { ok.disabled = false; root.querySelector(".abody").textContent = String(e && (e.message || e)); } };
+  ok.onclick = async () => { ok.disabled = true; try { await onOk(); close(); } catch (e) { ok.disabled = false; root.querySelector(".abody").textContent = String(e && (e.message || e)); } };
+}
+function confirmDelete(it) {
+  alertBox(W.deleteAsk, W.deleteBody, it.rf ? W.unwant : W.delete, async () => { await deletePiece(it); closePiece(); });
 }
 
 // The quiet lines under Shop on her own piece (ProductDetailView.actionButtons).
@@ -670,6 +684,7 @@ function signedIn(identity) {
   me.loaded = false; me.items = []; me.lists = []; me.profile = null;
   paint();
   if (me.id) load();
+  if (window.Friends) window.Friends.onAuth();
 }
 function watchAuth() {
   if (DEMO) { signedIn({ userRecordName: FOUNDER }); return; }
@@ -697,8 +712,12 @@ window.Wishes = {
     if (!wired) { wired = true; wireControls(); watchAuth(); }
     paint();
   },
+  // The Friends tab needs the same member: signed in here, once, for both.
+  wake() { if (!wired) { wired = true; wireControls(); watchAuth(); } },
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
+  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO,
+         listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });
 // The page may have opened on this tab before this script was read.

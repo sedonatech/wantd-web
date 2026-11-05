@@ -432,6 +432,72 @@
     #wSheet.in .panel { transform: translate(0, 0); }
     .wctl .gridsel { display: none; }
   }
+
+  /* ---------------------------------------------------------------- */
+  /* Friends: the newest from friends, her circle, a friend's page.    */
+  /* ---------------------------------------------------------------- */
+  #fDoor { padding-top: 160px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; max-width: 320px; margin: 0 auto; }
+  #fDoor p { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
+  .fstrip { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin: 10px -16px 0; padding: 0 16px 4px; }
+  .fstrip::-webkit-scrollbar { display: none; }
+  .ftile { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
+  .ftileph { width: 100%; border-radius: 16px; overflow: hidden; background: var(--ivory-deep); }
+  .ftileph img { width: 100%; height: 100%; object-fit: cover; }
+  .ftilename { font-family: var(--serif); font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .ftilewho { font-size: 11px; font-weight: 300; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .label { font-size: 13px; font-weight: 300; color: var(--ink-soft); padding-left: 4px; }
+  #fPeopleLabel { display: block; margin-top: 22px; }
+  .fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+  .fcard { display: flex; flex-direction: column; gap: 12px; padding: 14px; text-align: left; background: var(--surface); border-radius: 20px; box-shadow: 0 0 0 0.5px rgba(102,102,105,0.08), var(--shadow-card); }
+  .fcardtop { display: flex; align-items: center; gap: 14px; }
+  .fwho { min-width: 0; flex: 1; }
+  .fname { font-size: 16px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fname.small { font-size: 15px; }
+  .fsub { font-size: 12.5px; font-weight: 300; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+  .fthumbs { display: flex; gap: 8px; }
+  .fthumbs .fthumb { flex: 1 1 0; max-width: 120px; aspect-ratio: 1; }
+  .fthumb { display: block; overflow: hidden; background: var(--ivory-deep); border-radius: 12px; }
+  .fthumb img { width: 100%; height: 100%; object-fit: cover; }
+  #fWait { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+  .fwaitlist { padding: 0 4px; }
+  .fwaitrow { display: flex; align-items: center; gap: 14px; width: 100%; padding: 9px 0; text-align: left; box-shadow: 0 0.5px 0 rgba(102,102,105,0.12); }
+  .fwaitrow:last-child { box-shadow: none; }
+  .frule { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 13px; color: var(--ink-soft); padding-left: 4px; }
+  #fEmpty { padding: 60px 4px 0; display: flex; flex-direction: column; gap: 14px; max-width: 520px; }
+  .ftitle { font-family: var(--serif); font-size: 22px; font-weight: 300; font-style: italic; color: var(--ink); }
+  .fbody { font-size: 13px; font-weight: 300; color: var(--ink-soft); line-height: 1.45; }
+  .frow { display: flex; align-items: center; gap: 14px; padding-top: 6px; }
+  .fcapsule { padding: 12px 22px; border-radius: 999px; background: var(--ink); color: var(--ivory); font-size: 13px; letter-spacing: 0.3px; }
+  .wavatar.inline { flex: none; }
+  .vhead { display: flex; align-items: center; gap: 12px; padding-top: 12px; }
+  .vhead .back { width: 30px; height: 36px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); flex: none; }
+  .vhead .back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  .vhead .wwho { flex: 1; }
+  .vhead .wline { margin-left: auto; flex: none; }
+  .vpledge { display: block; margin-top: 10px; font-size: 12px; font-weight: 300; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; text-align: left; }
+  .vnot { padding-top: 120px; text-align: center; }
+  .vnot .ftitle { font-style: normal; font-size: 18px; margin-bottom: 10px; }
+  .facts { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+  .flines { display: flex; flex-direction: column; gap: 13px; align-items: flex-start; }
+  .fstatus { font-size: 12px; color: var(--ink-soft); }
+  .freport { font-size: 11px; color: var(--ink-soft); opacity: 0.7; }
+  .fpot { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; width: 100%; margin-top: 4px; }
+  .fpottitle { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .fpotline { display: flex; align-items: baseline; gap: 8px; width: 100%; }
+  .fpotline .big { font-size: 22px; color: var(--ink); }
+  .fpotline .soft { font-size: 12px; color: var(--ink-soft); }
+  .fpotline .right { margin-left: auto; }
+  .fbar { width: 100%; height: 2px; background: rgba(102,102,105,0.18); margin-top: -6px; }
+  .fbar div { height: 2px; background: var(--ink); }
+  .fcontrib { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 13px; }
+  .fcircle { width: 22px; height: 22px; border-radius: 50%; background: var(--ivory-deep); display: inline-flex; align-items: center; justify-content: center; font-family: var(--serif); font-weight: 300; font-size: 11px; color: var(--ink); }
+  .fcname { flex: 1; font-weight: 300; color: var(--ink); }
+  .fcontrib .soft { font-size: 12px; color: var(--ink-soft); }
+  .fcur { font-size: 16px; font-weight: 300; color: var(--ink); padding: 4px 0; }
+  .card .badge { position: absolute; top: 10px; left: 10px; padding: 4px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ivory) 92%, transparent); box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12); font-size: 11px; color: var(--ink); }
+  .cartel .from.linked { cursor: pointer; }
+  #memberLink { font-size: 12px; font-weight: 300; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+  @media (max-width: 767px) { .fgrid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -440,7 +506,7 @@
   <span class="word">Wantd</span>
   <nav class="pill" aria-label="Wantd">
     <button type="button" id="tabFeed" aria-current="page"><span data-t="feed">Feed</span></button>
-    <button type="button" id="tabFriends" aria-disabled="true"><span data-t="friends">Friends</span></button>
+    <button type="button" id="tabFriends"><span data-t="friends">Friends</span></button>
     <button type="button" id="tabWishes"><span data-t="wishlist">Wishlist</span></button>
   </nav>
   <span class="spacer"></span>
@@ -463,6 +529,7 @@
         <input type="search" id="q" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
         <button type="button" class="clear" id="clearQ" aria-label="Clear" hidden><svg viewBox="0 0 8 8"><path d="M1 1 L7 7 M7 1 L1 7"/></svg></button>
       </label>
+      <button type="button" id="memberLink"></button>
     </div>
     <div class="stores" id="stores" hidden><div class="track" id="track"></div></div>
     <div id="riverState" class="state tall"><div class="spin"></div><span data-t="loading">Loading the feed…</span></div>
@@ -512,6 +579,52 @@
       </div>
       <div id="wState" class="state" hidden></div>
       <div class="wall" id="wWall"></div>
+    </div>
+  </section>
+
+  <!-- Friends -->
+  <section id="friends" hidden>
+    <div id="fDoor">
+      <p id="fKeeps"></p>
+      <button type="button" class="apple-btn" id="fApple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span id="fAppleText"></span></button>
+    </div>
+    <div id="fHome" hidden>
+      <div id="fCircle">
+        <div class="head" id="fHead">
+          <span class="label" id="fNewLabel" hidden></span>
+          <span></span>
+          <button type="button" class="icon-btn" id="fSearch" aria-label="Search"><svg viewBox="0 0 16 16"><circle cx="6.8" cy="6.8" r="5.2"/><path d="M10.6 10.6 L15 15"/></svg></button>
+        </div>
+        <div class="fstrip" id="fNew"></div>
+        <span class="label" id="fPeopleLabel" hidden></span>
+        <div class="fgrid" id="fPeople"></div>
+        <div id="fWait"></div>
+        <div id="fEmpty"></div>
+        <div id="fState" class="state tall" hidden></div>
+      </div>
+      <div id="fVisit" hidden>
+        <div class="vnot" id="vNotFound" hidden><div class="ftitle" id="vNotFoundTitle"></div><p class="fbody" id="vNotFoundBody"></p></div>
+        <div id="vPage">
+          <div class="vhead">
+            <button type="button" class="back" id="vBack" aria-label="Back"><svg viewBox="0 0 16 16"><path d="M10 2.5 L4.5 8 L10 13.5"/></svg></button>
+            <div id="vAvatar"></div>
+            <div class="wwho">
+              <div class="line1"><span class="name" id="vName"></span><span class="founder" id="vFounder" hidden></span></div>
+              <div class="facts" id="vFacts"></div>
+            </div>
+            <button type="button" class="wline" id="vFollow"></button>
+          </div>
+          <button type="button" class="vpledge" id="vPledge"></button>
+          <div class="wtabs" id="vTabs"></div>
+          <div class="wctl">
+            <span class="text"><span id="vSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><select class="cover" id="vSort"></select></span>
+            <span class="text"><span id="vFilterLabel"></span></span>
+            <span class="spacer"></span>
+          </div>
+          <div id="vState" class="state" hidden></div>
+          <div class="wall" id="vWall"></div>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -797,6 +910,7 @@ function card(it, opts) {
   photo.setAttribute("aria-label", it.n || "");
   photo.addEventListener("click", () => openPiece(it));
   photoInto(photo, it);
+  if (o.status && it.st === "reserved") { const b = document.createElement("span"); b.className = "badge"; b.textContent = FR ? "Réservée" : "Reserved"; photo.appendChild(b); }
   if (o.counts) {
     const n = o.counts(it);
     const pill = document.createElement("span");
@@ -853,8 +967,11 @@ function takeIn(index, firstPage) {
   // before a rewant's copy, nothing without a photo, no storefront.
   const fresh = [];
   const copies = [];
+  let blockedOwners = [];
+  try { blockedOwners = JSON.parse(localStorage.getItem("wantd.blocked") || "[]"); } catch (e) {}
   for (const it of index.items || []) {
     if (!it.n || !it.u || !hasPhoto(it) || looksLikeStorefront(it.u)) continue;
+    if (blockedOwners.length && blockedOwners.includes(it.o)) continue;
     (it.rf ? copies : fresh).push(it);
   }
   const added = [];
@@ -1141,8 +1258,13 @@ function openPiece(it, fromHistory) {
   if (host) { const h = document.createElement("span"); h.className = "host"; h.textContent = host; line.appendChild(h); }
   if (it.at) { const d = document.createElement("span"); d.className = "date"; d.textContent = dateOf(it.at); line.appendChild(d); }
   body.appendChild(line);
-  const who = ownerName(it);
-  if (who) { const f = document.createElement("span"); f.className = "from"; f.textContent = T.from(who); body.appendChild(f); }
+  const who = ownerName(it) || (window.Friends ? window.Friends.ownerName(it) : "");
+  if (who) {
+    const f = document.createElement("span"); f.className = "from"; f.textContent = T.from(who);
+    const h = (river.profiles[it.o] && river.profiles[it.o].h) || (window.Friends ? window.Friends.ownerHandle(it) : "");
+    if (h) { f.classList.add("linked"); f.setAttribute("role", "link"); f.tabIndex = 0; f.addEventListener("click", () => { closePiece(true); go({ tab: "friends", u: h }); }); }
+    body.appendChild(f);
+  }
   const acts = document.createElement("div"); acts.className = "acts";
   if (it.u) {
     const a = document.createElement("a"); a.className = "shop"; a.target = "_blank"; a.rel = "noopener";
@@ -1154,13 +1276,16 @@ function openPiece(it, fromHistory) {
   }
   if (window.Wishes && window.Wishes.isMine(it)) for (const line of window.Wishes.ownActions(it)) acts.appendChild(line);
   body.appendChild(acts);
+  if (window.Friends && !(window.Wishes && window.Wishes.isMine(it))) window.Friends.othersActions(it, body);
   clearTimeout(pieceTimer);
   pieceEl.classList.remove("out");
   pieceEl.classList.add("on");
   document.getElementById("cartel").scrollTop = 0;
   requestAnimationFrame(() => requestAnimationFrame(() => pieceEl.classList.add("in")));
   document.body.style.overflow = "hidden";
-  document.getElementById("pieceClose").focus({ preventScroll: true });
+  // Focus the cartel itself, never its hidden close button: focusing the
+  // button drew it (focus-visible), and the Mac has none.
+  const cartelEl = document.getElementById("cartel"); cartelEl.tabIndex = -1; cartelEl.focus({ preventScroll: true });
   if (!fromHistory) {
     const u = new URL(location.href); u.searchParams.set("p", it.id);
     history.pushState(stateNow({ p: it.id }), "", u);
@@ -1182,16 +1307,16 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pieceOpe
 // ---------------------------------------------------------------------------
 // Where she is: /feed/, ?store=zara.com, ?p=<id>. The browser's own back.
 // ---------------------------------------------------------------------------
-const stateNow = (extra) => Object.assign({ store: store.host || "", name: store.name || "", tab: document.getElementById("wishes").hidden ? "" : "wishes" }, extra || {});
+const stateNow = (extra) => { const u = new URL(location.href); return Object.assign({ store: store.host || "", name: store.name || "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" }, extra || {}); };
 function show(section) {
   document.getElementById("river").hidden = section !== "river";
   document.getElementById("store").hidden = section !== "store";
   document.getElementById("wishes").hidden = section !== "wishes";
-  const feedTab = section !== "wishes";
-  document.getElementById("tabFeed").toggleAttribute("aria-current", feedTab);
-  if (feedTab) document.getElementById("tabFeed").setAttribute("aria-current", "page");
-  document.getElementById("tabWishes").toggleAttribute("aria-current", !feedTab);
-  if (!feedTab) document.getElementById("tabWishes").setAttribute("aria-current", "page");
+  document.getElementById("friends").hidden = section !== "friends";
+  for (const [id, on] of [["tabFeed", section === "river" || section === "store"], ["tabWishes", section === "wishes"], ["tabFriends", section === "friends"]]) {
+    const b = document.getElementById(id);
+    if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  }
   window.scrollTo(0, 0);
 }
 function go(dest) {
@@ -1199,21 +1324,24 @@ function go(dest) {
   u.search = "";
   if (dest.store) u.searchParams.set("store", dest.store);
   if (dest.tab) u.searchParams.set("tab", dest.tab);
-  const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "" };
+  if (dest.u) u.searchParams.set("u", dest.u);
+  const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "", u: dest.u || "" };
   history.pushState(st, "", u);
   render(st);
 }
 function render(st) {
   if (pieceOpen) closePiece(true);
   if (st.tab === "wishes") { show("wishes"); if (window.Wishes) window.Wishes.enter(); }
+  else if (st.tab === "friends") { show("friends"); if (window.Wishes) window.Wishes.wake(); if (window.Friends) window.Friends.enter(st.u || ""); }
   else if (st.store) { show("store"); openStore(st.store, st.name); }
   else { show("river"); }
 }
 document.getElementById("tabFeed").addEventListener("click", () => { if (document.getElementById("river").hidden || document.getElementById("store").hidden === false) go({}); else window.scrollTo({ top: 0, behavior: "smooth" }); });
 document.getElementById("tabWishes").addEventListener("click", () => { if (document.getElementById("wishes").hidden) go({ tab: "wishes" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
+document.getElementById("tabFriends").addEventListener("click", () => { if (document.getElementById("friends").hidden || new URL(location.href).searchParams.get("u")) go({ tab: "friends" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
 window.addEventListener("popstate", (e) => {
   const u = new URL(location.href);
-  const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "" };
+  const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" };
   const p = u.searchParams.get("p");
   if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) render(st); return; }
   render(st);
@@ -1230,7 +1358,7 @@ function openDeepLink() {
 }
 (function start() {
   const u = new URL(location.href);
-  const st = { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "" };
+  const st = { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" };
   history.replaceState(st, "", u);
   render(st);
   loadRiver();
@@ -1254,6 +1382,7 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=3"></script>
+<script src="/feed/wishes.js?v=4"></script>
+<script src="/feed/friends.js?v=2"></script>
 </body>
 </html>
