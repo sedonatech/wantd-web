@@ -320,9 +320,10 @@
   @media (prefers-color-scheme: dark) { .apple-btn { background: #FFFFFF; color: #000000; } }
   .wmenubox .wline { display: block; }
   .whdr { display: flex; align-items: center; gap: 12px; padding: 12px 4px 0; }
-  .wavatar { width: 40px; height: 40px; border-radius: 24%; background: var(--cobalt); color: #FFFFFF; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
+  .wavatar { width: 40px; height: 40px; border-radius: 24%; background: var(--ivory-deep); color: var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
   .wavatar img { width: 100%; height: 100%; object-fit: cover; }
-  .wavatar .letter { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; }
+  .wavatar .letter { font-family: var(--serif); font-style: italic; font-weight: 400; }
+  .wavatarbox { display: contents; }
   .wwho { min-width: 0; flex: 1; }
   .wwho .line1 { display: flex; align-items: baseline; gap: 7px; }
   .wwho .name { font-family: var(--serif); font-size: 18px; font-weight: 300; font-style: italic; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1382,7 +1383,7 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=4"></script>
-<script src="/feed/friends.js?v=2"></script>
+<script src="/feed/wishes.js?v=5"></script>
+<script src="/feed/friends.js?v=3"></script>
 </body>
 </html>

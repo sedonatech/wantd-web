@@ -115,7 +115,8 @@ async function loadCircle() {
       const page = await memberPage(owner);
       if (!page || !page.profile) return;
       const items = (page.items || []).filter((it) => it.n && it.u);
-      const latest = items.filter(hasPhoto).sort((a, b) => b.at - a.at).slice(0, 6);
+      const seen = new Set();
+      const latest = items.filter(hasPhoto).sort((a, b) => b.at - a.at).filter((it) => { const k = urlKey(it.u); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 6);
       friends.push({ owner, profile: page.profile, wantCount: items.length, latest });
     }));
     const pendingIDs = following.filter((id) => !mutual.has(id));
@@ -127,6 +128,9 @@ async function loadCircle() {
       if (page && page.profile) pending.push({ owner, h: page.profile.h, n: page.profile.n });
     }));
     pending.sort((a, b) => (a.n || "").localeCompare(b.n || ""));
+    const faces = await portraits(friends.map((fr) => fr.owner).concat(pending.map((p) => p.owner)));
+    for (const fr of friends) Object.assign(fr.profile, faces[fr.owner] || {});
+    for (const p of pending) Object.assign(p, faces[p.owner] || {});
     circle.following = following; circle.mutual = mutual; circle.friends = friends; circle.pending = pending; circle.loaded = true; circle.at = Date.now();
   } catch (e) { circle.error = String(e && (e.message || e)); console.log("friends load failed", e); }
   circle.loading = false;
@@ -152,11 +156,26 @@ function subline(fr) {
   }
   return parts.join(" · ");
 }
-function avatar(p, size, cls) {
-  const a = el("div", "wavatar " + (cls || "")); a.style.width = a.style.height = size + "px";
-  if (p && p.avatarURL) { const img = el("img"); img.src = p.avatarURL; img.alt = ""; img.referrerPolicy = "no-referrer"; a.appendChild(img); }
-  else { const l = el("span", "letter", ((p && (p.e || (p.n || "?").trim().charAt(0))) || "?").toUpperCase()); l.style.fontSize = Math.round(size * 0.55) + "px"; a.appendChild(l); }
-  return a;
+function avatar(p, size, cls) { const a = K.avatar(p, size); if (cls) a.classList.add(cls); return a; }
+
+/// Their portraits, as the app shows them: the Profile records of a few
+/// members in one question, their photo and their emoji.
+async function portraits(owners) {
+  const out = {};
+  if (K.DEMO || !owners.length) return out;
+  for (let i = 0; i < owners.length; i += 100) {
+    const chunk = owners.slice(i, i + 100);
+    try {
+      const rows = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "IN", fieldValue: { value: chunk } }] }, { resultsLimit: 200, desiredKeys: ["ownerID", "handle", "avatarAsset", "avatarEmoji"] });
+      for (const r of rows) {
+        const fl = r.fields || {}; const o = fl.ownerID && fl.ownerID.value; if (!o) continue;
+        if (fl.handle && fl.handle.value === "wtd-you" && out[o]) continue;
+        const asset = fl.avatarAsset && fl.avatarAsset.value;
+        out[o] = { avatarURL: asset && asset.downloadURL ? String(asset.downloadURL).replace("${f}", "avatar.jpg") : null, e: (fl.avatarEmoji && fl.avatarEmoji.value) || null };
+      }
+    } catch (e) { console.log("portraits failed", e); }
+  }
+  return out;
 }
 function thumb(it, size, radius) {
   const b = el("button", "fthumb"); b.type = "button"; b.style.width = b.style.height = size + "px"; b.style.borderRadius = radius + "px";
@@ -274,7 +293,7 @@ async function openProfile(handle) {
   if (seq !== visit.seq) return;
   if (!person) { visit.loading = false; visit.notFound = true; paintVisit(); return; }
   visit.owner = person.o;
-  visit.profile = { h: person.h, n: person.n, fr: person.fr || 0, fg: person.fg || 0, b: person.b, e: person.e };
+  visit.profile = { h: person.h, n: person.n, fr: person.fr || 0, fg: person.fg || 0, b: person.b, e: person.e || null };
   visit.following = circle.loaded ? circle.following.includes(person.o) : false;
   paintVisit();
   if (K.DEMO) {

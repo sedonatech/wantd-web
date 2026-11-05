@@ -192,9 +192,8 @@ function paint() {
   if (!signedIn) return;
   // The header.
   const p = me.profile || {};
-  const av = $("wAvatar"); av.innerHTML = "";
-  if (p.avatarURL) { const img = el("img"); img.src = p.avatarURL; img.alt = ""; img.referrerPolicy = "no-referrer"; av.appendChild(img); }
-  else av.appendChild(el("span", "letter", (p.emoji || (p.n || "?").trim().charAt(0) || "?").toUpperCase()));
+  const av = $("wAvatar"); av.innerHTML = ""; av.className = "wavatarbox";
+  av.appendChild(avatarNode({ n: p.n, h: p.h, e: p.emoji, avatarURL: p.avatarURL }, 40));
   $("wName").textContent = p.n || "";
   $("wFounder").hidden = me.id !== FOUNDER;
   const count = me.items.filter((it) => !isHad(it)).length;
@@ -250,6 +249,20 @@ function makeWallWith(host, n) {
   w.count = n; host.innerHTML = ""; w.cols = []; w.heights = [];
   for (let i = 0; i < n; i++) { const c = el("div", "col"); host.appendChild(c); w.cols.push(c); w.heights.push(0); }
   return w;
+}
+
+/// The app's AvatarView: her photo, else her emoji, else the house's letter
+/// picture (Avatar-A to Avatar-Z, served from /avatars), else her initial.
+function avatarNode(p, size) {
+  const a = el("div", "wavatar"); a.style.width = a.style.height = size + "px";
+  const name = (p && (p.n || p.h)) || "";
+  if (p && p.avatarURL) { const img = el("img"); img.src = p.avatarURL; img.alt = ""; img.referrerPolicy = "no-referrer"; a.appendChild(img); return a; }
+  if (p && p.e) { const e = el("span", "emoji", p.e); e.style.fontSize = Math.round(size * 0.5) + "px"; a.appendChild(e); return a; }
+  const folded = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const letter = (folded.match(/[A-Z]/) || [])[0];
+  if (letter) { const img = el("img"); img.src = "/avatars/" + letter + ".jpg"; img.alt = ""; a.appendChild(img); return a; }
+  const l = el("span", "letter", name.trim().charAt(0) || "?"); l.style.fontSize = Math.round(size * 0.4) + "px"; a.appendChild(l);
+  return a;
 }
 
 function lockIcon() { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 12 12"); s.innerHTML = '<rect x="2.5" y="5.5" width="7" height="5.5" rx="1.2" fill="currentColor" stroke="none"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5"/>'; s.classList.add("wicon"); return s; }
@@ -717,7 +730,7 @@ window.Wishes = {
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
   kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO,
-         listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox },
+         listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });
 // The page may have opened on this tab before this script was read.
