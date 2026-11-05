@@ -15,6 +15,8 @@
 <link rel="icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://wantd-reserve.wantd-reserve.workers.dev" crossorigin>
+<link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
+<script src="/feed/ck.js"></script>
 <style>
   /* The app's own tokens (ContentView.swift wantdAdaptive, Color.kt). */
   :root {
@@ -416,6 +418,26 @@ async function getJSON(path, tries = 3) {
     throw new Error(path + " " + r.status);
   }
 }
+
+// CloudKit JS (SED-942): the member's own iCloud account, the same
+// identity as the iPhone's. Configured here, quietly; the sign-in and the
+// Wishlist tab come in the second step. Nothing of this is read before
+// then, and a browser without iCloud reaches the public feed all the same.
+window.wantdAuth = { ready: false, identity: null, error: null };
+(function () {
+  const cfg = window.WANTD_CK;
+  if (!cfg || !cfg.token || LOCAL) return;
+  const s = document.createElement("script");
+  s.src = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"; s.async = true;
+  s.onload = async () => {
+    try {
+      CloudKit.configure({ containers: [{ containerIdentifier: cfg.container, apiTokenAuth: { apiToken: cfg.token, persist: true, signInButton: { id: "ckSignIn", theme: "black" }, signOutButton: { id: "ckSignOut", theme: "black" } }, environment: cfg.env }] });
+      const identity = await CloudKit.getDefaultContainer().setUpAuth();
+      window.wantdAuth = { ready: true, identity: identity || null, error: null };
+    } catch (e) { window.wantdAuth = { ready: true, identity: null, error: String(e && (e.reason || e.message || e)) }; }
+  };
+  document.head.appendChild(s);
+})();
 
 // The tracked link reader, loaded beside this page (SED-855).
 (function () {
