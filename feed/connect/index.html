@@ -90,7 +90,7 @@
   var debug = params.has("debug");
 
   function show(id) { ["sAsk", "sWait", "sDone", "sFail"].forEach(function (s) { $(s).hidden = s !== id; }); }
-  function fail(msg) { $("pFail").textContent = msg; show("sFail"); }
+  function fail(msg, why) { if (why) console.warn("wantd connect:", String(why && (why.message || why.reason || why))); $("pFail").textContent = msg; show("sFail"); }
   function cookie(name) {
     var parts = document.cookie.split(";");
     for (var i = 0; i < parts.length; i++) { var c = parts[i].trim(); if (c.indexOf(name + "=") === 0) return c.slice(name.length + 1); }
@@ -118,7 +118,7 @@
         if (debug) { $("pDebug").hidden = false; $("pDebug").textContent = "account " + res.body.ownerID + (p ? " · " + p.handle : " · no profile"); }
         show("sDone");
       })
-      .catch(function () { fail(W.offline); });
+      .catch(function (e) { fail(W.offline, e); });
   }
 
   function setUp() {
@@ -129,9 +129,9 @@
     container = CloudKit.getDefaultContainer();
     container.setUpAuth().then(function (identity) {
       if (identity) handOff();
-      container.whenUserSignsIn().then(function () { handOff(); }).catch(function () { fail(W.refused); });
+      container.whenUserSignsIn().then(function () { handOff(); }).catch(function (e) { fail(W.refused, e); });
       container.whenUserSignsOut().then(function () { show("sAsk"); setTimeout(function () { location.reload(); }, 300); });
-    }).catch(function () { fail(W.offline); });
+    }).catch(function (e) { fail(W.offline, e); });
   }
 
   $("bApple").addEventListener("click", function () { clickHidden("ckSignIn"); });
@@ -140,7 +140,7 @@
 
   var s = document.createElement("script");
   s.src = "https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"; s.async = true;
-  s.onload = setUp; s.onerror = function () { fail(W.offline); };
+  s.onload = setUp; s.onerror = function () { fail(W.offline, "cloudkit.js did not load"); };
   document.head.appendChild(s);
 })();
 </script>
