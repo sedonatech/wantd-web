@@ -785,6 +785,9 @@ function signedIn(identity) {
   me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false;
   paint();
   if (me.id) load();
+  // Signed out: her circle does not stay in this browser for the next person.
+  else { try { localStorage.removeItem("wantd.circle.v1"); } catch (e) {} }
+  if (window.wantdBlocks) window.wantdBlocks.drop();
   if (window.Friends) window.Friends.onAuth();
 }
 function watchAuth() {

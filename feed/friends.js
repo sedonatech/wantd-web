@@ -67,7 +67,17 @@ const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceC
 // ---------------------------------------------------------------------------
 const circle = { loaded: false, loading: false, error: null, following: [], mutual: new Set(), friends: [], pending: [], at: 0 };
 const visit = { handle: "", owner: "", profile: null, lists: [], items: [], listID: null, shelf: false, sort: "manual", loading: false, notFound: false, seq: 0, following: false };
-const blocked = new Set(JSON.parse(localStorage.getItem("wantd.blocked") || "[]"));
+// Who she reported: the feed page keeps the list, under her own id.
+const blocked = { has: (owner) => window.wantdBlocks.list().includes(owner) };
+/// Hers, or on a list she co-owns: she must never see its reservations or
+/// its pot, and has no act on it (WishlistStore.isMineOrShared).
+function isMineOrShared(it) {
+  const m = me();
+  if (!m.id) return false;
+  if (it.o === m.id) return true;
+  const shared = new Set((m.lists || []).filter((l) => (l.memberIDs || []).length).map((l) => String(l.id).toUpperCase()));
+  return (it.l || []).some((id) => shared.has(String(id).toUpperCase()));
+}
 let wall = null;
 
 // ---------------------------------------------------------------------------
@@ -289,7 +299,7 @@ function openMemberSearch() {
       let page = null;
       try { page = await getJSON("/people?q=" + encodeURIComponent(t) + "&limit=8"); } catch (e) {}
       if (s !== seq) return;
-      const people = (page && page.people) || [];
+      const people = ((page && page.people) || []).filter((p) => p.o !== me().id);
       if (!people.length) { list.appendChild(el("p", "frule", F.noMember)); return; }
       for (const p of people) {
         const row = el("button", "fwaitrow"); row.type = "button";
@@ -320,6 +330,7 @@ async function openProfile(handle) {
   } catch (e) {}
   if (seq !== visit.seq) return;
   if (!person) { visit.loading = false; visit.notFound = true; paintVisit(); return; }
+  if (person.o === me().id) { go({ tab: "wishes" }); return; }
   visit.owner = person.o;
   visit.profile = { h: person.h, n: person.n, fr: person.fr || 0, fg: person.fg || 0, b: person.b, e: person.e || null };
   visit.following = circle.loaded ? circle.following.includes(person.o) : false;
@@ -353,7 +364,7 @@ async function openProfile(handle) {
   paintVisit();
 }
 
-const isHadByOwner = (it) => it.st === "purchased";
+const isHadByOwner = (it) => it.st === "purchased" && it.rb === visit.owner;
 function visitShown() {
   let list = visit.items.slice();
   if (visit.shelf) list = list.filter(isHadByOwner);
@@ -392,7 +403,7 @@ function paintVisit() {
   const list = visitShown();
   if (!list.length) { state.hidden = false; state.className = "state serif"; state.textContent = F.nothing; host.hidden = true; return; }
   state.hidden = true; host.hidden = false;
-  wall.add(list, { counts: (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0), status: true });
+  wall.add(list, { counts: (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0), status: (it) => me().loaded && !isMineOrShared(it) });
 }
 
 async function toggleFollow() {
@@ -456,12 +467,15 @@ function openPledgeSheet() {
 const live = new Map();   // id -> { st, rb, gift, _tag, aw }
 async function readState(it) {
   try {
-    const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "groupGiftJSON", "alsoWantedBy"] });
+    const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "groupGiftJSON", "alsoWantedBy", "listIDs"] });
     if (res.hasErrors || !res.records[0]) return null;
     const r = res.records[0];
     const gj = r.fields.groupGiftJSON && r.fields.groupGiftJSON.value;
     let gift = null;
-    if (gj) { try { gift = JSON.parse(atob(gj)); } catch (e) { gift = null; } }
+    // The bytes are UTF-8, as the app writes them: read as such, or "Chloé"
+    // comes back "ChloÃ©" and is saved that way for everyone.
+    if (gj) { try { gift = JSON.parse(new TextDecoder("utf-8").decode(Uint8Array.from(atob(gj), (c) => c.charCodeAt(0)))); } catch (e) { gift = null; } }
+    if (!(it.l || []).length && r.fields.listIDs && r.fields.listIDs.value) it.l = r.fields.listIDs.value;
     const s = { st: (r.fields.status && r.fields.status.value) || "available", rb: r.fields.reservedBy && r.fields.reservedBy.value, gift, _tag: r.recordChangeTag, aw: (r.fields.alsoWantedBy && r.fields.alsoWantedBy.value) || [] };
     live.set(it.id, s);
     return s;
@@ -483,7 +497,7 @@ async function writeState(it, fields) {
 
 function othersActions(it, body) {
   const m = me();
-  if (!m.id || it.o === m.id) return;
+  if (!m.id || isMineOrShared(it)) return;
   const acts = body.querySelector(".acts");
   const box = el("div", "facts");
   acts.insertAdjacentElement("afterend", box);
@@ -597,7 +611,7 @@ function othersActions(it, body) {
         reason: f("reported from the product card", "STRING"), reportedAt: f(Date.now(), "TIMESTAMP") } }]);
       if (res.hasErrors) throw new Error(res.errors[0].ckErrorCode);
     } catch (e) { console.log("report failed", e); }
-    if (it.o) { blocked.add(it.o); try { localStorage.setItem("wantd.blocked", JSON.stringify([...blocked])); } catch (e) {} }
+    if (it.o) window.wantdBlocks.add(it.o);
     closePiece();
   });
 
@@ -713,4 +727,7 @@ window.Friends = {
   isBlocked: (owner) => blocked.has(owner),
 };
 if (!document.getElementById("friends").hidden) window.Friends.enter(new URL(location.href).searchParams.get("u") || "");
+// The member is known from the first page, the Feed included: "Also want
+// this" and Report need her there too.
+window.Wishes.wake();
 })();

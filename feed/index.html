@@ -911,7 +911,7 @@ function card(it, opts) {
   photo.setAttribute("aria-label", it.n || "");
   photo.addEventListener("click", () => openPiece(it));
   photoInto(photo, it);
-  if (o.status && it.st === "reserved") { const b = document.createElement("span"); b.className = "badge"; b.textContent = FR ? "Réservée" : "Reserved"; photo.appendChild(b); }
+  if ((typeof o.status === "function" ? o.status(it) : o.status) && it.st === "reserved") { const b = document.createElement("span"); b.className = "badge"; b.textContent = FR ? "Réservée" : "Reserved"; photo.appendChild(b); }
   if (o.counts) {
     const n = o.counts(it);
     const pill = document.createElement("span");
@@ -925,11 +925,13 @@ function card(it, opts) {
   const text = document.createElement("div"); text.className = "text";
   const shop = it.s || it.b;
   if (shop) { const s = document.createElement("div"); s.className = "shop"; s.textContent = shop; text.appendChild(s); }
-  const name = document.createElement("div"); name.className = "name"; name.textContent = it.n || ""; text.appendChild(name);
+  // The river's card says the shop and the price, nothing else: no piece
+  // name, no member name, a calm wall (the app's FeedView, SED-909).
+  if (!o.quiet) { const name = document.createElement("div"); name.className = "name"; name.textContent = it.n || ""; text.appendChild(name); }
   const p = priceOf(it);
   if (p) { const pr = document.createElement("div"); pr.className = "price num"; pr.textContent = p; pr._item = it; text.appendChild(pr); }
   else if (o.own) { const tc = document.createElement("div"); tc.className = "tocheck"; tc.textContent = T.toCheck; text.appendChild(tc); }
-  if (o.owner) {
+  if (o.owner && !o.quiet) {
     const who = o.owner(it);
     if (who) { const w = document.createElement("div"); w.className = "owner"; w.textContent = who; text.appendChild(w); }
   }
@@ -946,6 +948,7 @@ const river = {
   shown: 0,
   profiles: {},
   counts: new Map(),    // product key -> wanters
+  pairs: new Set(),     // "product key|member": a want already counted
   tailExhausted: false,
   tailLoading: false,
   fullLoaded: false,
@@ -953,14 +956,53 @@ const river = {
 const riverWall = makeWall(document.getElementById("riverWall"));
 const riverState = document.getElementById("riverState");
 const ownerName = (it) => { const p = river.profiles[it.o]; return p ? (p.n || p.h || "") : ""; };
+const meID = () => (window.wantdAuth && window.wantdAuth.identity && window.wantdAuth.identity.userRecordName) || "";
+// The members she reported: kept on this browser under her own id, never
+// shared with whoever signs in next, and none for a visitor.
+function blockedOwners() {
+  const id = meID();
+  if (!id) return [];
+  try {
+    const key = "wantd.blocked." + id;
+    const old = localStorage.getItem("wantd.blocked");   // the list from before it had an owner
+    if (old) { localStorage.setItem(key, JSON.stringify([...new Set(JSON.parse(localStorage.getItem(key) || "[]").concat(JSON.parse(old)))])); localStorage.removeItem("wantd.blocked"); }
+    return JSON.parse(localStorage.getItem(key) || "[]");
+  } catch (e) { return []; }
+}
+function blockOwner(owner) {
+  const id = meID();
+  if (!id || !owner) return;
+  const list = blockedOwners();
+  if (!list.includes(owner)) list.push(owner);
+  try { localStorage.setItem("wantd.blocked." + id, JSON.stringify(list)); } catch (e) {}
+  dropBlocked();
+}
+/// Her pieces leave every wall at once ("straight away", as the alert says).
+function dropBlocked() {
+  const gone = blockedOwners();
+  if (!gone.length) return;
+  const keep = (it) => !gone.includes(it.o);
+  const before = river.items.length + store.items.length + search.results.length;
+  const shownGone = river.items.slice(0, river.shown).filter((it) => !keep(it)).length;
+  river.items = river.items.filter(keep); river.shown -= shownGone;
+  store.items = store.items.filter(keep); search.results = search.results.filter(keep);
+  if (river.items.length + store.items.length + search.results.length === before) return;
+  if (search.open && search.q) { riverWall.reset(); riverWall.add(search.results, { counts: countOf, quiet: true }); }
+  else { riverWall.reset(); const n = river.shown; river.shown = 0; riverWall.add(river.items.slice(0, n), { counts: countOf, quiet: true }); river.shown = n; }
+  if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
+}
+window.wantdBlocks = { list: blockedOwners, add: blockOwner, drop: dropBlocked };
 const countOf = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
 function looksLikeStorefront(u) {
   try { const x = new URL(u); return (x.pathname === "/" || x.pathname === "") && !x.search; } catch (e) { return false; }
 }
 function takeIn(index, firstPage) {
+  // One member, one want: /feed/first then /feed bring the same pairs twice.
   for (const [u, who] of index.rewants || []) {
-    const k = urlKey(u);
+    const k = urlKey(u), pair = k + "|" + who;
+    if (river.pairs.has(pair)) continue;
+    river.pairs.add(pair);
     river.counts.set(k, (river.counts.get(k) || 0) + 1);
   }
   Object.assign(river.profiles, index.profiles || {});
@@ -968,11 +1010,10 @@ function takeIn(index, firstPage) {
   // before a rewant's copy, nothing without a photo, no storefront.
   const fresh = [];
   const copies = [];
-  let blockedOwners = [];
-  try { blockedOwners = JSON.parse(localStorage.getItem("wantd.blocked") || "[]"); } catch (e) {}
+  const gone = blockedOwners();
   for (const it of index.items || []) {
     if (!it.n || !it.u || !hasPhoto(it) || looksLikeStorefront(it.u)) continue;
-    if (blockedOwners.length && blockedOwners.includes(it.o)) continue;
+    if (gone.length && gone.includes(it.o)) continue;
     (it.rf ? copies : fresh).push(it);
   }
   const added = [];
@@ -1031,7 +1072,7 @@ function seatingTheDay(items, now, firstScreen = 12) {
 function showMoreOfRiver() {
   const next = river.items.slice(river.shown, river.shown + PAGE);
   if (!next.length) return false;
-  riverWall.add(next, { counts: countOf, owner: ownerName });
+  riverWall.add(next, { counts: countOf, quiet: true });
   river.shown += next.length;
   riverState.hidden = true;
   document.getElementById("riverWall").hidden = false;
@@ -1157,14 +1198,15 @@ async function runSearch(q) {
   let page = null;
   try { page = await getJSON(`/search?q=${encodeURIComponent(q)}&limit=60`); } catch (e) {}
   if (seq !== search.seq) return;
-  const items = (page && page.items || []).filter((it) => it.n && it.u && hasPhoto(it));
+  const gone = blockedOwners();
+  const items = (page && page.items || []).filter((it) => it.n && it.u && hasPhoto(it) && !gone.includes(it.o));
   const seen = new Set(); const uniq = [];
   for (const it of items) { const k = urlKey(it.u); if (!seen.has(k)) { seen.add(k); uniq.push(it); } }
   search.results = uniq;
   if (!uniq.length) { riverState.textContent = T.searchEmpty; return; }
   riverState.hidden = true;
   document.getElementById("riverWall").hidden = false;
-  riverWall.add(uniq, { counts: countOf, owner: ownerName });
+  riverWall.add(uniq, { counts: countOf, quiet: true });
 }
 qInput.addEventListener("input", () => {
   const q = qInput.value.trim();
@@ -1218,8 +1260,9 @@ async function storeMore(seq) {
   const got = (page && page.items) || [];
   if (got.length < PAGE) store.exhausted = true;
   const fresh = [];
+  const gone = blockedOwners();
   for (const it of got) {
-    if (!it.n || !it.u || !hasPhoto(it)) continue;
+    if (!it.n || !it.u || !hasPhoto(it) || gone.includes(it.o)) continue;
     const k = urlKey(it.u);
     if (store.keys.has(k)) continue;
     store.keys.add(k); store.items.push(it); fresh.push(it);
@@ -1259,7 +1302,7 @@ function openPiece(it, fromHistory) {
   if (host) { const h = document.createElement("span"); h.className = "host"; h.textContent = host; line.appendChild(h); }
   if (it.at) { const d = document.createElement("span"); d.className = "date"; d.textContent = dateOf(it.at); line.appendChild(d); }
   body.appendChild(line);
-  const who = ownerName(it) || (window.Friends ? window.Friends.ownerName(it) : "");
+  const who = meID() && it.o !== meID() ? (ownerName(it) || (window.Friends ? window.Friends.ownerName(it) : "")) : "";
   if (who) {
     const f = document.createElement("span"); f.className = "from"; f.textContent = T.from(who);
     const h = (river.profiles[it.o] && river.profiles[it.o].h) || (window.Friends ? window.Friends.ownerHandle(it) : "");
@@ -1378,12 +1421,12 @@ io.observe(document.getElementById("storeMore"));
 
 // Five columns or two: the wall is dealt again when the width crosses over.
 REGULAR.addEventListener("change", () => {
-  if (search.open && search.q) { riverWall.reset(); riverWall.add(search.results, { counts: countOf, owner: ownerName }); }
-  else { riverWall.reset(); const n = river.shown; river.shown = 0; riverWall.add(river.items.slice(0, n), { counts: countOf, owner: ownerName }); river.shown = n; }
+  if (search.open && search.q) { riverWall.reset(); riverWall.add(search.results, { counts: countOf, quiet: true }); }
+  else { riverWall.reset(); const n = river.shown; river.shown = 0; riverWall.add(river.items.slice(0, n), { counts: countOf, quiet: true }); river.shown = n; }
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=6"></script>
-<script src="/feed/friends.js?v=4"></script>
+<script src="/feed/wishes.js?v=7"></script>
+<script src="/feed/friends.js?v=5"></script>
 </body>
 </html>
