@@ -79,7 +79,7 @@
 <main>
   <h1 id="title">Open it<br><em>in Wantd.</em></h1>
   <hr>
-  <p class="note" id="note">This piece lives on a Wantd wishlist. Wantd is invitation only.</p>
+  <p class="note" id="note">This piece lives on a Wantd wishlist.</p>
   <div class="spacer"></div>
   <a class="act" id="open" href="#">Open in Wantd</a>
   <a class="quiet" id="store" href="https://apps.apple.com/app/id6787658989">Don't have Wantd yet? Get the app</a>
@@ -100,6 +100,9 @@
     // happens the app simply is not installed, so the App Store act below
     // is the way in.
     setTimeout(function () { location.href = deep; }, 60);
+    // And when the app did not answer either, the piece opens in Wantd on
+    // the web (Agathe, 9 November 2026: the web is Wantd itself).
+    setTimeout(function () { location.replace('/feed/?p=' + m[1].toUpperCase()); }, 1400);
   })();
 </script>
 <!-- Skimlinks (SED-586): the reviewers look for this tag on the declared domain.

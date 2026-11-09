@@ -224,7 +224,7 @@ $jsonld<style>$css</style>
 <div class="page">
   <header>
     <a class="wordmark" href="/" aria-label="Wantd">Wantd<span class="dot">.</span></a>
-    <span class="inv">By invitation only. For iPhone and Mac.</span>
+    <span class="inv">For iPhone, Mac and the web.</span>
   </header>
   <main>
 """)
@@ -247,8 +247,8 @@ ASK = Template("""
       <h2 id="ask">$ask_title</h2>
       <p class="say">$ask_say</p>
       <div class="actions">
-        <a class="cta" href="/join/?s=$channel">Join the waitlist</a>
-        <a class="quiet" href="$appstore">Already invited? Get Wantd on the App Store.</a>
+        <a class="cta" href="/feed/">Enter Wantd</a>
+        <a class="quiet" href="$appstore">Get Wantd on the App Store.</a>
       </div>
     </section>
 """)
