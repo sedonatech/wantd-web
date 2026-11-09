@@ -438,7 +438,7 @@ function editableCard(draft, opts) {
       const b = el("button", "wthumb" + (u === draft.i ? " on" : "")); b.type = "button";
       const im = el("img"); im.src = u; im.alt = ""; im.referrerPolicy = "no-referrer"; im.loading = "lazy"; im.onerror = () => b.remove();
       b.appendChild(im);
-      b.addEventListener("click", () => { draft.i = u; strip.querySelectorAll(".wthumb").forEach((x) => x.classList.toggle("on", x === b)); const big = photo.querySelector("img"); if (big) big.src = u; });
+      b.addEventListener("click", () => { draft.i = u; draft.picked = true; strip.querySelectorAll(".wthumb").forEach((x) => x.classList.toggle("on", x === b)); const big = photo.querySelector("img"); if (big) big.src = u; });
       strip.appendChild(b);
     }
     card.appendChild(strip);
@@ -447,7 +447,7 @@ function editableCard(draft, opts) {
   card.read = () => {
     const a = amount.value.trim().replace(",", ".").replace(/[^\d.]/g, "");
     const pa = a ? Number(a) : NaN;
-    return { n: name.value.trim(), s: store.value.trim(), pa: Number.isFinite(pa) && a ? pa : null, pc: cur.value || null, note: note.value.trim(), i: draft.i, ic: draft.ic || [] };
+    return { n: name.value.trim(), s: store.value.trim(), pa: Number.isFinite(pa) && a ? pa : null, pc: cur.value || null, note: note.value.trim(), i: draft.i, ic: draft.ic || [], picked: !!draft.picked };
   };
   return card;
 }
@@ -594,6 +594,10 @@ async function saveCopy(from, selected) {
 async function ensureMainList() {
   let main = me.lists.find((l) => l.isMain && l.creatorID === me.id);
   if (main || DEMO) return main || null;
+  // Only when her lists were read and none is the main one: lists still on
+  // their way, or a read that failed, are not "she has none" (the app's
+  // SED-828: a second Main Wishlist).
+  if (!me.loaded || me.error) throw new Error(W.onTheirWay);
   main = await saveList({ name: "Main Wishlist", isMain: true, isPrivate: false });
   return main;
 }
@@ -619,12 +623,23 @@ async function saveList(d, existing) {
 async function updatePiece(it, read) {
   const fields = {
     name: f(read.n.slice(0, 300), "STRING"),
-    priceText: f(typeof read.pa === "number" && read.pc ? money(read.pa, read.pc) : null, "STRING"),
     imageURLString: f(read.i || null, "STRING"),
   };
-  if (read.s) fields.store = f(read.s, "STRING");
-  if (typeof read.pa === "number" && read.pc) { fields.priceAmount = f(read.pa, "DOUBLE"); fields.priceCurrency = f(read.pc, "STRING"); }
-  else { fields.priceAmount = f(null, "DOUBLE"); fields.priceCurrency = f(null, "STRING"); }
+  // The shop as she left it: the field shows the brand when a piece has no
+  // shop, and that brand is not written back as its shop.
+  if (read.s && read.s !== (it.s || it.b || "")) fields.store = f(read.s, "STRING");
+  // The price only when she changed it: "the shop's own wording is kept"
+  // (HomeView), so a price kept as words, or an amount without a currency,
+  // survives a rename.
+  const hadAmount = typeof it.pa === "number" ? it.pa : null;
+  if (read.pa !== hadAmount || (read.pc || null) !== (it.pc || null)) {
+    if (typeof read.pa === "number") {
+      fields.priceAmount = f(read.pa, "DOUBLE"); fields.priceCurrency = f(read.pc || null, "STRING");
+      fields.priceText = f(read.pc ? money(read.pa, read.pc) : String(read.pa), "STRING");
+    } else { fields.priceAmount = f(null, "DOUBLE"); fields.priceCurrency = f(null, "STRING"); fields.priceText = f(null, "STRING"); }
+  }
+  // A shop photo chosen over her own: the piece stops claiming an own photo.
+  if (it.op === 1 && read.picked) fields.ownPhoto = f(0, "INT64");
   if (read.note) fields.personalNote = f(read.note, "STRING"); else if (it.note) fields.personalNote = f(null, "STRING");
   const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields }]);
   if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
@@ -639,6 +654,9 @@ async function deletePiece(it) {
   if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
   me.items = me.items.filter((x) => x.id !== it.id);
   paint();
+  // "A deleted copy takes its want back with it, wherever it counted"
+  // (WishlistStore.delete); on her own original there is no mark to take.
+  if (it.u && window.Friends && window.Friends.removeRewant) { try { await window.Friends.removeRewant(it); } catch (e) {} }
 }
 
 // ---------------------------------------------------------------------------
@@ -650,11 +668,15 @@ function openListSheet(existing, onCreated) {
     head.appendChild(el("h2", "wtitle", existing ? existing.name : W.newListTitle));
     panel.appendChild(head);
     const name = textInput(existing ? existing.name : "", W.nameIt, { caps: "words" }); name.className = "wbig";
-    panel.appendChild(name);
     let isPrivate = !!(existing && existing.isPrivate);
     const priv = quietLine(isPrivate ? W.privateOnlyYou : W.visible, () => { isPrivate = !isPrivate; priv.textContent = isPrivate ? W.privateOnlyYou : W.visible; priv.classList.toggle("cobalt", isPrivate); }, true);
     priv.classList.toggle("cobalt", isPrivate);
-    panel.appendChild(priv);
+    // A list she already has is neither renamed nor made private or public
+    // from here: her iPhone is the one writer of its own lists ("THIS DEVICE
+    // WINS", WishlistStore.sync) and would bring the old name and the old
+    // privacy back, a private list public again. Until the app reads such a
+    // change from the cloud, the web makes a list and deletes one.
+    if (!existing) { panel.appendChild(name); panel.appendChild(priv); }
     const foot = el("div", "wfoot"); panel.appendChild(foot);
     const err = el("div", "wnote"); foot.appendChild(err);
     const go = bar(existing ? W.save : W.create, async () => {
@@ -667,10 +689,26 @@ function openListSheet(existing, onCreated) {
         closeSheet();
       } catch (e) { go.disabled = false; err.textContent = String(e && (e.message || e)); }
     });
-    foot.appendChild(go);
+    if (!existing) foot.appendChild(go);
     if (existing && !existing.isMain) {
       foot.appendChild(quietLine(W.deleteListKeep, async () => {
         try {
+          // Its pieces first leave it, back on the main list when it was their
+          // only one, their visibility said again (WishlistStore.deleteList):
+          // none is left pointing at a list that is gone.
+          const main = me.lists.find((l) => l.isMain && l.creatorID === me.id);
+          const moved = me.items.filter((x) => x.o === me.id && (x.l || []).includes(existing.id));
+          for (let i = 0; i < moved.length; i += 50) {
+            const recs = moved.slice(i, i + 50).map((x) => {
+              let ids = (x.l || []).filter((id) => id !== existing.id);
+              if (!ids.length && main) ids = [main.id];
+              const open = !ids.length || ids.some((id) => { const l = me.lists.find((y) => y.id === id); return l && !l.isPrivate; });
+              return { recordType: "Item", recordName: x.id, recordChangeTag: x._tag, fields: { listIDs: f(ids.length ? ids : null, "STRING_LIST"), isPublic: f(open ? 1 : 0, "INT64") } };
+            });
+            const r1 = await db().saveRecords(recs);
+            if (r1.hasErrors) throw new Error(r1.errors.map((e) => e.ckErrorCode).join(", "));
+            for (const r of r1.records) { const x = me.items.find((y) => y.id === r.recordName); if (x) { x._tag = r.recordChangeTag; x.l = (r.fields.listIDs && r.fields.listIDs.value) || []; } }
+          }
           const res = await db().deleteRecords([{ recordName: existing.recordName, recordChangeTag: existing._tag }]);
           if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
           me.lists = me.lists.filter((x) => x.id !== existing.id);
@@ -679,7 +717,7 @@ function openListSheet(existing, onCreated) {
         } catch (e) { err.textContent = String(e && (e.message || e)); }
       }, true));
     }
-    setTimeout(() => name.focus({ preventScroll: true }), 50);
+    if (!existing) setTimeout(() => name.focus({ preventScroll: true }), 50);
   });
 }
 

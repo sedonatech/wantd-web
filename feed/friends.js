@@ -484,15 +484,23 @@ async function readState(it) {
 const giftB64 = (gift) => btoa(unescape(encodeURIComponent(JSON.stringify(gift))));
 const nowCK = () => Date.now() / 1000 - 978307200;   // seconds since 2001, as JSONEncoder writes a Date
 
-async function writeState(it, fields) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const s = live.get(it.id) || await readState(it);
-    const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: s && s._tag, fields }]);
+/// A change to someone's piece, made where the piece stands: read it,
+/// decide the fields from what was just read (null: nothing to write), write
+/// with its tag, and on a collision read again and decide again. Never the
+/// same bytes twice: two friends giving in the same moment both stay, and a
+/// reservation made meanwhile is never written over (CloudKitService's
+/// "someone else just contributed: read theirs and add ours").
+async function changeState(it, decide) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const s = await readState(it);
+    if (!s) throw new Error("read");
+    const fields = decide(s);
+    if (!fields) return false;
+    const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: s._tag, fields }]);
     if (!res.hasErrors) { await readState(it); return true; }
-    if (res.errors.some((e) => e.ckErrorCode === "CONFLICT") && attempt === 0) { await readState(it); continue; }
-    throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
+    if (!res.errors.some((e) => e.ckErrorCode === "CONFLICT")) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
   }
-  return false;
+  throw new Error("CONFLICT");
 }
 
 function othersActions(it, body) {
@@ -578,16 +586,20 @@ function othersActions(it, body) {
   };
   const confirmUnwant = () => K.alert(F.unwantAsk, F.unwantBody, F.unwant, async () => {
     const mine = m.items.find((x) => x.u && urlKey(x.u) === urlKey(it.u));
-    if (mine) await K.deletePiece(mine);
-    await removeRewant(it);
+    if (mine) await K.deletePiece(mine); else await removeRewant(it);
     didRepost = false; render();
   });
 
   // --- Reserve.
   const confirmReserve = () => K.alert(F.reserveAsk, F.reserveBody, F.reserveOk, () => toggleReserve(true));
   const toggleReserve = async (on) => {
-    try { await writeState(it, { status: f(on ? "reserved" : "available", "STRING"), reservedBy: f(on ? m.id : null, "STRING") }); }
-    catch (e) { console.log("reserve failed", e); }
+    try {
+      await changeState(it, (s) => {
+        // Only a free piece is reserved, only her own reservation is undone.
+        if (on ? s.st !== "available" : !(s.st === "reserved" && s.rb === m.id)) return null;
+        return { status: f(on ? "reserved" : "available", "STRING"), reservedBy: f(on ? m.id : null, "STRING") };
+      });
+    } catch (e) { console.log("reserve failed", e); }
     render();
   };
 
@@ -620,7 +632,8 @@ function othersActions(it, body) {
     const code = it.pc || VIEWER || "EUR";
     const gift = { contributions: [], currencyCode: code };
     if (typeof it.pa === "number") gift.targetAmount = it.pa;
-    try { await writeState(it, { groupGiftJSON: f(giftB64(gift), "BYTES") }); } catch (e) { console.log("start gift failed", e); return; }
+    // A pot someone opened meanwhile is joined, never emptied.
+    try { await changeState(it, (s) => (s.gift ? null : { groupGiftJSON: f(giftB64(gift), "BYTES") })); } catch (e) { console.log("start gift failed", e); return; }
     const s = live.get(it.id); render();
     openContribute((s && s.gift) || gift, null);
   };
@@ -651,14 +664,13 @@ function othersActions(it, body) {
     try { await mutateGift((g) => { g.contributions = (g.contributions || []).filter((c) => c.contributorID !== m.id); }); } catch (e) {}
     render();
   };
-  const mutateGift = async (change) => {
-    const s = await readState(it);
-    const g = (s && s.gift) || { contributions: [] };
+  const mutateGift = (change) => changeState(it, (s) => {
+    const g = s.gift ? JSON.parse(JSON.stringify(s.gift)) : { contributions: [] };
     if (!g.currencyCode) g.currencyCode = it.pc || VIEWER || "EUR";
     if (g.targetAmount == null && typeof it.pa === "number") g.targetAmount = it.pa;
     change(g);
-    await writeState(it, { groupGiftJSON: f(giftB64(g), "BYTES") });
-  };
+    return { groupGiftJSON: f(giftB64(g), "BYTES") };
+  });
 
   render();
   readState(it).then((s) => { if (s) render(); });
@@ -684,7 +696,11 @@ async function addRewant(it) {
 }
 async function removeRewant(it) {
   if (!it.u) return;
-  try { await db().deleteRecords([{ recordName: await rewantName(it.u) }]); } catch (e) {}
+  // Counted down only when a mark of hers was really there: on her own
+  // original there is none (the app's "no-op").
+  let had = false;
+  try { const res = await db().deleteRecords([{ recordName: await rewantName(it.u) }]); had = !res.hasErrors; } catch (e) {}
+  if (!had) return;
   const k = urlKey(it.u); river.counts.set(k, Math.max(0, (river.counts.get(k) || 1) - 1));
 }
 const ownerName = (it) => { const p = river.profiles[it.o]; if (p) return p.n || p.h || ""; if (visit.owner === it.o && visit.profile) return visit.profile.n || ""; const fr = circle.friends.find((x) => x.owner === it.o); return fr ? fr.profile.n : ""; };
@@ -721,7 +737,7 @@ window.Friends = {
     paintCircle();
     if (signedIn && !circle.loaded && !circle.loading) loadCircle();
   },
-  othersActions,
+  othersActions, removeRewant,
   ownerName, ownerHandle,
   onAuth() { circle.loaded = false; circle.loading = false; circle.friends = []; circle.pending = []; if (!$("friends").hidden) window.Friends.enter(visit.handle); },
   isBlocked: (owner) => blocked.has(owner),
