@@ -25,6 +25,7 @@ const W = FR ? {
   yourBudget: "Votre budget", reset: "Réinitialiser", done: "OK", shop: "Acheter", lists: "Listes", listName: "Nom de la liste", privateList: "Liste privée", deleteList: "Supprimer cette liste",
   deleteListKeep: "Supprimer, garder ses envies",
   signIn: "Se connecter avec Apple", signOut: "Se déconnecter",
+  shareAsk: (who, list) => `${who} souhaite partager la liste ${list} avec vous.`, aMember: "Un membre", yes: "Oui", no: "Non",
 } : {
   keeps: "Wantd keeps your list in iCloud.", wishes: "wants", founder: "Founder",
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
@@ -44,6 +45,7 @@ const W = FR ? {
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", listName: "List name", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
   signIn: "Sign in with Apple", signOut: "Sign out",
+  shareAsk: (who, list) => `${who} wants to share the ${list} list with you.`, aMember: "A member", yes: "Yes", no: "No",
 };
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
@@ -56,6 +58,10 @@ const me = {
   id: null,            // her ownerID, CKContainer.userRecordID().recordName
   profile: null,       // { h, n, fr, fg, avatarURL, emoji }
   lists: [],           // { id, name, isMain, isPrivate, memberIDs, creatorID, createdAt, recordName, _tag }
+  pending: [],         // lists someone shared with her, still waiting for her yes
+  pendingNames: {},    // their creators' first names, for the question
+  words: new Map(),    // her word on each shared list: LISTUUID -> { state, at, tag }
+  asking: false,
   items: [],           // index-shaped pieces, with si (sortIndex), st (status), rb (reservedBy), note, _tag
   loaded: false, loading: false, error: null,
   listID: null,        // null = All
@@ -92,8 +98,57 @@ function itemFromRecord(r) {
 function listFromRecord(r) {
   return {
     id: v(r, "listUUID"), name: v(r, "name") || "", isMain: v(r, "isMain") === 1, isPrivate: v(r, "isPrivate") === 1,
-    memberIDs: v(r, "memberIDs") || [], creatorID: v(r, "ownerID"), createdAt: v(r, "createdAt") || 0, recordName: r.recordName, _tag: r.recordChangeTag,
+    memberIDs: v(r, "memberIDs") || [], memberSince: v(r, "memberSince") || [], creatorID: v(r, "ownerID"), createdAt: v(r, "createdAt") || 0, recordName: r.recordName, _tag: r.recordChangeTag,
   };
+}
+
+// ---------------------------------------------------------------------------
+// The door of a shared list, as the app keeps it (WishlistStore, SED-695): a
+// list someone shared with her waits for her yes, and one she refused or
+// left stays out, whatever the creator's record still says. Her word is her
+// own record, `membership-<list>-<her>`: "accepted" or "left", and when.
+// ---------------------------------------------------------------------------
+const ACCEPTANCE_BIRTH = Date.UTC(2026, 8, 17, 12);   // WishlistStore.acceptanceBirth
+/// When she was invited into this list ("<member>|<seconds>"), in ms.
+function invitedAt(l) {
+  for (const e of l.memberSince || []) {
+    const i = String(e).indexOf("|");
+    if (i > 0 && String(e).slice(0, i) === me.id) { const s = Number(String(e).slice(i + 1)); return Number.isFinite(s) ? s * 1000 : null; }
+  }
+  return null;
+}
+/// "in", "asked" or "out" for a list someone else created.
+function doorOf(l, word) {
+  const since = invitedAt(l);
+  // A leave older than a fresh invitation is over (reconcileLeaves).
+  if (word && word.state === "left" && !(since != null && since > word.at)) return "out";
+  // Only an invitation from after the door was born is asked (needsAcceptance).
+  if (since != null && since >= ACCEPTANCE_BIRTH && !(word && word.state === "accepted" && word.at >= since)) return "asked";
+  return "in";
+}
+const membershipName = (l) => `membership-${l.id}-${me.id}`;
+async function sayToList(l, state) {
+  const at = Date.now();
+  const word = me.words.get(String(l.id).toUpperCase());
+  const rec = { recordType: "ListMembership", recordName: membershipName(l),
+    fields: { listUUID: f(l.id, "STRING"), memberID: f(me.id, "STRING"), state: f(state, "STRING"), at: f(at, "TIMESTAMP") } };
+  if (word && word.tag) rec.recordChangeTag = word.tag;
+  const res = await db().saveRecords([rec]);
+  if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
+  me.words.set(String(l.id).toUpperCase(), { state, at, tag: res.records[0] && res.records[0].recordChangeTag });
+}
+/// The app's question, one list at a time: "Mila wants to share the
+/// Christmas list with you." No, Yes.
+function askNextShare() {
+  const l = me.pending[0];
+  if (!l || me.asking) return;
+  me.asking = true;
+  const next = () => { me.asking = false; me.pending = me.pending.filter((x) => x.id !== l.id); paint(); askNextShare(); };
+  alertBox(W.shareAsk(me.pendingNames[l.creatorID] || W.aMember, l.name), "", W.yes, async () => {
+    await sayToList(l, "accepted");
+    me.lists = me.lists.concat([l]).sort((a, b) => a.createdAt - b.createdAt);
+    next();
+  }, { cancelLabel: W.no, onCancel: async () => { await sayToList(l, "left"); next(); } });
 }
 const f = (value, type) => ({ value, type });
 
@@ -123,19 +178,43 @@ async function load() {
       me.items = (page.items || []).map((it, i) => Object.assign({ si: i, st: "available", l: it.l || [] }, it));
       me.lists = [];
     } else {
-      const [items, mine, shared, profiles, member] = await Promise.all([
+      const [items, mine, shared, profiles, member, words] = await Promise.all([
         queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
                  { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset"] }),
         queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
         queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
         queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5 }).catch(() => []),
         getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null),
+        queryAll({ recordType: "ListMembership", filterBy: [{ fieldName: "memberID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => null),
       ]);
       me.items = items.map(itemFromRecord).filter((it) => it.n);
       const lists = mine.map(listFromRecord).filter((l) => l.id);
       const known = new Set(lists.map((l) => l.id));
-      for (const r of shared) { const l = listFromRecord(r); if (l.id && l.creatorID !== me.id && !known.has(l.id)) { known.add(l.id); lists.push(l); } }
+      // Her own word on the lists shared with her: her record only, never the
+      // creator's note of the invitation ("listinvite-…", same type).
+      me.words = new Map();
+      for (const r of words || []) {
+        if (!String(r.recordName || "").startsWith("membership-")) continue;
+        const id = String(v(r, "listUUID") || "").toUpperCase(), state = v(r, "state");
+        if (id && (state === "left" || state === "accepted")) me.words.set(id, { state, at: v(r, "at") || 0, tag: r.recordChangeTag });
+      }
+      // A list someone shared with her passes the door first. When her word
+      // could not be read, none of them shows: a failed read is not a yes.
+      const pending = [];
+      for (const r of words ? shared : []) {
+        const l = listFromRecord(r);
+        if (!l.id || l.creatorID === me.id || known.has(l.id)) continue;
+        known.add(l.id);
+        const door = doorOf(l, me.words.get(String(l.id).toUpperCase()));
+        if (door === "in") lists.push(l); else if (door === "asked") pending.push(l);
+      }
       me.lists = lists.sort((a, b) => a.createdAt - b.createdAt);
+      me.pending = pending;
+      for (const id of new Set(pending.map((l) => l.creatorID).filter((x) => x && !me.pendingNames[x]))) {
+        const pr = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: id } }] }, { resultsLimit: 5, desiredKeys: ["displayName", "handle"] }).catch(() => []);
+        const named = pr.map((r) => v(r, "displayName")).find((n) => n);
+        if (named) me.pendingNames[id] = named;
+      }
       const p = profiles.map((r) => r.fields || {}).find((x) => x.handle && x.handle.value !== "wtd-you") || (profiles[0] && profiles[0].fields) || null;
       const avatar = p && p.avatarAsset && p.avatarAsset.value && p.avatarAsset.value.downloadURL;
       me.profile = {
@@ -151,6 +230,7 @@ async function load() {
   }
   me.loading = false;
   paint();
+  askNextShare();
 }
 
 // ---------------------------------------------------------------------------
@@ -622,16 +702,24 @@ function openEditSheet(it) {
     foot.appendChild(go);
   });
 }
-/// The Mac's alert: a title, a line, Cancel and one act.
-function alertBox(title, body, okLabel, onOk) {
+/// The Mac's alert: a title, a line, Cancel and one act. A question with two
+/// answers (a shared list's Yes and No) names its own Cancel and what it does.
+function alertBox(title, body, okLabel, onOk, { cancelLabel = null, onCancel = null } = {}) {
   const root = $("wAlert");
   root.querySelector(".atitle").textContent = title;
-  root.querySelector(".abody").textContent = body;
+  const line = root.querySelector(".abody"); line.textContent = body; line.hidden = !body;
   const ok = root.querySelector(".aok"); ok.textContent = okLabel; ok.disabled = false;
+  const cancel = root.querySelector(".acancel"); cancel.disabled = false;
+  const plain = cancel.dataset.plain || (cancel.dataset.plain = cancel.textContent);
+  cancel.textContent = cancelLabel || plain;
   root.hidden = false;
-  const close = () => { root.hidden = true; ok.onclick = null; };
-  root.querySelector(".acancel").onclick = close;
-  ok.onclick = async () => { ok.disabled = true; try { await onOk(); close(); } catch (e) { ok.disabled = false; root.querySelector(".abody").textContent = String(e && (e.message || e)); } };
+  const close = () => { root.hidden = true; ok.onclick = null; cancel.onclick = null; cancel.textContent = plain; };
+  const act = (fn) => async () => {
+    ok.disabled = cancel.disabled = true;
+    try { await fn(); close(); } catch (e) { ok.disabled = cancel.disabled = false; line.hidden = false; line.textContent = String(e && (e.message || e)); }
+  };
+  cancel.onclick = onCancel ? act(onCancel) : close;
+  ok.onclick = act(onOk);
 }
 function confirmDelete(it) {
   alertBox(W.deleteAsk, W.deleteBody, it.rf ? W.unwant : W.delete, async () => { await deletePiece(it); closePiece(); });
@@ -694,7 +782,7 @@ function openFilterSheet() {
 // ---------------------------------------------------------------------------
 function signedIn(identity) {
   me.id = identity && identity.userRecordName;
-  me.loaded = false; me.items = []; me.lists = []; me.profile = null;
+  me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false;
   paint();
   if (me.id) load();
   if (window.Friends) window.Friends.onAuth();
