@@ -303,21 +303,30 @@
   /* ---------------------------------------------------------------- */
   /* Wishlist: her header, her list tabs, Sort / Filter, the plus.      */
   /* ---------------------------------------------------------------- */
-  #wDoor { padding-top: 160px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; max-width: 320px; margin: 0 auto; }
-  #wDoor p { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
+  #wDoor, #fDoor { padding-top: 120px; max-width: 320px; margin: 0 auto; }
   /* CloudKit's own buttons stay in the page for their click, out of sight:
-     the member sees Apple's standard Sign in with Apple button. */
+     the member sees the three ways in, as everyone knows them. */
   .ckhidden { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
-  .apple-btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    height: 44px; width: 100%; max-width: 280px; padding: 0 16px; border-radius: 8px;
-    background: #000000; color: #FFFFFF;
-    font-family: -apple-system, system-ui, "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
-    font-size: 17px; font-weight: 500; letter-spacing: -0.2px; white-space: nowrap;
+  .door .doortitle { font-size: 23px; font-weight: 300; letter-spacing: -0.4px; line-height: 29px; color: var(--ink); padding: 0 2px; }
+  .door .ways { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .way { display: flex; align-items: center; justify-content: center; gap: 10px; height: 52px; width: 100%; border-radius: 999px; font-size: 16px; font-weight: 500; white-space: nowrap; transition: opacity 0.12s ease; }
+  .way:active { opacity: 0.72; }
+  .way.apple { background: #000000; color: #FFFFFF; }
+  .way.apple svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+  /* Google's own values for its light button: the text and the one-pixel outline. */
+  .way.plain { background: #FFFFFF; color: #1F1F1F; border: 1px solid #747775; }
+  .way.plain:disabled { opacity: 0.5; }
+  .way.plain svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .way.google { position: relative; overflow: hidden; }
+  .way.google.waiting { opacity: 0.5; }
+  .way.google > svg { fill: none; stroke: none; }
+  /* Google's own button over the pill, unseen and grown to its size: the click is Google's. */
+  .way.google .gsi { position: absolute; inset: 0; opacity: 0.001; display: flex; align-items: center; justify-content: center; transform: scale(1.35); }
+  .doornote { font-size: 13px; color: #8B3A3A; margin-top: 4px; text-align: center; }
+  @media (prefers-color-scheme: dark) {
+    .way.apple { background: #FFFFFF; color: #000000; }
+    .way.plain { background: #131314; color: #E3E3E3; border-color: #8E918F; }
   }
-  .apple-btn:active { opacity: 0.85; }
-  .apple-btn svg { width: 17px; height: 20px; fill: currentColor; flex: none; }
-  @media (prefers-color-scheme: dark) { .apple-btn { background: #FFFFFF; color: #000000; } }
   .wmenubox .wline { display: block; }
   .whdr { display: flex; align-items: center; gap: 12px; padding: 12px 4px 0; }
   .wavatar { width: 40px; height: 40px; border-radius: 24%; background: var(--ivory-deep); color: var(--ink); display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
@@ -467,6 +476,11 @@
   #wEnter .eheard button.on { font-weight: 500; color: #F6F4EE; }
   #wEnter .eheard button + button { border-top: 1px solid rgba(246,244,238,0.14); }
   #wEnter .ewhere { font-size: 16px; font-weight: 400; margin-top: 14px; }
+  /* The code: six digits, spaced. Two quiet words side by side under it. */
+  #wEnter .efield input.ecode { font-size: 30px; letter-spacing: 0.18em; }
+  #wEnter .efield input.ecode::placeholder { letter-spacing: 0; }
+  #wEnter .ewords { display: flex; gap: 22px; }
+  #wEnter .ewords .equiet { margin: 0; }
   /* The welcome: the wordmark inks itself in, left to right. */
   #wEnter .epage.ready { align-items: center; padding-left: 40px; padding-right: 40px; }
   #wEnter .ewelcome { text-align: center; }
@@ -494,8 +508,6 @@
   /* ---------------------------------------------------------------- */
   /* Friends: the newest from friends, her circle, a friend's page.    */
   /* ---------------------------------------------------------------- */
-  #fDoor { padding-top: 160px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; max-width: 320px; margin: 0 auto; }
-  #fDoor p { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
   .fstrip { display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; margin: 10px -16px 0; padding: 0 16px 4px; }
   .fstrip::-webkit-scrollbar { display: none; }
   .ftile { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
@@ -611,8 +623,7 @@
   <!-- Her wishlist -->
   <section id="wishes" hidden>
     <div id="wDoor">
-      <p id="wKeeps"></p>
-      <button type="button" class="apple-btn" id="wApple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span id="wAppleText"></span></button>
+      <div class="door" id="wDoorWays"></div>
       <div id="ckSignIn" class="ckhidden"></div>
     </div>
     <div id="wHome" hidden>
@@ -643,8 +654,7 @@
   <!-- Friends -->
   <section id="friends" hidden>
     <div id="fDoor">
-      <p id="fKeeps"></p>
-      <button type="button" class="apple-btn" id="fApple"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg><span id="fAppleText"></span></button>
+      <div class="door" id="fDoorWays"></div>
     </div>
     <div id="fHome" hidden>
       <div id="fCircle">
@@ -1486,7 +1496,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=9"></script>
-<script src="/feed/friends.js?v=7"></script>
+<script src="/feed/account.js?v=1"></script>
+<script src="/feed/wishes.js?v=10"></script>
+<script src="/feed/friends.js?v=8"></script>
 </body>
 </html>

@@ -31,6 +31,11 @@ const W = FR ? {
   heardTitle: "Comment avez-vous connu Wantd\u00a0?", heardLine: "Je fais Wantd seule. Savoir d’où vous venez m’aide.",
   heard: { "A friend told me": "On m’en a parlé", "The App Store": "L’App Store", "Somewhere else": "Ailleurs" }, where: "Où\u00a0?", cont: "Continuer",
   welcomeTo: "Bienvenue sur", openMyList: "Ouvrir ma liste", connIssue: "Problème de connexion. Réessayez dans un instant.", oneMoment: "Un instant…",
+  everyDevice: "Votre liste d’envies, sur tous vos appareils.", withApple: "Continuer avec Apple", withGoogle: "Continuer avec Google", withEmail: "Continuer par email",
+  yourEmail: "Votre email.", emailLine: "Nous vous envoyons un code à six chiffres. Jamais de mot de passe.", emailPrompt: "vous@exemple.com", sendCode: "Recevoir le code",
+  inbox: "Regardez votre boîte mail.", codeLine: (e) => `Le code envoyé à ${e}. Il vaut 10 minutes.`, codePrompt: "6 chiffres", codeAgain: "Renvoyer un code", otherEmail: "Une autre adresse", back: "Retour",
+  codeWrong: "Ce n’est pas le bon code. Réessayez.", codeExpired: "Ce code a expiré. Demandez-en un autre.", emailBad: "Cela ne ressemble pas à une adresse email.", tooMany: "Trop de codes demandés. Patientez un quart d’heure.",
+  unreachable: "Wantd est injoignable. Vérifiez votre connexion et réessayez.", googleFailed: "Google ne vous a pas laissée entrer cette fois. Réessayez.",
 } : {
   keeps: "Wantd keeps your list in iCloud.", wishes: "wants", founder: "Founder",
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
@@ -56,6 +61,11 @@ const W = FR ? {
   heardTitle: "How did you hear about us?", heardLine: "I make Wantd on my own. Knowing where you came from helps.",
   heard: {}, where: "Where?", cont: "Continue",
   welcomeTo: "Welcome to", openMyList: "Open my list", connIssue: "Connection issue. Try again in a moment.", oneMoment: "One moment...",
+  everyDevice: "Your wishlist, on every device.", withApple: "Continue with Apple", withGoogle: "Continue with Google", withEmail: "Continue with email",
+  yourEmail: "Your email.", emailLine: "We'll send you a six-digit code. No password, ever.", emailPrompt: "you@example.com", sendCode: "Send me the code",
+  inbox: "Check your inbox.", codeLine: (e) => `The code we sent to ${e}. It works for 10 minutes.`, codePrompt: "6 digits", codeAgain: "Send another code", otherEmail: "Another email", back: "Back",
+  codeWrong: "That's not the code. Try again.", codeExpired: "This code has expired. Send another one.", emailBad: "That doesn't look like an email address.", tooMany: "Too many codes asked. Wait a quarter of an hour.",
+  unreachable: "Couldn't reach Wantd. Check your connection and try again.", googleFailed: "Google didn't let you in this time. Try again.",
 };
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
@@ -66,6 +76,7 @@ const CURRENCIES = ["EUR", "GBP", "USD", "CHF", "CAD", "AUD", "SEK", "NOK", "DKK
 // ---------------------------------------------------------------------------
 const me = {
   id: null,            // her ownerID, CKContainer.userRecordID().recordName
+  via: null,           // "ck": Apple, the page reads iCloud as herself; "bridge": Google or email, through the server
   profile: null,       // { h, n, fr, fg, avatarURL, emoji }
   lists: [],           // { id, name, isMain, isPrivate, memberIDs, creatorID, createdAt, recordName, _tag }
   pending: [],         // lists someone shared with her, still waiting for her yes
@@ -87,7 +98,12 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 
 const container = () => (window.CloudKit ? CloudKit.getDefaultContainer() : null);
 const db = () => container().publicCloudDatabase;
-const DEMO = LOCAL;   // on a local try the page shows the founder's public pieces, read only
+// On a local try the page shows the founder's public pieces, read only; with
+// ?bridge, or once a bridge session is open, it behaves as the real site
+// does (the doors, then a local bridge on CloudKit Development).
+const DEMO = LOCAL && !new URLSearchParams(location.search).has("bridge") && !(window.Account && window.Account.identity());
+const viaBridge = () => me.via === "bridge";
+const Bridge = () => window.Account.bridge;
 
 // ---------------------------------------------------------------------------
 // Records <-> the index's shape the feed page already draws.
@@ -140,6 +156,7 @@ function doorOf(l, word) {
 const membershipName = (l) => `membership-${l.id}-${me.id}`;
 async function sayToList(l, state) {
   const at = Date.now();
+  if (viaBridge()) { await Bridge().sayToList(l.id, state, at); me.words.set(String(l.id).toUpperCase(), { state, at, tag: null }); return; }
   const word = me.words.get(String(l.id).toUpperCase());
   const rec = { recordType: "ListMembership", recordName: membershipName(l),
     fields: { listUUID: f(l.id, "STRING"), memberID: f(me.id, "STRING"), state: f(state, "STRING"), at: f(at, "TIMESTAMP") } };
@@ -189,33 +206,47 @@ async function load() {
       me.items = (page.items || []).map((it, i) => Object.assign({ si: i, st: "available", l: it.l || [] }, it));
       me.lists = [];
     } else {
-      const [items, mine, shared, profilesRead, member, words] = await Promise.all([
-        queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
-                 { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset"] }),
-        queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
-        queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
-        // null when the read failed: a profile that could not be read is not
-        // "she has none" (ensureProfileOnce), and nobody is walked in on it.
-        queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5 }).catch(() => null),
-        getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null),
-        queryAll({ recordType: "ListMembership", filterBy: [{ fieldName: "memberID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => null),
-      ]);
-      me.items = items.map(itemFromRecord).filter((it) => it.n);
-      const lists = mine.map(listFromRecord).filter((l) => l.id);
-      const known = new Set(lists.map((l) => l.id));
-      // Her own word on the lists shared with her: her record only, never the
-      // creator's note of the invitation ("listinvite-…", same type).
-      me.words = new Map();
-      for (const r of words || []) {
-        if (!String(r.recordName || "").startsWith("membership-")) continue;
-        const id = String(v(r, "listUUID") || "").toUpperCase(), state = v(r, "state");
-        if (id && (state === "left" || state === "accepted")) me.words.set(id, { state, at: v(r, "at") || 0, tag: r.recordChangeTag });
+      // Her things, read as herself in iCloud (Apple) or through the bridge
+      // (Google, email): the same pieces, lists, words and profile either way.
+      let items, lists, sharedLists, words, profilesRead, member;
+      if (viaBridge()) {
+        const [mine, w, m] = await Promise.all([Bridge().mine(), Bridge().words().catch(() => null), getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null)]);
+        items = mine.items; lists = mine.lists; sharedLists = mine.shared; words = w; member = m;
+        profilesRead = mine.profile ? [mine.profile] : [];
+      } else {
+        const [itemsR, mineR, sharedR, profR, m, wordsR] = await Promise.all([
+          queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
+                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset"] }),
+          queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
+          queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
+          // null when the read failed: a profile that could not be read is not
+          // "she has none" (ensureProfileOnce), and nobody is walked in on it.
+          queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5 }).catch(() => null),
+          getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null),
+          queryAll({ recordType: "ListMembership", filterBy: [{ fieldName: "memberID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => null),
+        ]);
+        items = itemsR.map(itemFromRecord); lists = mineR.map(listFromRecord); sharedLists = sharedR.map(listFromRecord); member = m;
+        // Her own word on the lists shared with her: her record only, never the
+        // creator's note of the invitation ("listinvite-…", same type).
+        words = wordsR ? new Map() : null;
+        for (const r of wordsR || []) {
+          if (!String(r.recordName || "").startsWith("membership-")) continue;
+          const id = String(v(r, "listUUID") || "").toUpperCase(), state = v(r, "state");
+          if (id && (state === "left" || state === "accepted")) words.set(id, { state, at: v(r, "at") || 0, tag: r.recordChangeTag });
+        }
+        profilesRead = profR && profR.map((r) => {
+          const x = r.fields || {}; const asset = x.avatarAsset && x.avatarAsset.value && x.avatarAsset.value.downloadURL;
+          return { h: (x.handle && x.handle.value) || "", n: (x.displayName && x.displayName.value) || "", avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (x.avatarEmoji && x.avatarEmoji.value) || null };
+        });
       }
+      me.items = items.filter((it) => it.n);
+      lists = lists.filter((l) => l.id);
+      const known = new Set(lists.map((l) => l.id));
+      me.words = words || new Map();
       // A list someone shared with her passes the door first. When her word
       // could not be read, none of them shows: a failed read is not a yes.
       const pending = [];
-      for (const r of words ? shared : []) {
-        const l = listFromRecord(r);
+      for (const l of words ? sharedLists : []) {
         if (!l.id || l.creatorID === me.id || known.has(l.id)) continue;
         known.add(l.id);
         const door = doorOf(l, me.words.get(String(l.id).toUpperCase()));
@@ -223,13 +254,16 @@ async function load() {
       }
       me.lists = lists.sort((a, b) => a.createdAt - b.createdAt);
       me.pending = pending;
-      for (const id of new Set(pending.map((l) => l.creatorID).filter((x) => x && !me.pendingNames[x]))) {
+      const unnamed = [...new Set(pending.map((l) => l.creatorID).filter((x) => x && !me.pendingNames[x]))];
+      if (unnamed.length && viaBridge()) {
+        for (const pr of await Bridge().profiles(unnamed).catch(() => [])) if (pr.o && pr.n) me.pendingNames[pr.o] = pr.n;
+      } else for (const id of unnamed) {
         const pr = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: id } }] }, { resultsLimit: 5, desiredKeys: ["displayName", "handle"] }).catch(() => []);
         const named = pr.map((r) => v(r, "displayName")).find((n) => n);
         if (named) me.pendingNames[id] = named;
       }
-      // Someone new (MemberDoor.existingProfiles): CloudKit could look and
-      // holds no profile of hers, and the server knows no member by her id.
+      // Someone new (MemberDoor.existingProfiles): her profile could be read and
+      // there is none, and the server knows no member by her id.
       const onServer = !!(member && member.profile && member.profile.h);
       let profiles = profilesRead || [], unsure = !profilesRead;
       if (profilesRead && !profilesRead.length && !onServer && keptHandle()) {
@@ -238,13 +272,12 @@ async function load() {
         else if (st.state === "error") unsure = true;
       }
       me.newcomer = !unsure && !profiles.length && !onServer;
-      const p = profiles.map((r) => r.fields || {}).find((x) => x.handle && x.handle.value !== "wtd-you") || (profiles[0] && profiles[0].fields) || null;
-      const avatar = p && p.avatarAsset && p.avatarAsset.value && p.avatarAsset.value.downloadURL;
+      const p = profiles.find((x) => x.h && x.h !== "wtd-you") || profiles[0] || null;
       me.profile = {
-        h: (p && p.handle && p.handle.value) || (member && member.profile && member.profile.h) || "",
-        n: (p && p.displayName && p.displayName.value) || (member && member.profile && member.profile.n) || "",
+        h: (p && p.h) || (member && member.profile && member.profile.h) || "",
+        n: (p && p.n) || (member && member.profile && member.profile.n) || "",
         fr: (member && member.profile && member.profile.fr) || 0, fg: (member && member.profile && member.profile.fg) || 0,
-        avatarURL: avatar ? String(avatar).replace("${f}", "avatar.jpg") : null, emoji: p && p.avatarEmoji && p.avatarEmoji.value,
+        avatarURL: (p && p.avatarURL) || null, emoji: (p && p.emoji) || null,
       };
     }
     me.loaded = true;
@@ -574,6 +607,22 @@ async function savePiece(d, selected) {
   const listIDs = selected.size ? [...selected] : (main ? [main.id] : []);
   const minIndex = me.items.reduce((m, it) => Math.min(m, it.si), 0);
   const id = crypto.randomUUID().toUpperCase();
+  if (viaBridge()) {
+    // The bridge writes the piece as the app does, her handle and its
+    // visibility included (a public piece is flagged a moment later, as here).
+    const body = { name: d.n.slice(0, 300), urlString: d.u || "", addedAt: Date.now(), sortIndex: minIndex - 1, imageURLString: d.i || null, priceText: null };
+    if (d.s) body.store = d.s;
+    if (d.b) body.brand = d.b;
+    if (typeof d.pa === "number" && d.pc) { body.priceAmount = d.pa; body.priceCurrency = d.pc; body.priceText = money(d.pa, d.pc); }
+    if (listIDs.length) body.listIDs = listIDs;
+    if (d.note) body.personalNote = d.note;
+    if (d.ic && d.ic.length) body.imageCandidateURLs = d.ic.slice(0, 20);
+    if (d.rf) body.rewantedFrom = d.rf;
+    const saved = await Bridge().saveItem(id, body);
+    me.items.unshift(saved);
+    paint();
+    return saved;
+  }
   const fields = {
     name: f(d.n.slice(0, 300), "STRING"),
     urlString: f(d.u || "", "STRING"),
@@ -635,11 +684,17 @@ async function saveList(d, existing) {
     isMain: f(d.isMain ? 1 : 0, "INT64"), isPrivate: f(d.isPrivate ? 1 : 0, "INT64"),
     createdAt: f(existing ? existing.createdAt : Date.now(), "TIMESTAMP"),
   };
-  const rec = { recordType: "List", recordName: existing ? existing.recordName : `list-${me.id}-${id}`, fields };
-  if (existing) rec.recordChangeTag = existing._tag;
-  const res = await db().saveRecords([rec]);
-  if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
-  const l = listFromRecord(res.records[0]);
+  let l;
+  if (viaBridge()) {
+    l = await Bridge().saveList(id, { name: d.name, isMain: !!d.isMain, isPrivate: !!d.isPrivate, createdAt: existing ? existing.createdAt : Date.now(),
+      memberIDs: existing ? existing.memberIDs : [] });
+  } else {
+    const rec = { recordType: "List", recordName: existing ? existing.recordName : `list-${me.id}-${id}`, fields };
+    if (existing) rec.recordChangeTag = existing._tag;
+    const res = await db().saveRecords([rec]);
+    if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
+    l = listFromRecord(res.records[0]);
+  }
   const i = me.lists.findIndex((x) => x.id === l.id);
   if (i >= 0) me.lists[i] = Object.assign(me.lists[i], l); else me.lists.push(l);
   paint();
@@ -667,15 +722,33 @@ async function updatePiece(it, read) {
   // A shop photo chosen over her own: the piece stops claiming an own photo.
   if (it.op === 1 && read.picked) fields.ownPhoto = f(0, "INT64");
   if (read.note) fields.personalNote = f(read.note, "STRING"); else if (it.note) fields.personalNote = f(null, "STRING");
-  const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields }]);
-  if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
-  const fresh = itemFromRecord(res.records[0]);
+  let fresh;
+  if (viaBridge()) {
+    // The same fields, as the bridge takes them (a price is cleared only when
+    // she cleared it by hand, as on iPhone).
+    const body = {};
+    for (const k of Object.keys(fields)) body[k] = fields[k].value;
+    if ("priceAmount" in body && body.priceAmount === null) body.priceEditedByHand = true;
+    if ("personalNote" in body && body.personalNote === null) body.personalNote = "";
+    fresh = await Bridge().saveItem(it.id, body);
+  } else {
+    const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields }]);
+    if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
+    fresh = itemFromRecord(res.records[0]);
+  }
   Object.assign(it, fresh);
   paint();
   return it;
 }
 
 async function deletePiece(it) {
+  if (viaBridge()) {
+    // The bridge takes her want back with it, as WishlistStore.delete does.
+    await Bridge().deleteItem(it.id);
+    me.items = me.items.filter((x) => x.id !== it.id);
+    paint();
+    return;
+  }
   const res = await db().deleteRecords([{ recordName: it.id, recordChangeTag: it._tag }]);
   if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
   me.items = me.items.filter((x) => x.id !== it.id);
@@ -724,7 +797,15 @@ function openListSheet(existing, onCreated) {
           // none is left pointing at a list that is gone.
           const main = me.lists.find((l) => l.isMain && l.creatorID === me.id);
           const moved = me.items.filter((x) => x.o === me.id && (x.l || []).includes(existing.id));
-          for (let i = 0; i < moved.length; i += 50) {
+          if (viaBridge()) {
+            for (const x of moved) {
+              let ids = (x.l || []).filter((id) => id !== existing.id);
+              if (!ids.length && main) ids = [main.id];
+              const fresh = await Bridge().saveItem(x.id, { listIDs: ids });
+              x.l = fresh.l;
+            }
+            await Bridge().deleteList(existing.id);
+          } else for (let i = 0; i < moved.length; i += 50) {
             const recs = moved.slice(i, i + 50).map((x) => {
               let ids = (x.l || []).filter((id) => id !== existing.id);
               if (!ids.length && main) ids = [main.id];
@@ -735,8 +816,10 @@ function openListSheet(existing, onCreated) {
             if (r1.hasErrors) throw new Error(r1.errors.map((e) => e.ckErrorCode).join(", "));
             for (const r of r1.records) { const x = me.items.find((y) => y.id === r.recordName); if (x) { x._tag = r.recordChangeTag; x.l = (r.fields.listIDs && r.fields.listIDs.value) || []; } }
           }
-          const res = await db().deleteRecords([{ recordName: existing.recordName, recordChangeTag: existing._tag }]);
-          if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
+          if (!viaBridge()) {
+            const res = await db().deleteRecords([{ recordName: existing.recordName, recordChangeTag: existing._tag }]);
+            if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
+          }
           me.lists = me.lists.filter((x) => x.id !== existing.id);
           if (me.listID === existing.id) me.listID = null;
           paint(); closeSheet();
@@ -817,14 +900,15 @@ function wireControls() {
   $("wFilter").addEventListener("click", openFilterSheet);
   $("wAdd").addEventListener("click", openAddSheet);
   $("wAdd").setAttribute("aria-label", W.addTitle);
-  $("wKeeps").textContent = W.keeps;
+  buildDoor($("wDoorWays"));
   $("wFounder").textContent = W.founder;
   $("wMenu").addEventListener("click", () => { const m = $("wMenuBox"); m.hidden = !m.hidden; });
-  // Apple's standard button, and CloudKit's own behind it for the click.
-  $("wAppleText").textContent = W.signIn;
-  $("wApple").addEventListener("click", () => { const b = $("ckSignIn").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); });
   $("wSignOut").textContent = W.signOut;
-  $("wSignOut").addEventListener("click", () => { const b = $("ckSignOut").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); $("wMenuBox").hidden = true; });
+  $("wSignOut").addEventListener("click", () => {
+    $("wMenuBox").hidden = true;
+    if (viaBridge()) { window.Account.signOut(); return; }
+    const b = $("ckSignOut").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click();
+  });
 }
 function openFilterSheet() {
   openSheet((panel) => {
@@ -866,10 +950,19 @@ const isPlaceholder = (h, n) => n === "You" || h === "wtd-you" || /^wtd-you\d+$/
 /// A handle is free, or hers already (checkHandleAvailability). A read that
 /// failed is "error", never "taken" and never "free".
 async function handleState(handle) {
+  if (viaBridge()) {
+    try {
+      // Free, or hers already; her own record read back when it is hers.
+      if (!(await Bridge().handleFree(handle))) return { state: "taken" };
+      const meR = await Bridge().me();
+      const mine = meR.profile && meR.profile.handle === handle;
+      return mine ? { state: "available", record: { h: meR.profile.handle, n: meR.profile.displayName, avatarURL: meR.profile.avatarURL || null, emoji: meR.profile.avatarEmoji || null } } : { state: "available" };
+    } catch (e) { return { state: "error" }; }
+  }
   try {
     const res = await db().fetchRecords([{ recordName: "profile-" + handle }], { desiredKeys: ["ownerID", "handle", "displayName"] });
     const r = res.records && res.records[0];
-    if (r && r.fields) return { state: v(r, "ownerID") === me.id ? "available" : "taken", record: r };
+    if (r && r.fields) return { state: v(r, "ownerID") === me.id ? "available" : "taken", record: { h: v(r, "handle"), n: v(r, "displayName"), avatarURL: null, emoji: null } };
     const err = res.errors && res.errors[0];
     return { state: err && err.ckErrorCode === "NOT_FOUND" ? "available" : "error" };
   } catch (e) {
@@ -900,6 +993,10 @@ async function pickHandle(name) {
 /// A plain insert the server refuses when someone got there first
 /// (claimProfile): never written over another member's record.
 async function claimProfile(handle, name) {
+  if (viaBridge()) {
+    try { await Bridge().putProfile({ handle, displayName: name }); return "available"; }
+    catch (e) { return e && e.code === "handle_taken" ? "taken" : "error"; }
+  }
   let res = null;
   try {
     res = await db().saveRecords([{ recordType: "Profile", recordName: "profile-" + handle,
@@ -917,8 +1014,12 @@ function ensureProfile() {
     const name = entry.name.trim();
     if (!name || name === "You") return false;
     try {
-      const mine = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5, desiredKeys: ["handle", "displayName"] });
-      const kept = mine.map((r) => ({ h: v(r, "handle"), n: v(r, "displayName") })).find((x) => x.h && !isPlaceholder(x.h, x.n));
+      let kept;
+      if (viaBridge()) { const meR = await Bridge().me(); kept = meR.profile && meR.profile.handle ? { h: meR.profile.handle } : null; }
+      else {
+        const mine = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5, desiredKeys: ["handle", "displayName"] });
+        kept = mine.map((r) => ({ h: v(r, "handle"), n: v(r, "displayName") })).find((x) => x.h && !isPlaceholder(x.h, x.n));
+      }
       if (kept) { keepHandle(kept.h); return true; }
       for (let i = 0; i < 3; i++) {
         const h = await pickHandle(name);
@@ -933,6 +1034,14 @@ function ensureProfile() {
 }
 /// Her name as she last typed it and her birthday, onto her own record.
 async function writeProfileEdits() {
+  const name0 = entry.name.trim();
+  if (viaBridge()) {
+    const body = { handle: entry.handle, displayName: name0 && name0 !== "You" ? name0 : undefined };
+    if (body.displayName === undefined) body.displayName = ((await Bridge().me()).profile || {}).displayName || name0;
+    if (entry.hasBirthday && entry.birthday) body.birthday = entry.birthday.getTime();
+    await Bridge().putProfile(body);
+    return;
+  }
   const res = await db().fetchRecords([{ recordName: "profile-" + entry.handle }]);
   const r = res.records && res.records[0];
   if (!r || !r.fields || v(r, "ownerID") !== me.id) throw new Error("profile");
@@ -947,6 +1056,13 @@ async function writeProfileEdits() {
 /// so the follow can name who arrived. Written once, here, and never again.
 async function followFounder() {
   if (me.id === FOUNDER) return false;
+  if (viaBridge()) {
+    for (let i = 0; i < 3; i++) {
+      try { await Bridge().follow(FOUNDER); return true; } catch (e) {}
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    return false;
+  }
   const make = (named) => {
     const fields = { followerID: f(me.id, "STRING"), followedID: f(FOUNDER, "STRING"), status: f("accepted", "STRING") };
     if (named && entry.handle) fields.followerHandle = f(entry.handle, "STRING");
@@ -965,6 +1081,7 @@ function sendHeard() {
   entry.heardSent = true;
   const other = entry.other.trim();
   const answer = entry.heard === "Somewhere else" && other ? "Somewhere else: " + other : entry.heard;
+  if (viaBridge()) { ensureProfile().then(() => Bridge().feedback("Heard: " + answer)).catch(() => {}); return; }
   ensureProfile().then(() => db().saveRecords([{ recordType: "Feedback", recordName: "feedback-" + crypto.randomUUID().toUpperCase(),
     fields: { text: f("Heard: " + answer, "STRING"), senderID: f(me.id, "STRING"), senderHandle: f(entry.handle || "", "STRING"), appVersion: f("web", "STRING"), sentAt: f(Date.now(), "TIMESTAMP") } }])).catch(() => {});
 }
@@ -1201,6 +1318,7 @@ function readyScreen() {
 // ---------------------------------------------------------------------------
 function signedIn(identity) {
   me.id = identity && identity.userRecordName;
+  me.via = me.id ? (identity.via === "bridge" ? "bridge" : "ck") : null;
   me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
   if (!entry.preview) closeEntrance();
   paint();
@@ -1210,21 +1328,155 @@ function signedIn(identity) {
   if (window.wantdBlocks) window.wantdBlocks.drop();
   if (window.Friends) window.Friends.onAuth();
 }
+/// The bridge's session as the page's identity, when she came in by Google
+/// or email; it wins over a CloudKit session left in this browser.
+const bridgeIdentity = () => { const a = window.Account && window.Account.identity(); return a ? { userRecordName: a.id, via: "bridge" } : null; };
 function watchAuth() {
   if (DEMO) { signedIn({ userRecordName: FOUNDER }); return; }
+  let ck = null;
+  window.Account.onChange(() => { const b = bridgeIdentity(); if (b) signedIn(b); else if (me.via === "bridge" || !me.id) signedIn(ck); });
+  // A bridge session is hers at once, without waiting for CloudKit JS.
+  const b0 = bridgeIdentity();
+  if (b0) signedIn(b0);
   const tick = () => {
     const a = window.wantdAuth;
     if (!a || !a.ready) { setTimeout(tick, 200); return; }
-    signedIn(a.identity);
+    ck = a.identity;
+    if (!bridgeIdentity()) signedIn(ck);
     const c = container();
     if (!c) return;
     const loop = () => {
-      c.whenUserSignsIn().then((id) => { signedIn(id); loop2(); }).catch(() => {});
+      c.whenUserSignsIn().then((id) => { ck = id; if (!bridgeIdentity()) signedIn(id); loop2(); }).catch(() => {});
     };
-    const loop2 = () => { c.whenUserSignsOut().then(() => { signedIn(null); loop(); }).catch(() => {}); };
+    const loop2 = () => { c.whenUserSignsOut().then(() => { ck = null; if (me.via === "ck") signedIn(null); loop(); }).catch(() => {}); };
     if (a.identity) loop2(); else loop();
   };
   tick();
+}
+
+// ---------------------------------------------------------------------------
+// The doors, as everyone knows them (the Android sheet Agathe validated on
+// 9 November 2026): Apple's black button with its logo, Google's own, the
+// email one with an envelope, under "Your wishlist, on every device."
+// ---------------------------------------------------------------------------
+const APPLE_LOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
+const GOOGLE_G = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+const MAIL_ICON = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2" y="4.5" width="16" height="11" rx="2"/><path d="M2.5 6l7.5 5.5L17.5 6"/></svg>';
+/// The door of a tab: built once per host, the same three ways in.
+function buildDoor(host) {
+  host.innerHTML = "";
+  host.appendChild(el("h2", "doortitle", W.everyDevice));
+  const ways = el("div", "ways");
+  const apple = el("button", "way apple"); apple.type = "button"; apple.innerHTML = APPLE_LOGO; apple.appendChild(el("span", null, W.withApple));
+  apple.addEventListener("click", () => { const b = $("ckSignIn").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); });
+  ways.appendChild(apple);
+  // Google's: the same pill as the others, the official "G", and Google's
+  // own button laid over it, unseen, so the click is Google's.
+  const google = el("div", "way plain google"); google.innerHTML = GOOGLE_G; google.appendChild(el("span", null, W.withGoogle));
+  const gsi = el("div", "gsi"); google.appendChild(gsi);
+  ways.appendChild(google);
+  const mail = el("button", "way plain"); mail.type = "button"; mail.innerHTML = MAIL_ICON; mail.appendChild(el("span", null, W.withEmail));
+  mail.addEventListener("click", () => openEmailDoor());
+  ways.appendChild(mail);
+  const note = el("p", "doornote"); note.hidden = true; note.setAttribute("role", "alert"); ways.appendChild(note);
+  host.appendChild(ways);
+  google.classList.add("waiting");
+  if (!DEMO) window.Account.googleButton(gsi, (err) => { note.hidden = !err; if (err) note.textContent = err && err.code === "unreachable" ? W.unreachable : W.googleFailed; }).then(() => google.classList.remove("waiting")).catch(() => {});
+}
+
+// Her email, then the code (the Android screens of SED-948), on the same
+// cobalt card as the entrance; a right code opens her session and the page
+// takes it from there (a member straight in, someone new to the entrance).
+const looksLikeEmail = (t) => t.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(t);
+function openEmailDoor() {
+  if (entry.open) return;
+  Object.assign(entry, { open: true, preview: false, email: "" });
+  closeSheet(true);
+  const root = $("wEnter");
+  root.innerHTML = ""; root.classList.remove("leaving"); root.hidden = false;
+  document.body.style.overflow = "hidden";
+  emailScreen();
+}
+function leaveDoor() { closeEntrance(); }
+function emailScreen(error) {
+  enterPage((page) => {
+    page.appendChild(setIn(el("div", "eword", "Wantd."), 0.04));
+    page.appendChild(cardSpace());
+    page.appendChild(setIn(el("h1", "etitle", W.yourEmail), 0.12));
+    page.appendChild(setIn(el("p", "eline", W.emailLine), 0.20));
+    const field = setIn(el("div", "efield"), 0.26);
+    const input = el("input"); input.type = "email"; input.placeholder = W.emailPrompt; input.value = entry.email || ""; input.maxLength = 200;
+    input.autocomplete = "email"; input.autocapitalize = "none"; input.spellcheck = false; input.inputMode = "email"; input.enterKeyHint = "send"; input.setAttribute("aria-label", W.yourEmail);
+    field.appendChild(input); field.appendChild(el("div", "rule"));
+    page.appendChild(field);
+    const err = el("div", "eerror"); err.hidden = !error; err.textContent = error || ""; err.setAttribute("role", "alert"); err.style.marginTop = "18px"; page.appendChild(err);
+    page.appendChild(cardSpace());
+    let busy = false;
+    const go = setIn(cardBar(W.sendCode, async () => {
+      const t = input.value.trim();
+      if (busy || !looksLikeEmail(t)) return;
+      busy = true; go.textContent = W.oneMoment; go.ready(false); go.classList.add("ready"); err.hidden = true;
+      try {
+        entry.email = t;
+        await window.Account.requestCode(t);
+        codeScreen();
+      } catch (e) {
+        busy = false; go.textContent = W.sendCode; go.ready(true);
+        err.textContent = e && e.status === 429 ? W.tooMany : e && e.code === "email" ? W.emailBad : W.unreachable; err.hidden = false;
+      }
+    }), 0.32);
+    const sync = () => { const t = input.value.trim(); field.classList.toggle("filled", !!t); go.ready(!busy && looksLikeEmail(t)); };
+    input.addEventListener("input", sync);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !go.disabled) { e.preventDefault(); go.click(); } });
+    sync();
+    page.appendChild(go);
+    const back = setIn(el("button", "equiet", W.back), 0.38); back.type = "button"; back.addEventListener("click", leaveDoor); page.appendChild(back);
+    if (REGULAR.matches) setTimeout(() => input.focus({ preventScroll: true }), 400);
+  });
+}
+function codeScreen() {
+  enterPage((page) => {
+    page.appendChild(setIn(el("div", "eword", "Wantd."), 0.04));
+    page.appendChild(cardSpace());
+    page.appendChild(setIn(el("h1", "etitle", W.inbox), 0.12));
+    page.appendChild(setIn(el("p", "eline", W.codeLine(entry.email)), 0.20));
+    const field = setIn(el("div", "efield"), 0.26);
+    const input = el("input"); input.type = "text"; input.placeholder = W.codePrompt; input.maxLength = 6; input.className = "ecode";
+    input.autocomplete = "one-time-code"; input.inputMode = "numeric"; input.pattern = "[0-9]*"; input.setAttribute("aria-label", W.codePrompt);
+    field.appendChild(input); field.appendChild(el("div", "rule"));
+    page.appendChild(field);
+    const err = el("div", "eerror"); err.hidden = true; err.setAttribute("role", "alert"); err.style.marginTop = "18px"; page.appendChild(err);
+    page.appendChild(cardSpace());
+    let busy = false;
+    // Six digits typed: checked at once, nothing to press.
+    const verify = async () => {
+      const code = input.value.replace(/\D/g, "");
+      if (busy || code.length !== 6) return;
+      busy = true; err.hidden = true; again.textContent = W.oneMoment;
+      try {
+        await window.Account.verifyCode(entry.email, code);
+        // Her session is open: the page signs her in (watchAuth), the card goes.
+        leaveDoor();
+      } catch (e) {
+        busy = false; again.textContent = W.codeAgain;
+        err.textContent = e && e.detail === "code_expired" ? W.codeExpired : e && e.detail === "code_wrong" ? W.codeWrong : e && e.code === "unreachable" ? W.unreachable : W.codeWrong;
+        err.hidden = false; input.value = ""; input.focus();
+      }
+    };
+    input.addEventListener("input", () => { input.value = input.value.replace(/\D/g, "").slice(0, 6); field.classList.toggle("filled", !!input.value); if (input.value.length === 6) verify(); });
+    const words = setIn(el("div", "ewords"), 0.32);
+    const again = el("button", "equiet"); again.type = "button"; again.textContent = W.codeAgain;
+    again.addEventListener("click", async () => {
+      if (busy) return;
+      busy = true; again.textContent = W.oneMoment; err.hidden = true;
+      try { await window.Account.requestCode(entry.email); } catch (e) { err.textContent = e && e.status === 429 ? W.tooMany : W.unreachable; err.hidden = false; }
+      busy = false; again.textContent = W.codeAgain;
+    });
+    const other = el("button", "equiet"); other.type = "button"; other.textContent = W.otherEmail; other.addEventListener("click", () => emailScreen());
+    words.appendChild(again); words.appendChild(other);
+    page.appendChild(words);
+    setTimeout(() => input.focus({ preventScroll: true }), 400);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1240,7 +1492,7 @@ window.Wishes = {
   wake() { if (!wired) { wired = true; wireControls(); watchAuth(); } },
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
-  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO,
+  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
          listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });

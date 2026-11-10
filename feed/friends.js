@@ -65,6 +65,8 @@ const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceC
 // ---------------------------------------------------------------------------
 // State.
 // ---------------------------------------------------------------------------
+const viaBridge = () => K.viaBridge();
+const Bridge = () => window.Account.bridge;
 const circle = { loaded: false, loading: false, error: null, following: [], mutual: new Set(), friends: [], pending: [], at: 0 };
 const visit = { handle: "", owner: "", profile: null, lists: [], items: [], listID: null, shelf: false, sort: "manual", loading: false, notFound: false, seq: 0, following: false };
 // Who she reported: the feed page keeps the list, under her own id.
@@ -150,8 +152,14 @@ async function loadCircle() {
   circle.loading = true; circle.error = null; paintCircle();
   try {
     // On a local try, three members of the community stand in for her circle.
-    const following = K.DEMO ? ((await getJSON("/people?q=mar&limit=3")).people || []).map((p) => p.o) : await followedIDs();
-    const mutual = K.DEMO ? new Set(following) : await mutualIDs(following);
+    let following, mutual;
+    if (K.DEMO) { following = ((await getJSON("/people?q=mar&limit=3")).people || []).map((p) => p.o); mutual = new Set(following); }
+    else if (viaBridge()) {
+      // The bridge answers the Friends page in one question (FriendsView.load).
+      const fr = await Bridge().friends();
+      mutual = new Set((fr.friends || []).map((x) => x.profile && x.profile.ownerID).filter(Boolean));
+      following = [...mutual].concat((fr.pending || []).map((p) => p.ownerID).filter(Boolean));
+    } else { following = await followedIDs(); mutual = await mutualIDs(following); }
     const friendIDs = [...mutual].filter((o) => !blocked.has(o));
     const pendingIDs = following.filter((id) => !mutual.has(id));
     const [pages, faces] = await Promise.all([circlePages(friendIDs.concat(pendingIDs)), portraits(friendIDs.concat(pendingIDs))]);
@@ -203,6 +211,10 @@ async function portraits(owners) {
   if (K.DEMO || !owners.length) return out;
   for (let i = 0; i < owners.length; i += 100) {
     const chunk = owners.slice(i, i + 100);
+    if (viaBridge()) {
+      try { for (const p of await Bridge().profiles(chunk)) if (p.o) out[p.o] = { avatarURL: p.avatarURL, e: p.emoji }; } catch (e) { console.log("portraits failed", e); }
+      continue;
+    }
     try {
       const rows = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "IN", fieldValue: { value: chunk } }] }, { resultsLimit: 200, desiredKeys: ["ownerID", "handle", "avatarAsset", "avatarEmoji"] });
       for (const r of rows) {
@@ -341,6 +353,20 @@ async function openProfile(handle) {
     visit.items = ((page && page.items) || []).map((it, i) => Object.assign({ si: i, st: "available", l: it.l || [] }, it));
     visit.loading = false; paintVisit(); return;
   }
+  if (viaBridge()) {
+    try {
+      const [page, following] = await Promise.all([Bridge().profile(handle), circle.loaded ? Promise.resolve(null) : Bridge().isFollowing(person.o).catch(() => null)]);
+      if (seq !== visit.seq) return;
+      // The bridge already keeps her private lists and their pieces with her.
+      visit.lists = page.lists.filter((l) => !l.isPrivate && !l.isMain).sort((a, b) => a.createdAt - b.createdAt);
+      visit.items = page.items.filter((it) => it.n && it.u !== undefined);
+      if (page.profile && page.profile.avatarURL) visit.profile.avatarURL = page.profile.avatarURL;
+      if (following != null) visit.following = following;
+    } catch (e) { console.log("visit load failed", e); }
+    visit.loading = false;
+    paintVisit();
+    return;
+  }
   try {
     const [items, lists, profiles, followRows] = await Promise.all([
       queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 200, desiredKeys: ITEM_KEYS }),
@@ -412,7 +438,10 @@ async function toggleFollow() {
   visit.following = !was; visit.profile.fr = Math.max(0, (visit.profile.fr || 0) + (was ? -1 : 1)); paintVisit();
   try {
     const name = `follow-${me().id}-${visit.owner}`;
-    if (was) {
+    if (viaBridge()) {
+      if (was) { await Bridge().unfollow(visit.owner); circle.following = circle.following.filter((id) => id !== visit.owner); circle.mutual.delete(visit.owner); circle.friends = circle.friends.filter((fr) => fr.owner !== visit.owner); }
+      else { await Bridge().follow(visit.owner); if (!circle.following.includes(visit.owner)) circle.following.push(visit.owner); circle.loaded = false; }
+    } else if (was) {
       const res = await db().deleteRecords([{ recordName: name }]);
       if (res.hasErrors && !res.errors.every((e) => e.ckErrorCode === "NOT_FOUND")) throw new Error(res.errors[0].ckErrorCode);
       circle.following = circle.following.filter((id) => id !== visit.owner); circle.mutual.delete(visit.owner); circle.friends = circle.friends.filter((fr) => fr.owner !== visit.owner);
@@ -466,6 +495,15 @@ function openPledgeSheet() {
 // ---------------------------------------------------------------------------
 const live = new Map();   // id -> { st, rb, gift, _tag, aw }
 async function readState(it) {
+  if (viaBridge()) {
+    try {
+      const fresh = await Bridge().item(it.id);
+      if (!(it.l || []).length && fresh.l.length) it.l = fresh.l;
+      const s = { st: fresh.st, rb: fresh.rb, gift: fresh.gift, _tag: null, aw: fresh.aw || [] };
+      live.set(it.id, s);
+      return s;
+    } catch (e) { return null; }
+  }
   try {
     const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "groupGiftJSON", "alsoWantedBy", "listIDs"] });
     if (res.hasErrors || !res.records[0]) return null;
@@ -579,8 +617,15 @@ function othersActions(it, body) {
   const repost = async (selected) => {
     didRepost = true; render();
     try {
-      if (!alreadyMine()) await K.saveCopy(it, selected);
-      await addRewant(it);
+      if (viaBridge()) {
+        // The bridge makes her copy and her mark in one go (the app's repost).
+        const r = await Bridge().rewant(it.id, [...selected]);
+        if (r.status === "rewanted" && r.itemID) { const copy = await Bridge().item(r.itemID).catch(() => null); if (copy) { m.items.unshift(copy); } }
+        const k = urlKey(it.u); if (it.u && r.status === "rewanted") river.counts.set(k, (river.counts.get(k) || 0) + 1);
+      } else {
+        if (!alreadyMine()) await K.saveCopy(it, selected);
+        await addRewant(it);
+      }
       const s = live.get(it.id); if (s && !s.aw.includes(m.id)) s.aw.push(m.id);
     } catch (e) { didRepost = alreadyMine(); render(); console.log("rewant failed", e); }
   };
@@ -594,6 +639,7 @@ function othersActions(it, body) {
   const confirmReserve = () => K.alert(F.reserveAsk, F.reserveBody, F.reserveOk, () => toggleReserve(true));
   const toggleReserve = async (on) => {
     try {
+      if (viaBridge()) { try { await Bridge().reserve(it.id, on); } catch (e) { if (!(e && (e.code === "taken" || e.code === "not_reserved_by_you"))) throw e; } await readState(it); render(); return; }
       await changeState(it, (s) => {
         // Only a free piece is reserved, only her own reservation is undone.
         if (on ? s.st !== "available" : !(s.st === "reserved" && s.rb === m.id)) return null;
@@ -618,10 +664,11 @@ function othersActions(it, body) {
   // --- Report and block.
   const confirmReport = () => K.alert(F.reportAsk, F.reportBody, F.reportOk, async () => {
     try {
-      const res = await db().saveRecords([{ recordType: "Report", recordName: "report-" + crypto.randomUUID().toUpperCase(), fields: {
+      if (viaBridge()) { await Bridge().report(it.id, "reported from the product card"); }
+      else { const res = await db().saveRecords([{ recordType: "Report", recordName: "report-" + crypto.randomUUID().toUpperCase(), fields: {
         reporterID: f(m.id, "STRING"), reportedOwnerID: f(it.o || "", "STRING"), itemID: f(it.id, "STRING"), itemName: f(it.n || "", "STRING"),
         reason: f("reported from the product card", "STRING"), reportedAt: f(Date.now(), "TIMESTAMP") } }]);
-      if (res.hasErrors) throw new Error(res.errors[0].ckErrorCode);
+      if (res.hasErrors) throw new Error(res.errors[0].ckErrorCode); }
     } catch (e) { console.log("report failed", e); }
     if (it.o) window.wantdBlocks.add(it.o);
     closePiece();
@@ -633,7 +680,10 @@ function othersActions(it, body) {
     const gift = { contributions: [], currencyCode: code };
     if (typeof it.pa === "number") gift.targetAmount = it.pa;
     // A pot someone opened meanwhile is joined, never emptied.
-    try { await changeState(it, (s) => (s.gift ? null : { groupGiftJSON: f(giftB64(gift), "BYTES") })); } catch (e) { console.log("start gift failed", e); return; }
+    try {
+      if (viaBridge()) { await Bridge().startGift(it.id, code); await readState(it); }
+      else await changeState(it, (s) => (s.gift ? null : { groupGiftJSON: f(giftB64(gift), "BYTES") }));
+    } catch (e) { console.log("start gift failed", e); return; }
     const s = live.get(it.id); render();
     openContribute((s && s.gift) || gift, null);
   };
@@ -650,7 +700,8 @@ function othersActions(it, body) {
       if (!(a > 0) || !n) return;
       ok.disabled = true;
       try {
-        await mutateGift((g) => {
+        if (viaBridge()) { const s0 = live.get(it.id); if (!(s0 && s0.gift)) await Bridge().startGift(it.id, gift.currencyCode || it.pc || VIEWER || "EUR"); await Bridge().contribute(it.id, n, a); await readState(it); }
+        else await mutateGift((g) => {
           g.contributions = (g.contributions || []).filter((c) => !(c.contributorID === m.id || (!c.contributorID && c.contributorName === n)));
           g.contributions.push({ id: (mineC && mineC.id) || crypto.randomUUID().toUpperCase(), contributorName: n, amount: a, date: nowCK(), contributorID: m.id });
         });
@@ -661,7 +712,10 @@ function othersActions(it, body) {
     setTimeout(() => (mineC ? amount : name).focus({ preventScroll: true }), 50);
   });
   const removeShare = async () => {
-    try { await mutateGift((g) => { g.contributions = (g.contributions || []).filter((c) => c.contributorID !== m.id); }); } catch (e) {}
+    try {
+      if (viaBridge()) { await Bridge().withdraw(it.id); await readState(it); }
+      else await mutateGift((g) => { g.contributions = (g.contributions || []).filter((c) => c.contributorID !== m.id); });
+    } catch (e) {}
     render();
   };
   const mutateGift = (change) => changeState(it, (s) => {
@@ -696,6 +750,10 @@ async function addRewant(it) {
 }
 async function removeRewant(it) {
   if (!it.u) return;
+  if (viaBridge()) {
+    try { const r = await Bridge().unrewant(it.u); if (r.rewantRecordDeleted) { const k = urlKey(it.u); river.counts.set(k, Math.max(0, (river.counts.get(k) || 1) - 1)); } } catch (e) {}
+    return;
+  }
   // Counted down only when a mark of hers was really there: on her own
   // original there is none (the app's "no-op").
   let had = false;
@@ -711,8 +769,7 @@ const ownerHandle = (it) => { const p = river.profiles[it.o]; if (p && p.h) retu
 // ---------------------------------------------------------------------------
 let wired = false;
 function wire() {
-  $("fKeeps").textContent = F.keeps; $("fAppleText").textContent = F.signIn;
-  $("fApple").addEventListener("click", () => { const b = $("ckSignIn").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click(); });
+  K.buildDoor($("fDoorWays"));
   $("fNewLabel").textContent = F.newFromFriends;
   $("fSearch").addEventListener("click", openMemberSearch);
   $("vBack").addEventListener("click", () => history.back());
