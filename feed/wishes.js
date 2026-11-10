@@ -28,6 +28,7 @@ const W = words("W", {
   choosePhoto: "Choose photo",
   offersYou: (from, amount) => `${from} offers you ${amount}.`, choosePiece: " Choose a piece.", chooseLine: "Choose the piece it becomes. They will see your choice and shop it themselves.",
   promiseCovers: (a, b) => `Their promise covers ${a} of ${b}.`, chooseThisOne: "Choose this one?", chooseIt: "Choose it", willSee: (from) => `${from} will see the piece you chose and give it to you.`,
+  removePromise: "Remove this promise", removePromiseAsk: "Remove this promise?", remove: "Remove", leavesUntold: (from) => `It leaves your wishlist. ${from} will not be told.`,
   didNotGo: "That did not go through", checkConn: "Check your connection and try again.", ok: "OK",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
@@ -429,6 +430,21 @@ function openPledgeChoose(p) {
     const head = el("div", "whead left");
     head.appendChild(el("h2", "wtitle", W.offersYou(p.fromName, promise)));
     head.appendChild(el("p", "wsub", W.chooseLine));
+    // The way out, one underlined line as the app says it (SED-976): the
+    // promise leaves her list, the giver is not told.
+    const out = el("button", "wsubact", W.removePromise); out.type = "button";
+    out.addEventListener("click", () => {
+      alertBox(W.removePromiseAsk, W.leavesUntold(p.fromName), W.remove, async () => {
+        let ok = false;
+        try {
+          if (viaBridge()) { await Bridge().dismissPledge(p.token); ok = true; }
+          else { const res = await fetch(API + "/pledge-dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: p.token }) }); const j = await res.json(); ok = res.ok && j.ok === true; }
+        } catch (e) { ok = false; }
+        if (!ok) throw new Error(W.didNotGo + " " + W.checkConn);
+        p.status = "dismissed"; closeSheet(); paint();
+      });
+    });
+    head.appendChild(out);
     panel.appendChild(head);
     const list = el("div", "wpledgelist"); panel.appendChild(list);
     for (const it of choosable) {

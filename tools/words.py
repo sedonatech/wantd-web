@@ -40,6 +40,7 @@ MAP = {
         "deleteListAsk": "Delete %@?",
         "shareTitle": "%@'s WANTD",
         "offersYou": "%@ offers you %@.", "promiseCovers": "Their promise covers %@ of %@.", "willSee": "%@ will see the piece you chose and give it to you.",
+        "leavesUntold": "It leaves your wishlist. %@ will not be told.",
     },
     "F": {
         "friendsN": "%lld friends", "share": "Share @%@", "wantsN": "%lld wants", "followersN": "%lld followers",

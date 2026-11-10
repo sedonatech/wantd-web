@@ -188,6 +188,7 @@ const Bridge = {
   received: (id, on) => api("PUT", `/v1/items/${id}/received`, { received: !!on }),
   pledges: async () => ((await api("GET", "/v1/me/pledges")).pledges || []).map((p) => ({ recordName: p.recordName, token: p.token, fromName: p.fromName, amount: p.amount, currencyCode: p.currencyCode || "EUR", status: p.status || "offered" })),
   choosePledge: (token, itemID) => api("POST", `/v1/pledges/${token}/choose`, { itemID }),
+  dismissPledge: (token) => api("POST", `/v1/pledges/${token}/dismiss`, {}),
   reserve: (id, on) => api(on ? "PUT" : "DELETE", `/v1/items/${id}/reservation`),
   rewant: (itemID, listIDs) => api("POST", "/v1/rewants", listIDs && listIDs.length ? { itemID, listIDs } : { itemID }),
   unrewant: (productURL) => api("POST", "/v1/rewants/remove", { productURL }),
