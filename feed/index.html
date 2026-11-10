@@ -1669,7 +1669,33 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pieceOpe
 // ---------------------------------------------------------------------------
 // Where she is: /feed/, ?store=zara.com, ?p=<id>. The browser's own back.
 // ---------------------------------------------------------------------------
-const stateNow = (extra) => { const u = new URL(location.href); return Object.assign({ store: store.host || "", name: store.name || "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" }, extra || {}); };
+const stateNow = (extra) => Object.assign({ store: store.host || "", name: store.name || "", tab: want.tab || "", u: want.u || "" }, extra || {});
+/// The address she can copy, as on Instagram: a person's wishlist is
+/// /@handle, hers included (the /@ page sends whoever opens it to the right
+/// screen: her own Wishlist, that member in Friends, or the public board).
+function prettyPath(st) {
+  if (st.tab === "wishes") { const h = window.Wishes && window.Wishes.myHandle && window.Wishes.myHandle(); return h ? "/@" + h.toLowerCase() : null; }
+  if (st.tab === "friends" && st.u) return "/@" + String(st.u).toLowerCase();
+  return null;
+}
+/// Local test switches ride along, so a reload keeps the same mode.
+function withLocalFlags(path) {
+  if (!LOCAL) return path;
+  const now = new URL(location.href), keep = new URLSearchParams();
+  for (const k of ["bridge", "lang"]) if (now.searchParams.has(k)) keep.set(k, now.searchParams.get(k));
+  const q = keep.toString();
+  return q ? path + "?" + q : path;
+}
+/// Once her handle is known (it loads after the page), the address becomes
+/// the one she can share. A card open on top keeps its ?p=.
+function prettify() {
+  const now = new URL(location.href);
+  if (now.searchParams.has("p")) return;
+  const path = prettyPath(want);
+  if (!path || now.pathname === path) return;
+  history.replaceState(history.state || want, "", withLocalFlags(path));
+}
+window.prettify = prettify;
 let arriving = null;
 function show(section, animate) {
   const next = document.getElementById(section);
@@ -1744,13 +1770,14 @@ function glide(L1, R1) {
 window.addEventListener("resize", () => seatGlass(false));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => seatGlass(false));
 function go(dest) {
-  const u = new URL(location.href);
-  u.search = "";
+  // From the app's own address, whatever the bar shows now (/@handle).
+  const u = new URL(withLocalFlags("/feed/"), location.href);
   if (dest.store) u.searchParams.set("store", dest.store);
   if (dest.tab) u.searchParams.set("tab", dest.tab);
   if (dest.u) u.searchParams.set("u", dest.u);
   const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "", u: dest.u || "" };
-  history.pushState(st, "", u);
+  const pretty = prettyPath(st);
+  history.pushState(st, "", pretty ? withLocalFlags(pretty) : u);
   want = st;
   // The glass leaves at once; the screen is built on the frame after, so
   // the glide never waits for the build.
@@ -1774,6 +1801,7 @@ function render(st, animate) {
   else if (st.tab === "friends") { show("friends", animate); if (window.Wishes) window.Wishes.wake(); if (window.Friends) window.Friends.enter(st.u || ""); }
   else if (st.store) { show("store", animate); openStore(st.store, st.name); }
   else { show("river", animate); }
+  prettify();
 }
 // The word tapped again scrolls to the top; judged on the screen asked for
 // (`want`), not the one drawn, which follows a frame later.
@@ -1834,7 +1862,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=5"></script>
-<script src="/feed/wishes.js?v=21"></script>
+<script src="/feed/wishes.js?v=22"></script>
 <script src="/feed/friends.js?v=14"></script>
 </body>
 </html>

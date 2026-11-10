@@ -342,9 +342,21 @@ function viewerAmount(it) {
 }
 const wantedCount = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
+/// This browser's own handle, for the /@ pages: the link of her wishlist
+/// opens her Wishlist here, someone else's opens that member in Friends.
+const ME_HANDLE = "wantd.me.handle";
+function rememberHandle() {
+  if (DEMO) return;
+  try {
+    if (me.id && me.profile && me.profile.h) localStorage.setItem(ME_HANDLE, me.profile.h.toLowerCase());
+    else if (!me.id) localStorage.removeItem(ME_HANDLE);
+  } catch (e) {}
+}
 function paint() {
   const sec = $("wishes");
   const signedIn = !!me.id;
+  rememberHandle();
+  if (window.prettify) window.prettify();
   $("wDoor").hidden = signedIn;
   $("wHome").hidden = !signedIn;
   if (!signedIn) return;
@@ -1895,6 +1907,7 @@ window.Wishes = {
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
   findMine: (id) => me.items.find((it) => it.id === id) || null,
+  myHandle: () => (me.id && me.profile && me.profile.h) || "",
   /// The products she already has, by their link: the river leaves them out.
   myKeys: () => (me.loaded ? new Set(me.items.filter((it) => it.u).map((it) => urlKey(it.u))) : null),
   /// Any piece of the public base, by its id: a shared link outside the
