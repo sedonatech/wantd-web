@@ -108,6 +108,9 @@
   /* A card never wears a ring: tapped or clicked, it opens, as in the app
      (Agathe, 10 November 2026). */
   .card .photo:focus, .card .photo:focus-visible, .ftile:focus, .ftile:focus-visible, .fthumb:focus, .fthumb:focus-visible { outline: none; }
+  /* The open card itself takes the focus (so Escape and the keys reach it)
+     and must never be framed for it, nor a sheet or the entrance. */
+  #piece .cartel:focus, #piece .cartel:focus-visible, #wSheet .panel:focus, #wSheet .panel:focus-visible, #wEnter:focus, #wEnter:focus-visible, #wEnter .epage:focus { outline: none; }
   [hidden] { display: none !important; }
   .serif { font-family: var(--serif); }
   .num { font-family: var(--serif); font-weight: 300; font-style: italic; letter-spacing: -0.2px; font-variant-numeric: lining-nums; }
