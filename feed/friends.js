@@ -23,7 +23,7 @@ const F = words("F", {
   reserve: "Reserve this gift", reservedByYou: "Reserved by you. Tap to undo", alreadyReserved: "Already reserved",
   reserveAsk: "Reserve this gift?", reserveBody: "Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.", reserveOk: "Reserve", cancel: "Cancel",
   someoneReserved: "Someone has reserved this gift.", grantedLine: "This wish is already granted.",
-  send: "Send to someone", preparing: "Preparing...", leaveNote: "Leave a note with it", editNote: "Edit your note", noteTitle: "A note with the gift", noteBody: "They read it the day the gift reaches their hands, not before.", notePrompt2: "Happy birthday...", inkIt: "Ink it", sendText: (who, name, link) => who ? `Look what ${who} wants: ${name}. Open it in Wantd to add your share. ${link}` : `Look what someone wants: ${name}. Open it in Wantd to add your share. ${link}`,
+  send: "Send to someone", preparing: "Preparing...", giftCard: "Send a gift card instead", removeFailed: "Couldn't save your contribution", leaveNote: "Leave a note with it", editNote: "Edit your note", noteTitle: "A note with the gift", noteBody: "They read it the day the gift reaches their hands, not before.", notePrompt2: "Happy birthday...", inkIt: "Ink it", sendText: (who, name, link) => who ? `Look what ${who} wants: ${name}. Open it in Wantd to add your share. ${link}` : `Look what someone wants: ${name}. Open it in Wantd to add your share. ${link}`,
   copied: "Link copied", giftCard: "Send a gift card instead",
   report: "Report", reported: "Reported", reportAsk: "Report this want?", reportBody: "We look at every report within 24 hours. You will stop seeing anything from this member straight away.", reportOk: "Report and block this member",
   groupGift: "Group gift", startGift: "Start a group gift", addShare: "Add my contribution", editShare: "Edit my contribution", removeShare: "Remove my contribution",
@@ -36,6 +36,26 @@ const F = words("F", {
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
 const SHARE_HOST = "https://wantd.sedonatech.uk";
+// The card this piece's house sells, or nothing at all (Affiliate.giftCards,
+// kept in step with the app): a house listed with a path answers only for
+// the aisle its card can pay for (Dior's is a beauty card).
+const GIFT_CARDS = {
+  "zara.com": [null, "https://www.zara.com/fr/fr/giftcard-l1052.html"], "asos.com": [null, "https://www.asos.com/gift-vouchers/"],
+  "sephora.fr": [null, "https://www.sephora.fr/carte-cadeau.html"], "sephora.com": [null, "https://www.sephora.com/beauty/giftcards"],
+  "zalando.fr": [null, "https://www.zalando.fr/carte-cadeau-home/"], "hm.com": [null, "https://www2.hm.com/fr_fr/carte-cadeau.html"],
+  "farfetch.com": [null, "https://www.farfetch.com/fr/gift-card"], "net-a-porter.com": [null, "https://www.net-a-porter.com/fr-fr/gift-cards/"],
+  "chanel.com": [null, "https://www.chanel.com/gb/gift-card/"], "cartier.com": [null, "https://cargiftcard.cartier.com/"],
+  "apm.mc": [null, "https://www.apm.mc/products/gift-card"], "aloyoga.com": [null, "https://www.aloyoga.com/products/gift-card"],
+  "mejuri.com": [null, "https://mejuri.com/shop/t/gift-cards"], "dior.com": ["/beauty/", "https://www.dior.com/en_gb/beauty/products/dior-beauty-e-gift-card-Y74290.html"],
+};
+function giftCardURL(u) {
+  try {
+    const x = new URL(u); const host = x.hostname.toLowerCase().replace(/^www\d?\./, "");
+    const entry = GIFT_CARDS[host]; if (!entry) return null;
+    if (entry[0] && !x.pathname.includes(entry[0])) return null;
+    return shopURL(entry[1], { brand: host.split(".")[0], name: "" });
+  } catch (e) { return null; }
+}
 const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor"];
 
 // ---------------------------------------------------------------------------
@@ -137,7 +157,7 @@ async function loadCircle() {
       mutual = new Set((fr.friends || []).map((x) => x.profile && x.profile.ownerID).filter(Boolean));
       following = [...mutual].concat((fr.pending || []).map((p) => p.ownerID).filter(Boolean));
     } else { following = await followedIDs(); mutual = await mutualIDs(following); }
-    const friendIDs = [...mutual].filter((o) => !blocked.has(o));
+    const friendIDs = [...mutual];
     const pendingIDs = following.filter((id) => !mutual.has(id));
     const [pages, faces] = await Promise.all([circlePages(friendIDs.concat(pendingIDs)), portraits(friendIDs.concat(pendingIDs))]);
     const friends = [];
@@ -311,12 +331,30 @@ async function openProfile(handle) {
   const seq = ++visit.seq;
   Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, loading: true, notFound: false, following: false });
   paintVisit();
-  // Who she is: the worker knows her by handle.
+  // Who she is: the worker knows her by handle; a member who joined minutes
+  // ago is read from her Profile record (FriendsView tolerates "@Wtd-Gags ").
+  handle = String(handle || "").trim().toLowerCase().replace(/^@/, "");
+  const candidates = handle.startsWith("wtd-") ? [handle] : [handle, "wtd-" + handle];
   let person = null;
-  try {
-    const page = await getJSON("/people?q=" + encodeURIComponent(handle) + "&limit=8");
-    person = (page.people || []).find((p) => p.h === handle) || null;
-  } catch (e) {}
+  for (const h of candidates) {
+    try {
+      const page = await getJSON("/people?q=" + encodeURIComponent(h) + "&limit=8");
+      person = (page.people || []).find((p) => p.h === h) || null;
+    } catch (e) {}
+    if (person) break;
+  }
+  if (!person && !K.DEMO) for (const h of candidates) {
+    try {
+      if (viaBridge()) { const page = await Bridge().profile(h); if (page.profile && page.profile.h) person = { o: page.profile.o, h: page.profile.h, n: page.profile.n, b: page.profile.b, e: page.profile.emoji }; }
+      else {
+        const res = await db().fetchRecords([{ recordName: "profile-" + h }], { desiredKeys: ["handle", "displayName", "ownerID", "birthday", "avatarEmoji"] });
+        const r = res.records && res.records[0];
+        if (r && r.fields) person = { o: r.fields.ownerID.value, h: r.fields.handle.value, n: (r.fields.displayName && r.fields.displayName.value) || "", b: r.fields.birthday && r.fields.birthday.value, e: r.fields.avatarEmoji && r.fields.avatarEmoji.value };
+      }
+    } catch (e) {}
+    if (person) break;
+  }
+  if (person && (person.h === "wtd-you" || /^wtd-you\d+$/.test(person.h))) person = null;
   if (seq !== visit.seq) return;
   if (!person) { visit.loading = false; visit.notFound = true; paintVisit(); return; }
   if (person.o === me().id) { go({ tab: "wishes" }); return; }
@@ -556,13 +594,13 @@ function othersActions(it, body) {
   acts.insertAdjacentElement("afterend", box);
   const lines = el("div", "flines"); box.appendChild(lines);
   const pot = el("div", "fpot"); box.appendChild(pot);
-  const alreadyMine = () => !!it.u && m.items.some((x) => x.u && urlKey(x.u) === urlKey(it.u));
+  const alreadyMine = () => it.u ? m.items.some((x) => x.u && urlKey(x.u) === urlKey(it.u)) : m.items.some((x) => x.rf && !x.u && x.n === it.n);
   let didRepost = alreadyMine();
   const render = () => {
     lines.innerHTML = "";
     const s = live.get(it.id) || { st: it.st || "available", rb: it.rb, gift: null };
     // Also want this.
-    if (it.u) {
+    {
       const w = quietLine(didRepost ? F.added : F.alsoWant, () => { if (didRepost) confirmUnwant(); else wantFromCard(); });
       lines.appendChild(w);
     }
@@ -580,6 +618,9 @@ function othersActions(it, body) {
     if (taken) lines.appendChild(el("div", "fstatus", F.someoneReserved));
     // Send to someone.
     lines.appendChild(quietLine(F.send, sendToSomeone));
+    // The last-minute door (SED-612): one quiet line, only where a real card exists.
+    const card = it.u ? giftCardURL(it.u) : null;
+    if (card) { const a = el("a", "wline", F.giftCard); a.href = card; a.target = "_blank"; a.rel = "noopener"; lines.appendChild(a); }
     // Report.
     const rep = el("button", "freport", F.report); rep.type = "button"; rep.addEventListener("click", confirmReport); lines.appendChild(rep);
     renderPot(s);
@@ -634,7 +675,8 @@ function othersActions(it, body) {
         const k = urlKey(it.u); if (it.u && r.status === "rewanted") river.counts.set(k, (river.counts.get(k) || 0) + 1);
       } else {
         if (!alreadyMine()) await K.saveCopy(it, selected);
-        await addRewant(it);
+        if (it.u) await addRewant(it);
+        else await changeState(it, (s) => (s.aw.includes(m.id) ? null : { alsoWantedBy: f(s.aw.concat([m.id]), "STRING_LIST") }));
       }
       const s = live.get(it.id); if (s && !s.aw.includes(m.id)) s.aw.push(m.id);
     } catch (e) { didRepost = alreadyMine(); render(); console.log("rewant failed", e); }
@@ -746,7 +788,7 @@ function othersActions(it, body) {
     try {
       if (viaBridge()) { await Bridge().withdraw(it.id); await readState(it); }
       else await mutateGift((g) => { g.contributions = (g.contributions || []).filter((c) => c.contributorID !== m.id); });
-    } catch (e) {}
+    } catch (e) { K.alert(F.removeFailed, F.checkConn, F.done, async () => {}); }
     render();
   };
   const mutateGift = (change) => changeState(it, (s) => {
@@ -812,8 +854,9 @@ function wire() {
   const sort = $("vSort");
   for (const [k, label] of [["manual", K.W.sortDefault], ["recent", K.W.sortNewest], ["oldest", K.W.sortOldest]]) { const o = el("option", null, label); o.value = k; sort.appendChild(o); }
   sort.addEventListener("change", () => { visit.sort = sort.value; paintVisit(); });
-  $("memberLink").textContent = F.lookingMember; $("memberLink").addEventListener("click", openMemberSearch);
 }
+// On the Feed too, from the first page (FeedView.swift:990): the member link.
+$("memberLink").textContent = F.lookingMember; $("memberLink").addEventListener("click", openMemberSearch);
 window.Friends = {
   enter(handle) {
     window.Wishes.wake();   // the member is signed in once, for both tabs

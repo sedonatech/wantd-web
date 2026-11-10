@@ -358,6 +358,8 @@
   .wlegal .wlegaldate, .wlegal .wlegalnote { color: var(--ink-soft); font-size: 12px; }
   .wmenubox .wline + .wline { margin-top: 6px; }
   .wmenubox .wline { white-space: nowrap; }
+  .wnewlist { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .wpick { margin: 10px 0 2px; align-self: flex-start; }
   @media (prefers-color-scheme: dark) {
     .way.apple { background: #FFFFFF; color: #000000; }
     .way.plain { background: #131314; color: #E3E3E3; border-color: #8E918F; }
@@ -1640,7 +1642,8 @@ window.addEventListener("popstate", (e) => {
   if (p) { const it = findPiece(p); if (it) openPiece(it, true); }
 });
 function findPiece(id) {
-  return river.items.find((i) => i.id === id) || store.items.find((i) => i.id === id) || search.results.find((i) => i.id === id) || null;
+  // Her own copy first: the card edits the very object her list holds.
+  return (window.Wishes && window.Wishes.findMine ? window.Wishes.findMine(id) : null) || river.items.find((i) => i.id === id) || store.items.find((i) => i.id === id) || search.results.find((i) => i.id === id) || null;
 }
 function openDeepLink() {
   const p = new URL(location.href).searchParams.get("p");
@@ -1680,8 +1683,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=3"></script>
-<script src="/feed/wishes.js?v=14"></script>
-<script src="/feed/friends.js?v=11"></script>
+<script src="/feed/account.js?v=4"></script>
+<script src="/feed/wishes.js?v=15"></script>
+<script src="/feed/friends.js?v=12"></script>
 </body>
 </html>

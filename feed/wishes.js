@@ -21,7 +21,10 @@ const W = words("W", {
   storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.",
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
-  deleteAsk: "Delete this want?", deleteBody: "It leaves your wishlist, and your want mark comes off everywhere.",
+  deleteAsk: "Delete this want?", deleteBody: "It will leave your wishlist for good.", unwantAsk: "Unwant this?", unwantBody: "It leaves your wishlist, and your want mark comes off everywhere.",
+  inWhichLists: "In which lists?", tapToAddRemove: "Tap to add or remove", wishGranted: "Wish granted", grantedUndo: "Wish granted. Tap to undo", wasGift: "Was it a gift?", yesGift: "Yes, a gift", noTreat: "No, I couldn't resist",
+  leaveList: "Leave this list", deleteWithWants: "Delete with its wants", deleteListAsk: (n) => `Delete ${n}?`, deleteListBody: "A want that also lives on another list stays there either way.",
+  choosePhoto: "Choose photo",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
   signOut: "Sign out", privacy: "Privacy Policy", terms: "Terms of Service", commission: "Shop links may earn Wantd a commission, at no cost to you.",
@@ -152,6 +155,21 @@ function askNextShare() {
 }
 const f = (value, type) => ({ value, type });
 
+/// The piece as the bridge wants it whole: its PUT writes the price and
+/// the picture every time (an absent one clears them) and asks the name, so
+/// an edit sends the piece as it stands with the change on top.
+function bridgeBody(it, changes) {
+  const body = { name: it.n || "", urlString: it.u || "", addedAt: it.at || Date.now(), sortIndex: typeof it.si === "number" ? it.si : 0,
+    imageURLString: it.op ? null : (it.i || null), priceText: it.pt || null };
+  if (it.s) body.store = it.s;
+  if (it.b) body.brand = it.b;
+  if (typeof it.pa === "number") { body.priceAmount = it.pa; body.priceCurrency = it.pc || null; }
+  if ((it.l || []).length) body.listIDs = it.l;
+  if (it.note) body.personalNote = it.note;
+  if ((it.ic || []).length) body.imageCandidateURLs = it.ic.slice(0, 20);
+  if (it.rf) body.rewantedFrom = it.rf;
+  return Object.assign(body, changes || {});
+}
 /// Every piece filed on a list, whoever wrote it (fetchItems(inList:)).
 async function itemsInList(listID) {
   const rows = await queryAll({ recordType: "Item", filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS", fieldValue: { value: listID } }] },
@@ -468,6 +486,24 @@ function editableCard(draft, opts) {
     img.src = srcs[0]; photo.appendChild(img);
   }
   card.appendChild(photo);
+  // A photo of her own: chosen from her device, kept at 1 600 px at most,
+  // as the app keeps a camera-roll picture (ImageDownsampler, 1 600).
+  const pick = el("button", "wchip soft wpick", W.choosePhoto); pick.type = "button";
+  const file = el("input"); file.type = "file"; file.accept = "image/*"; file.hidden = true;
+  file.addEventListener("change", async () => {
+    const chosen = file.files && file.files[0]; if (!chosen) return;
+    try {
+      const blob = await downsample(chosen, 1600);
+      draft.photo = blob; draft.picked = false;
+      const url = URL.createObjectURL(blob);
+      let img = photo.querySelector("img");
+      if (!img) { img = el("img"); img.alt = ""; photo.appendChild(img); }
+      img.onerror = null; img.src = url;
+      card.querySelectorAll(".wthumb").forEach((x) => x.classList.remove("on"));
+    } catch (e) { console.log("photo", e); }
+  });
+  pick.addEventListener("click", () => file.click());
+  card.appendChild(pick); card.appendChild(file);
   const fields = el("div", "wfields");
   const name = textInput(draft.n, W.namePrompt, { multiline: true });
   const store = textInput(draft.s || draft.b || "", W.storePrompt, { caps: "words" });
@@ -495,10 +531,30 @@ function editableCard(draft, opts) {
   card.read = () => {
     const a = amount.value.trim().replace(",", ".").replace(/[^\d.]/g, "");
     const pa = a ? Number(a) : NaN;
-    return { n: name.value.trim(), s: store.value.trim(), pa: Number.isFinite(pa) && a ? pa : null, pc: cur.value || null, note: note.value.trim(), i: draft.i, ic: draft.ic || [], picked: !!draft.picked };
+    return { n: name.value.trim(), s: store.value.trim(), pa: Number.isFinite(pa) && a ? pa : null, pc: cur.value || null, note: note.value.trim(), i: draft.i, ic: draft.ic || [], picked: !!draft.picked, photo: draft.photo || null };
   };
   return card;
 }
+
+/// A picture read from a file, drawn no larger than `max` on its long side,
+/// as a JPEG of fair weight.
+function downsample(file, max) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error("photo"))), "image/jpeg", 0.86);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("photo")); };
+    img.src = url;
+  });
+}
+const blobBase64 = (blob) => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(",")[1]); r.onerror = reject; r.readAsDataURL(blob); });
 
 // The lists a new piece is filed on: one line of words, a middle dot between.
 function listSelector(selected, onNew) {
@@ -549,7 +605,9 @@ function openAddSheet() {
         if (!res.ok || read.error) throw new Error(read.error || res.status);
       } catch (e) { read = null; }
       reading = false;
-      if (!read) { setState(el("div", "werror", W.cantRead)); return; }
+      // A page the reader cannot open is still a want (the app's blocked
+      // shops): she writes the name and the price, and gives her own photo.
+      if (!read) read = { url: t, blocked: true, images: [] };
       draft = { n: read.name || "", s: read.store || "", b: read.brand || undefined, pa: typeof read.priceAmount === "number" ? read.priceAmount : undefined, pc: read.priceCurrency || undefined,
                 u: read.url || t, i: (read.images || [])[0], ic: read.images || [], blocked: !!read.blocked, storefront: !!read.storefront || looksLikeStorefront(read.url || t) };
       const already = me.items.some((it) => it.u && urlKey(it.u) === urlKey(draft.u));
@@ -557,19 +615,22 @@ function openAddSheet() {
       const wrap = el("div");
       if (draft.blocked) wrap.appendChild(el("div", "wnote", W.cantRead));
       wrap.appendChild(card);
-      wrap.appendChild(listSelector(selected, () => openListSheet(null, (created) => { selected.add(created.id); })));
+      let sel = null;
+      const renew = () => { const n = listSelector(selected, () => newListInline(n, async (created) => { selected.add(created.id); const next = renew(); n.replaceWith(next); })); return n; };
+      sel = renew();
+      wrap.appendChild(sel);
       setState(wrap);
       const notes = el("div", "wnote"); foot.appendChild(notes);
       const add = bar(already ? W.addAnyway : W.addToWishlist, async () => {
         const read2 = card.read();
         if (!read2.n) { card.querySelector("textarea").focus(); return; }
         if (draft.storefront) { notes.textContent = W.storefront; return; }
-        if (!read2.i) { notes.textContent = W.noPhoto; return; }
+        if (!read2.i && !read2.photo) { notes.textContent = W.noPhoto; return; }
         add.disabled = true; add.textContent = "…";
         try { await savePiece(Object.assign({}, draft, read2), selected); closeSheet(); }
         catch (e) { add.disabled = false; add.textContent = already ? W.addAnyway : W.addToWishlist; notes.textContent = String(e && (e.message || e)); }
       });
-      if (draft.storefront) notes.textContent = W.storefront; else if (!draft.i) notes.textContent = W.noPhoto;
+      if (draft.storefront) notes.textContent = W.storefront; else if (!draft.i && !draft.photo) notes.textContent = W.noPhoto;
       foot.appendChild(add);
     };
     url.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); readLink(); } });
@@ -607,6 +668,7 @@ async function savePiece(d, selected) {
     if (d.note) body.personalNote = d.note;
     if (d.ic && d.ic.length) body.imageCandidateURLs = d.ic.slice(0, 20);
     if (d.rf) body.rewantedFrom = d.rf;
+    if (d.photo) { body.imageJpegBase64 = await blobBase64(d.photo); body.imageURLString = null; }
     const saved = await Bridge().saveItem(id, body);
     me.items.unshift(saved);
     paint();
@@ -629,6 +691,7 @@ async function savePiece(d, selected) {
   if (d.ic && d.ic.length) fields.imageCandidateURLs = f(d.ic.slice(0, 20), "STRING_LIST");
   if (me.profile && me.profile.h) fields.ownerHandle = f(me.profile.h, "STRING");
   if (d.rf) fields.rewantedFrom = f(d.rf, "STRING");
+  if (d.photo) { fields.imageAsset = { value: d.photo }; fields.ownPhoto = f(1, "INT64"); fields.imageURLString = f(null, "STRING"); }
   const res = await db().saveRecords([{ recordType: "Item", recordName: id, fields }]);
   if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
   const saved = itemFromRecord(res.records[0]);
@@ -715,11 +778,11 @@ async function updatePiece(it, read) {
   if (viaBridge()) {
     // The same fields, as the bridge takes them (a price is cleared only when
     // she cleared it by hand, as on iPhone).
-    const body = {};
-    for (const k of Object.keys(fields)) body[k] = fields[k].value;
-    if ("priceAmount" in body && body.priceAmount === null) body.priceEditedByHand = true;
-    if ("personalNote" in body && body.personalNote === null) body.personalNote = "";
-    fresh = await Bridge().saveItem(it.id, body);
+    const changes = {};
+    for (const k of Object.keys(fields)) changes[k] = fields[k].value;
+    if ("priceAmount" in changes && changes.priceAmount === null) changes.priceEditedByHand = true;
+    if ("personalNote" in changes && changes.personalNote === null) changes.personalNote = "";
+    fresh = await Bridge().saveItem(it.id, bridgeBody(it, changes));
   } else {
     const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields }]);
     if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
@@ -778,7 +841,40 @@ function openListSheet(existing, onCreated) {
       } catch (e) { go.disabled = false; err.textContent = String(e && (e.message || e)); }
     });
     if (!existing) foot.appendChild(go);
-    if (existing && !existing.isMain) {
+    // A list someone shared with her: she walks out of it (leaveList); nothing
+    // is deleted for the others, her own pieces come back to her main list.
+    if (existing && existing.creatorID !== me.id) {
+      foot.appendChild(quietLine(W.leaveList, async () => {
+        try {
+          const main = me.lists.find((l) => l.isMain && l.creatorID === me.id);
+          for (const x of me.items.filter((y) => y.o === me.id && (y.l || []).includes(existing.id))) {
+            let ids = (x.l || []).filter((id) => id !== existing.id);
+            if (!ids.length && main) ids = [main.id];
+            if (viaBridge()) { const fresh = await Bridge().saveItem(x.id, bridgeBody(x, { listIDs: ids })); x.l = fresh.l; }
+            else {
+              const r1 = await db().saveRecords([{ recordType: "Item", recordName: x.id, recordChangeTag: x._tag, fields: { listIDs: f(ids, "STRING_LIST") } }]);
+              if (r1.hasErrors) throw new Error(r1.errors.map((e) => e.ckErrorCode).join(", "));
+              x._tag = r1.records[0].recordChangeTag; x.l = ids;
+            }
+          }
+          await sayToList(existing, "left");
+          me.lists = me.lists.filter((x) => x.id !== existing.id); delete me.extras[existing.id];
+          if (me.listID === existing.id) me.listID = null;
+          paint(); closeSheet();
+        } catch (e) { err.textContent = String(e && (e.message || e)); }
+      }, true));
+    }
+    if (existing && !existing.isMain && existing.creatorID === me.id) {
+      // Delete with its wants: only wants living exclusively on this list go
+      // (Agathe, 2026-08-28), one also filed elsewhere merely leaves it.
+      foot.appendChild(quietLine(W.deleteWithWants, () => {
+        alertBox(W.deleteListAsk(existing.name), W.deleteListBody, W.delete, async () => {
+          const doomed = me.items.filter((x) => x.o === me.id && (x.l || []).includes(existing.id) && (x.l || []).length === 1);
+          for (const x of doomed) await deletePiece(x);
+          await removeList(existing);
+          closeSheet();
+        });
+      }, true));
       foot.appendChild(quietLine(W.deleteListKeep, async () => {
         try {
           // Its pieces first leave it, back on the main list when it was their
@@ -790,10 +886,9 @@ function openListSheet(existing, onCreated) {
             for (const x of moved) {
               let ids = (x.l || []).filter((id) => id !== existing.id);
               if (!ids.length && main) ids = [main.id];
-              const fresh = await Bridge().saveItem(x.id, { listIDs: ids });
+              const fresh = await Bridge().saveItem(x.id, bridgeBody(x, { listIDs: ids }));
               x.l = fresh.l;
             }
-            await Bridge().deleteList(existing.id);
           } else for (let i = 0; i < moved.length; i += 50) {
             const recs = moved.slice(i, i + 50).map((x) => {
               let ids = (x.l || []).filter((id) => id !== existing.id);
@@ -805,13 +900,8 @@ function openListSheet(existing, onCreated) {
             if (r1.hasErrors) throw new Error(r1.errors.map((e) => e.ckErrorCode).join(", "));
             for (const r of r1.records) { const x = me.items.find((y) => y.id === r.recordName); if (x) { x._tag = r.recordChangeTag; x.l = (r.fields.listIDs && r.fields.listIDs.value) || []; } }
           }
-          if (!viaBridge()) {
-            const res = await db().deleteRecords([{ recordName: existing.recordName, recordChangeTag: existing._tag }]);
-            if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
-          }
-          me.lists = me.lists.filter((x) => x.id !== existing.id);
-          if (me.listID === existing.id) me.listID = null;
-          paint(); closeSheet();
+          await removeList(existing);
+          closeSheet();
         } catch (e) { err.textContent = String(e && (e.message || e)); }
       }, true));
     }
@@ -838,6 +928,17 @@ function openEditSheet(it) {
     foot.appendChild(go);
   });
 }
+/// The list's own record goes, after its pieces were seen to (deleteList).
+async function removeList(existing) {
+  if (viaBridge()) await Bridge().deleteList(existing.id);
+  else {
+    const res = await db().deleteRecords([{ recordName: existing.recordName, recordChangeTag: existing._tag }]);
+    if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
+  }
+  me.lists = me.lists.filter((x) => x.id !== existing.id);
+  if (me.listID === existing.id) me.listID = null;
+  paint();
+}
 /// The Mac's alert: a title, a line, Cancel and one act. A question with two
 /// answers (a shared list's Yes and No) names its own Cancel and what it does.
 function alertBox(title, body, okLabel, onOk, { cancelLabel = null, onCancel = null } = {}) {
@@ -858,15 +959,122 @@ function alertBox(title, body, okLabel, onOk, { cancelLabel = null, onCancel = n
   ok.onclick = act(onOk);
 }
 function confirmDelete(it) {
-  alertBox(W.deleteAsk, W.deleteBody, it.rf ? W.unwant : W.delete, async () => { await deletePiece(it); closePiece(); });
+  alertBox(it.rf ? W.unwantAsk : W.deleteAsk, it.rf ? W.unwantBody : W.deleteBody, it.rf ? W.unwant : W.delete, async () => { await deletePiece(it); closePiece(); });
+}
+
+/// In which lists (ListPickerSheet): tap to add or remove, a new list
+/// inline; a piece left with no list goes back to the main one (toggleList).
+function openListsSheet(it) {
+  openSheet((panel) => {
+    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", W.inWhichLists)); head.appendChild(el("p", "wsub", W.tapToAddRemove)); panel.appendChild(head);
+    const box = el("div", "wlistsel"); const row = el("div", "wchips"); box.appendChild(row); panel.appendChild(box);
+    const err = el("div", "wnote"); panel.appendChild(err);
+    let busy = false;
+    const write = async (ids) => {
+      const main = me.lists.find((l) => l.isMain && l.creatorID === me.id);
+      if (!ids.length && main) ids = [main.id];
+      const open = ids.some((id) => { const l = me.lists.find((y) => y.id === id); return l && !l.isPrivate; });
+      if (viaBridge()) { const fresh = await Bridge().saveItem(it.id, bridgeBody(it, { listIDs: ids })); it.l = fresh.l; }
+      else {
+        const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields: { listIDs: f(ids, "STRING_LIST"), isPublic: f(open ? 1 : 0, "INT64") } }]);
+        if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
+        it._tag = res.records[0].recordChangeTag; it.l = ids;
+      }
+      paint();
+    };
+    const draw = () => {
+      row.innerHTML = "";
+      const lists = me.lists.filter((l) => !l.isMain);
+      lists.forEach((l, i) => {
+        if (i) row.appendChild(el("span", "wdot", "·"));
+        const on = (it.l || []).includes(l.id);
+        const b = el("button", "wchip" + (on ? " on" : "")); b.type = "button";
+        if (l.isPrivate) b.appendChild(lockIcon());
+        b.appendChild(el("span", null, l.name));
+        b.addEventListener("click", async () => {
+          if (busy) return; busy = true; err.textContent = "";
+          const ids = on ? (it.l || []).filter((id) => id !== l.id) : (it.l || []).concat([l.id]);
+          try { await write(ids); } catch (e) { err.textContent = String(e && (e.message || e)); }
+          busy = false; draw();
+        });
+        row.appendChild(b);
+      });
+      if (lists.length) row.appendChild(el("span", "wdot", "·"));
+      const nb = el("button", "wchip soft", W.newList); nb.type = "button";
+      nb.addEventListener("click", () => newListInline(box, async (created) => { await write((it.l || []).concat([created.id])).catch((e) => { err.textContent = String(e && (e.message || e)); }); draw(); }));
+      row.appendChild(nb);
+    };
+    draw();
+    const foot = el("div", "wfoot"); foot.appendChild(bar(W.done, () => closeSheet())); panel.appendChild(foot);
+  });
+}
+
+/// A new list made where she stands, under the chips, without leaving the
+/// sheet she is in (the app stacks its sheet; the web has one panel).
+function newListInline(host, onCreated) {
+  if (host.querySelector(".wnewlist")) return;
+  const box = el("div", "wnewlist");
+  const name = textInput("", W.nameIt, { caps: "words" }); name.className = "wbig";
+  let isPrivate = false;
+  const priv = quietLine(W.visible, () => { isPrivate = !isPrivate; priv.textContent = isPrivate ? W.privateOnlyYou : W.visible; priv.classList.toggle("cobalt", isPrivate); }, true);
+  const err = el("div", "wnote");
+  const go = bar(W.create, async () => {
+    const n = name.value.trim(); if (!n) { name.focus(); return; }
+    go.disabled = true;
+    try { const l = await saveList({ name: n, isMain: false, isPrivate }); box.remove(); await onCreated(l); }
+    catch (e) { go.disabled = false; err.textContent = String(e && (e.message || e)); }
+  });
+  box.appendChild(name); box.appendChild(priv); box.appendChild(err); box.appendChild(go);
+  host.appendChild(box);
+  setTimeout(() => name.focus({ preventScroll: true }), 50);
+}
+
+/// Wish granted (SED-892), after one question: a gift, or she could not
+/// resist; taking it back asks nothing (markReceived).
+async function setGranted(it, how) {
+  const on = !!how;
+  if (viaBridge()) { await Bridge().received(it.id, on); }
+  else {
+    const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "reservedNote"] });
+    const r = res.records && res.records[0]; if (!r || !r.fields) throw new Error("read");
+    const previous = r.fields.reservedBy && r.fields.reservedBy.value;
+    const fields = { status: f(on ? "purchased" : "available", "STRING"), reservedBy: f(on ? me.id : null, "STRING"), grantedHow: f(on ? how : null, "STRING"),
+      receivedFrom: f(on && previous && previous !== me.id ? previous : null, "STRING") };
+    if (on) fields.reservedNote = f(null, "STRING");
+    const out = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: r.recordChangeTag, fields }]);
+    if (out.hasErrors) throw new Error(out.errors.map((e) => e.ckErrorCode).join(", "));
+    it._tag = out.records[0].recordChangeTag;
+  }
+  it.st = on ? "purchased" : "available"; it.rb = on ? me.id : undefined;
+  paint();
+}
+function askGranted(it) {
+  openSheet((panel) => {
+    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", W.wasGift)); panel.appendChild(head);
+    const foot = el("div", "wfoot"); panel.appendChild(foot);
+    const err = el("div", "wnote"); foot.appendChild(err);
+    const answer = (how) => async () => {
+      try { await setGranted(it, how); closeSheet(); if (pieceOpen && pieceOpen.id === it.id) openPiece(it, true); }
+      catch (e) { err.textContent = String(e && (e.message || e)); }
+    };
+    foot.appendChild(bar(W.yesGift, answer("gift")));
+    foot.appendChild(quietLine(W.noTreat, answer("treat"), true));
+  });
 }
 
 // The quiet lines under Shop on her own piece (ProductDetailView.actionButtons).
 function ownActions(it) {
   if (DEMO || it.o !== me.id) return [];
   const edit = quietLine(W.edit, () => openEditSheet(it));
+  const lists = quietLine(W.lists, () => openListsSheet(it));
+  const had = isHad(it);
+  const granted = quietLine(had ? W.grantedUndo : W.wishGranted, async () => {
+    if (had) { try { await setGranted(it, null); if (pieceOpen && pieceOpen.id === it.id) openPiece(it, true); } catch (e) { console.log("granted", e); } }
+    else askGranted(it);
+  });
+  if (had) granted.classList.add("cobalt");
   const del = quietLine(it.rf ? W.unwant : W.delete, () => confirmDelete(it));
-  return [edit, del];
+  return [edit, lists, granted, del];
 }
 
 // ---------------------------------------------------------------------------
@@ -1529,6 +1737,7 @@ window.Wishes = {
   wake() { if (!wired) { wired = true; wireControls(); watchAuth(); } },
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
+  findMine: (id) => me.items.find((it) => it.id === id) || null,
   /// The products she already has, by their link: the river leaves them out.
   myKeys: () => (me.loaded ? new Set(me.items.filter((it) => it.u).map((it) => urlKey(it.u))) : null),
   /// Any piece of the public base, by its id: a shared link outside the

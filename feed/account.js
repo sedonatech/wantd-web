@@ -185,6 +185,7 @@ const Bridge = {
   item: async (id) => itemOf((await api("GET", `/v1/items/${id}`)).item),
   listItems: async (owner, id) => ((await api("GET", `/v1/lists/${owner}/${id}/items`)).items || []).map(itemOf),
   reserveNote: (id, note) => api("PUT", `/v1/items/${id}/reservation/note`, { note }),
+  received: (id, on) => api("PUT", `/v1/items/${id}/received`, { received: !!on }),
   reserve: (id, on) => api(on ? "PUT" : "DELETE", `/v1/items/${id}/reservation`),
   rewant: (itemID, listIDs) => api("POST", "/v1/rewants", listIDs && listIDs.length ? { itemID, listIDs } : { itemID }),
   unrewant: (productURL) => api("POST", "/v1/rewants/remove", { productURL }),

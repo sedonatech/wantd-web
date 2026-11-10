@@ -37,6 +37,7 @@ MAP = {
         "wantsN": "%lld wants", "followersN": "%lld followers",
         "shareAsk": "%@ wants to share the %@ list with you.",
         "heardFriend": "A friend told me", "heardStore": "The App Store", "heardElse": "Somewhere else",
+        "deleteListAsk": "Delete %@?",
     },
     "F": {
         "friendsN": "%lld friends", "share": "Share @%@", "wantsN": "%lld wants", "followersN": "%lld followers",
