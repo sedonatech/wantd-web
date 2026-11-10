@@ -371,6 +371,17 @@
   /* The place a dragged card will take: the card there steps aside a little, no frame. */
   .card.dropat { transform: scale(0.96); transition: transform 0.15s ease; }
   .wnewlist { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  /* The promise line (SED-611): one serif sentence, the act underlined. */
+  #wPledges { padding: 6px 4px 2px; display: flex; flex-direction: column; gap: 6px; }
+  .wpledge { font-family: var(--serif); font-size: 15px; font-weight: 300; font-style: italic; color: var(--ink); text-align: left; line-height: 1.35; }
+  .wpledge .act { text-decoration: underline; text-underline-offset: 2px; }
+  .wpledgelist { display: flex; flex-direction: column; margin-top: 16px; max-height: min(60vh, 560px); overflow-y: auto; }
+  .wpledgerow { display: flex; align-items: center; gap: 12px; padding: 12px 0; text-align: left; border-bottom: 0.5px solid rgba(102,102,105,0.18); }
+  .wpledgerow .wthumbbox { width: 54px; height: 54px; border-radius: 12px; background: var(--ivory-deep); overflow: hidden; flex: none; }
+  .wpledgerow .wthumbbox img { width: 100%; height: 100%; object-fit: cover; }
+  .wpledgetxt .name { font-family: var(--serif); font-size: 15px; color: var(--ink); line-height: 1.25; }
+  .wpledgetxt .price { font-size: 13px; color: var(--ink); margin-top: 3px; }
+  .wpledgetxt .gap { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 2px; }
   .wpick { margin: 10px 0 2px; align-self: flex-start; }
   @media (prefers-color-scheme: dark) {
     .way.apple { background: #FFFFFF; color: #000000; }
@@ -688,6 +699,7 @@
         </div>
       </div>
       <div class="wtabs" id="wTabs"></div>
+      <div id="wPledges" hidden></div>
       <div class="wctl">
         <span class="text"><span id="wSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><span class="val" id="wSortValue"></span><select class="cover" id="wSort"></select></span>
         <button type="button" class="text" id="wFilter"><span id="wFilterLabel"></span><span class="val" id="wFilterValue"></span></button>
@@ -1722,8 +1734,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=4"></script>
-<script src="/feed/wishes.js?v=18"></script>
+<script src="/feed/account.js?v=5"></script>
+<script src="/feed/wishes.js?v=19"></script>
 <script src="/feed/friends.js?v=13"></script>
 </body>
 </html>

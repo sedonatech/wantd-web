@@ -25,6 +25,9 @@ const W = words("W", {
   inWhichLists: "In which lists?", tapToAddRemove: "Tap to add or remove", wishGranted: "Wish granted", grantedUndo: "Wish granted. Tap to undo", wasGift: "Was it a gift?", yesGift: "Yes, a gift", noTreat: "No, I couldn't resist",
   leaveList: "Leave this list", deleteWithWants: "Delete with its wants", deleteListAsk: (n) => `Delete ${n}?`, deleteListBody: "A want that also lives on another list stays there either way.",
   choosePhoto: "Choose photo",
+  offersYou: (from, amount) => `${from} offers you ${amount}.`, choosePiece: " Choose a piece.", chooseLine: "Choose the piece it becomes. They will see your choice and shop it themselves.",
+  promiseCovers: (a, b) => `Their promise covers ${a} of ${b}.`, chooseThisOne: "Choose this one?", chooseIt: "Choose it", willSee: (from) => `${from} will see the piece you chose and give it to you.`,
+  didNotGo: "That did not go through", checkConn: "Check your connection and try again.", ok: "OK",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
   signOut: "Sign out", privacy: "Privacy Policy", terms: "Terms of Service", commission: "Shop links may earn Wantd a commission, at no cost to you.",
@@ -58,6 +61,7 @@ const me = {
   asking: false,
   items: [],           // index-shaped pieces, with si (sortIndex), st (status), rb (reservedBy), note, _tag
   extras: {},          // listID -> the co-members' pieces of a list kept with others (WishlistStore.sharedListExtras)
+  pledges: [],         // promises made on her list (SED-611): { recordName, token, fromName, amount, currencyCode, status }
   loaded: false, loading: false, error: null,
   newcomer: false,     // her profile was read and she has none: the entrance is hers
   listID: null,        // null = All
@@ -206,9 +210,10 @@ async function load() {
       // (Google, email): the same pieces, lists, words and profile either way.
       let items, lists, sharedLists, words, profilesRead, member;
       if (viaBridge()) {
-        const [mine, w, m] = await Promise.all([Bridge().mine(), Bridge().words().catch(() => null), getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null)]);
+        const [mine, w, m, pl] = await Promise.all([Bridge().mine(), Bridge().words().catch(() => null), getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null), Bridge().pledges().catch(() => [])]);
         items = mine.items; lists = mine.lists; sharedLists = mine.shared; words = w; member = m;
         profilesRead = mine.profile ? [mine.profile] : [];
+        me.pledges = pl;
       } else {
         const [itemsR, mineR, sharedR, profR, m, wordsR] = await Promise.all([
           queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
@@ -222,6 +227,12 @@ async function load() {
           queryAll({ recordType: "ListMembership", filterBy: [{ fieldName: "memberID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => null),
         ]);
         items = itemsR.map(itemFromRecord); lists = mineR.map(listFromRecord); sharedLists = sharedR.map(listFromRecord); member = m;
+        // The promises made on her list (fetchMyPledges): a giver named an
+        // amount, she picks the piece it becomes.
+        me.pledges = (await queryAll({ recordType: "GiftPledge", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
+          { resultsLimit: 50, desiredKeys: ["token", "fromName", "amount", "currencyCode", "status"] }).catch(() => []))
+          .map((r) => ({ recordName: r.recordName, token: v(r, "token"), fromName: v(r, "fromName"), amount: v(r, "amount"), currencyCode: v(r, "currencyCode") || "EUR", status: v(r, "status") || "offered" }))
+          .filter((p) => p.token && p.fromName && typeof p.amount === "number");
         // Her own word on the lists shared with her: her record only, never the
         // creator's note of the invitation ("listinvite-…", same type).
         words = wordsR ? new Map() : null;
@@ -369,7 +380,68 @@ function paint() {
   $("wFilterValue").textContent = me.budget ? "· " + W.on : "";
   $("wGrid").hidden = !REGULAR.matches;
   $("wAdd").hidden = DEMO;
+  // The promise line (SED-611), museum grammar: one sentence, the act underlined.
+  const pl = $("wPledges"); pl.innerHTML = "";
+  for (const p of me.pledges.filter((x) => x.status === "offered")) {
+    const b = el("button", "wpledge"); b.type = "button";
+    b.appendChild(document.createTextNode(W.offersYou(p.fromName, money(p.amount, p.currencyCode))));
+    b.appendChild(el("span", "act", W.choosePiece));
+    b.addEventListener("click", () => openPledgeChoose(p));
+    pl.appendChild(b);
+  }
+  pl.hidden = !pl.childElementCount;
   paintWall();
+}
+
+/// A promise's conversion into the viewer's money, as CurrencyService does it.
+function viewerMoney(amount, code) {
+  const cur = String(code || "").toUpperCase();
+  if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) return amount / rates[cur] * rates[VIEWER];
+  return amount;
+}
+/// She picks the piece a promise becomes (PledgeChooseSheet): hers, not had,
+/// on a public list or none, priced within the promise plus 15 percent (a
+/// price unknown stays choosable); a dearer piece shows the gap, with sobriety.
+function openPledgeChoose(p) {
+  const promise = money(p.amount, p.currencyCode);
+  const ceiling = viewerMoney(p.amount, p.currencyCode) * 1.15;
+  const privateIDs = new Set(me.lists.filter((l) => l.isPrivate).map((l) => l.id));
+  const choosable = me.items.filter((it) => {
+    if (isHad(it)) return false;
+    if ((it.l || []).length && (it.l || []).every((id) => privateIDs.has(id))) return false;
+    const mine = viewerAmount(it);
+    return mine == null ? true : mine <= ceiling;
+  });
+  openSheet((panel) => {
+    const head = el("div", "whead left");
+    head.appendChild(el("h2", "wtitle", W.offersYou(p.fromName, promise)));
+    head.appendChild(el("p", "wsub", W.chooseLine));
+    panel.appendChild(head);
+    const list = el("div", "wpledgelist"); panel.appendChild(list);
+    for (const it of choosable) {
+      const row = el("button", "wpledgerow"); row.type = "button";
+      const ph = el("div", "wthumbbox"); const srcs = photoSources(it);
+      if (srcs.length) { const img = el("img"); img.alt = ""; img.referrerPolicy = "no-referrer"; let k = 0; img.onerror = () => { k += 1; if (k < srcs.length) img.src = srcs[k]; else img.remove(); }; img.src = srcs[0]; ph.appendChild(img); }
+      row.appendChild(ph);
+      const txt = el("div", "wpledgetxt"); txt.appendChild(el("div", "name", it.n || ""));
+      const price = priceOf(it); if (price) txt.appendChild(el("div", "num price", price));
+      const mine = viewerAmount(it), promised = viewerMoney(p.amount, p.currencyCode);
+      if (mine != null && mine > promised + 0.01 && price) txt.appendChild(el("div", "gap", W.promiseCovers(promise, price)));
+      row.appendChild(txt);
+      row.addEventListener("click", () => {
+        alertBox(W.chooseThisOne, W.willSee(p.fromName), W.chooseIt, async () => {
+          let ok = false;
+          try {
+            if (viaBridge()) { await Bridge().choosePledge(p.token, it.id); ok = true; }
+            else { const res = await fetch(API + "/pledge-choose", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: p.token, itemID: it.id }) }); const j = await res.json(); ok = res.ok && j.ok === true; }
+          } catch (e) { ok = false; }
+          if (!ok) throw new Error(W.didNotGo + " " + W.checkConn);
+          p.status = "chosen"; closeSheet(); paint();
+        });
+      });
+      list.appendChild(row);
+    }
+  });
 }
 function paintTabs() { paint(); }
 
