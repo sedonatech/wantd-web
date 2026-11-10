@@ -6,38 +6,8 @@
 "use strict";
 
 // The words, as the app says them (Localizable.xcstrings).
-const W = FR ? {
-  keeps: "Wantd garde votre liste dans iCloud.", wishes: "envies", founder: "Fondatrice",
-  wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "envie" : "envies"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "abonné" : "abonnés"}`,
-  all: "Tout", edit: "Modifier", granted: "Exaucées", sort: "Trier", filter: "Filtrer", on: "Activé",
-  sortDefault: "Par défaut", sortNewest: "Plus récentes d’abord", sortOldest: "Plus anciennes d’abord", sortPriceUp: "Prix croissant", sortPriceDown: "Prix décroissant",
-  grid2: "Grille (2 par ligne)", grid4: "Grille (4 par ligne)", grid5: "Grille (5 par ligne)", gridView: "Vue en grille",
-  priceToCheck: "Prix à vérifier", onTheirWay: "Vos envies arrivent depuis iCloud.", nothingHere: "Rien sur cette liste pour l’instant.", firstWant: "Ajoutez votre première envie avec ce plus.",
-  addTitle: "Ajouter une envie", addSubtitle: "Collez le lien de n’importe quel produit", shopPrompt: "Ou saisissez une boutique, comme rolex.com", paste: "Coller",
-  reading: "Lecture de la page…", cantRead: "Impossible de lire ce lien", badLink: "Collez un lien de produit valide.",
-  productName: "Nom du produit", namePrompt: "ex. Pantalon large", storeOrBrand: "Boutique ou marque", storePrompt: "ASOS, Sephora…", amount: "Montant", currency: "Devise", select: "Choisir",
-  note: "Note personnelle", notePrompt: "Taille, couleur, commentaire…", addToLists: "Ajouter à des listes", newList: "Nouvelle liste",
-  addToWishlist: "Ajouter à la liste d’envies", addAnyway: "Ajouter quand même", already: "Déjà dans vos envies.",
-  storefront: "Ce lien mène à toute la boutique. Partagez la page du produit lui-même.", noPhoto: "Chaque envie a besoin de sa photo.",
-  newListTitle: "Une nouvelle liste.", nameIt: "Nommez-la", visible: "Visible par votre cercle.", privateOnlyYou: "Privée. Visible par vous uniquement.", create: "Créer",
-  editWant: "Modifier l’envie", save: "Enregistrer", cancel: "Annuler", delete: "Supprimer", unwant: "Retirer",
-  deleteAsk: "Supprimer cette envie ?", deleteBody: "Elle quitte votre liste d’envies, et votre marque d’envie disparaît partout.",
-  yourBudget: "Votre budget", reset: "Réinitialiser", done: "OK", shop: "Acheter", lists: "Listes", listName: "Nom de la liste", privateList: "Liste privée", deleteList: "Supprimer cette liste",
-  deleteListKeep: "Supprimer, garder ses envies",
-  signIn: "Se connecter avec Apple", signOut: "Se déconnecter",
-  shareAsk: (who, list) => `${who} souhaite partager la liste ${list} avec vous.`, aMember: "Un membre", yes: "Oui", no: "Non",
-  callYou: "Comment doit-on vous appeler\u00a0?", nameLine: "Le nom que votre cercle lira sur votre liste.", yourName: "Votre nom", thatsMe: "C’est moi",
-  spoilTitle: "Le jour où l’on vous gâte.", spoilLine: "Ajoutez votre anniversaire, pour que votre cercle n’ait jamais à le demander.", addBirthday: "Ajouter mon anniversaire", notNow: "Pas maintenant",
-  heardTitle: "Comment avez-vous connu Wantd\u00a0?", heardLine: "Je fais Wantd seule. Savoir d’où vous venez m’aide.",
-  heard: { "A friend told me": "On m’en a parlé", "The App Store": "L’App Store", "Somewhere else": "Ailleurs" }, where: "Où\u00a0?", cont: "Continuer",
-  welcomeTo: "Bienvenue sur", openMyList: "Ouvrir ma liste", connIssue: "Problème de connexion. Réessayez dans un instant.", oneMoment: "Un instant…",
-  everyDevice: "Votre liste d’envies, sur tous vos appareils.", withApple: "Continuer avec Apple", withGoogle: "Continuer avec Google", withEmail: "Continuer par email",
-  yourEmail: "Votre email.", emailLine: "Nous vous envoyons un code à six chiffres. Jamais de mot de passe.", emailPrompt: "vous@exemple.com", sendCode: "Recevoir le code",
-  inbox: "Regardez votre boîte mail.", codeLine: (e) => `Le code envoyé à ${e}. Il vaut 10 minutes.`, codePrompt: "6 chiffres", codeAgain: "Renvoyer un code", otherEmail: "Une autre adresse", back: "Retour",
-  codeWrong: "Ce n’est pas le bon code. Réessayez.", codeExpired: "Ce code a expiré. Demandez-en un autre.", emailBad: "Cela ne ressemble pas à une adresse email.", tooMany: "Trop de codes demandés. Patientez un quart d’heure.",
-  unreachable: "Wantd est injoignable. Vérifiez votre connexion et réessayez.", googleFailed: "Google ne vous a pas laissée entrer cette fois. Réessayez.",
-} : {
-  keeps: "Wantd keeps your list in iCloud.", wishes: "wants", founder: "Founder",
+const W = words("W", {
+  founder: "Founder",
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
   all: "All", edit: "Edit", granted: "Granted", sort: "Sort", filter: "Filter", on: "On",
   sortDefault: "Default", sortNewest: "Newest first", sortOldest: "Oldest first", sortPriceUp: "Ascending price", sortPriceDown: "Descending price",
@@ -52,21 +22,21 @@ const W = FR ? {
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
   deleteAsk: "Delete this want?", deleteBody: "It leaves your wishlist, and your want mark comes off everywhere.",
-  yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", listName: "List name", privateList: "Private list", deleteList: "Delete this list",
+  yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
-  signIn: "Sign in with Apple", signOut: "Sign out",
+  signOut: "Sign out", privacy: "Privacy Policy", terms: "Terms of Service", commission: "Shop links may earn Wantd a commission, at no cost to you.",
   shareAsk: (who, list) => `${who} wants to share the ${list} list with you.`, aMember: "A member", yes: "Yes", no: "No",
   callYou: "What should we call you?", nameLine: "The name your circle will read on your list.", yourName: "Your name", thatsMe: "That's me",
   spoilTitle: "The day to spoil you.", spoilLine: "Add your birthday, so your circle never has to ask.", addBirthday: "Add my birthday", notNow: "Not now",
   heardTitle: "How did you hear about us?", heardLine: "I make Wantd on my own. Knowing where you came from helps.",
-  heard: {}, where: "Where?", cont: "Continue",
+  heardFriend: "A friend told me", heardStore: "The App Store", heardElse: "Somewhere else", where: "Where?", cont: "Continue",
   welcomeTo: "Welcome to", openMyList: "Open my list", connIssue: "Connection issue. Try again in a moment.", oneMoment: "One moment...",
   everyDevice: "Your wishlist, on every device.", withApple: "Continue with Apple", withGoogle: "Continue with Google", withEmail: "Continue with email",
   yourEmail: "Your email.", emailLine: "We'll send you a six-digit code. No password, ever.", emailPrompt: "you@example.com", sendCode: "Send me the code",
   inbox: "Check your inbox.", codeLine: (e) => `The code we sent to ${e}. It works for 10 minutes.`, codePrompt: "6 digits", codeAgain: "Send another code", otherEmail: "Another email", back: "Back",
   codeWrong: "That's not the code. Try again.", codeExpired: "This code has expired. Send another one.", emailBad: "That doesn't look like an email address.", tooMany: "Too many codes asked. Wait a quarter of an hour.",
   unreachable: "Couldn't reach Wantd. Check your connection and try again.", googleFailed: "Google didn't let you in this time. Try again.",
-};
+});
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
 const CURRENCIES = ["EUR", "GBP", "USD", "CHF", "CAD", "AUD", "SEK", "NOK", "DKK", "PLN", "JPY", "AED", "SGD", "HKD", "NZD", "CZK", "HUF", "RON", "MXN", "BRL", "TRY", "INR", "KRW", "ZAR"];
@@ -903,6 +873,8 @@ function wireControls() {
   buildDoor($("wDoorWays"));
   $("wFounder").textContent = W.founder;
   $("wMenu").addEventListener("click", () => { const m = $("wMenuBox"); m.hidden = !m.hidden; });
+  $("wPrivacy").textContent = W.privacy; $("wPrivacy").addEventListener("click", () => openLegal("privacy"));
+  $("wTerms").textContent = W.terms; $("wTerms").addEventListener("click", () => openLegal("terms"));
   $("wSignOut").textContent = W.signOut;
   $("wSignOut").addEventListener("click", () => {
     $("wMenuBox").hidden = true;
@@ -1264,7 +1236,7 @@ function heardScreen() {
     const go = cardBar(W.cont, () => { sendHeard(); readyScreen(); });
     for (const source of HEARD) {
       // TikTok, Instagram, Pinterest: names, never translated.
-      const b = el("button", null, W.heard[source] || source); b.type = "button";
+      const b = el("button", null, ({ "A friend told me": W.heardFriend, "The App Store": W.heardStore, "Somewhere else": W.heardElse })[source] || source); b.type = "button";
       b.addEventListener("click", () => {
         entry.heard = source;
         for (const x of list.children) x.classList.toggle("on", x === b);
@@ -1391,8 +1363,42 @@ function buildDoor(host) {
   ways.appendChild(mail);
   const note = el("p", "doornote"); note.hidden = true; note.setAttribute("role", "alert"); ways.appendChild(note);
   host.appendChild(ways);
+  // The two legal texts, one quiet line under the doors (the app shows them
+  // on the profile, where a visitor never goes).
+  const legal = el("p", "doorlegal");
+  const pv = el("button", null, W.privacy); pv.type = "button"; pv.addEventListener("click", () => openLegal("privacy"));
+  const tm = el("button", null, W.terms); tm.type = "button"; tm.addEventListener("click", () => openLegal("terms"));
+  legal.appendChild(pv); legal.appendChild(el("span", "wdot", "·")); legal.appendChild(tm);
+  host.appendChild(legal);
   google.classList.add("waiting");
   if (!DEMO) window.Account.googleButton(gsi, (err) => { note.hidden = !err; if (err) note.textContent = err && err.code === "unreachable" ? W.unreachable : W.googleFailed; }).then(() => google.classList.remove("waiting")).catch(() => {});
+}
+
+/// A legal text, as the app's LegalDocumentView: its title, its date, its
+/// paragraphs, in English as the app keeps them. The texts come in a file of
+/// their own the first time one is opened.
+let legalLoading = null;
+function loadLegal() {
+  if (window.WANTD_LEGAL) return Promise.resolve(window.WANTD_LEGAL);
+  if (!legalLoading) legalLoading = new Promise((resolve, reject) => {
+    const sc = document.createElement("script"); sc.src = "/feed/legal.js?v=1"; sc.async = true;
+    sc.onload = () => resolve(window.WANTD_LEGAL); sc.onerror = () => { legalLoading = null; reject(new Error("legal")); };
+    document.head.appendChild(sc);
+  });
+  return legalLoading;
+}
+function openLegal(which) {
+  openSheet((panel) => {
+    const head = el("div", "whead left"); head.appendChild(el("h2", "wtitle", which === "privacy" ? W.privacy : W.terms)); panel.appendChild(head);
+    const box = el("div", "wlegal"); panel.appendChild(box);
+    loadLegal().then((L) => {
+      const doc = L[which];
+      box.appendChild(el("p", "wlegaldate", doc.updated));
+      for (const para of doc.body.split("\n\n")) { const pEl = el("p", null, para); box.appendChild(pEl); }
+      if (which === "terms") box.appendChild(el("p", "wlegalnote", W.commission));
+    }).catch(() => { box.appendChild(el("p", null, W.unreachable)); });
+    $("wMenuBox").hidden = true;
+  });
 }
 
 // Her email, then the code (the Android screens of SED-948), on the same

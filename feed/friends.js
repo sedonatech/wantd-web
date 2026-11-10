@@ -8,31 +8,7 @@
 const K = window.Wishes.kit;   // the Wishlist's own tools: me, db, sheets, fields
 const { el, $, f, bar, quietLine, labeled, textInput, openSheet, closeSheet, queryAll, db, me } = K;
 
-const F = FR ? {
-  newFromFriends: "Nouveau chez vos amis", friendsN: (n) => `${n} ${n === 1 ? "ami" : "amis"}`, following: "Abonnements",
-  waitBack: "Vous deviendrez amis dès que ces personnes vous suivront en retour.",
-  none: "Pas encore d’amis.", noneBody: "Vos amis sont les personnes que vous suivez et qui vous suivent en retour. Partagez votre pseudo, ou trouvez quelqu’un.",
-  find: "Trouver quelqu’un", share: (h) => `Partager @${h}`, finding: "Recherche de vos amis…",
-  wantsN: (n) => `${n} ${n === 1 ? "envie" : "envies"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "abonné" : "abonnés"}`,
-  bdToday: "anniversaire aujourd’hui", bdTomorrow: "anniversaire demain", bdIn: (d) => `anniversaire dans ${d} jour${d > 1 ? "s" : ""}`, bdOn: (s) => `anniversaire le ${s}`,
-  pledge: "Vous hésitez ? Offrez un montant, laissez choisir", follow: "Suivre", followingYou: "Vous suivez", founder: "Fondatrice",
-  all: "Tout", granted: "Exaucées", nothing: "Rien sur cette liste pour l’instant.", notFound: "Profil introuvable", checkHandle: "Vérifiez le pseudo et réessayez.",
-  lookingMember: "Vous cherchez un membre ? Visitez sa liste", searchMember: "Rechercher", noMember: "Aucun membre à ce nom pour l’instant.",
-  alsoWant: "Moi aussi", added: "Ajoutée à votre liste d’envies. Touchez pour la retirer", unwantAsk: "Retirer cette envie ?", unwantBody: "Elle quitte votre liste d’envies, et votre marque d’envie disparaît partout.", unwant: "Retirer",
-  whichList: "Dans quelle liste ?", mainUnless: "Votre liste d’envies principale, sauf si vous en choisissez une.", tapToAdd: "Touchez pour ajouter ou retirer", addToMine: "Ajouter à ma liste d’envies",
-  reserve: "Réserver ce cadeau", reservedByYou: "Réservé par vous. Touchez pour annuler", alreadyReserved: "Déjà réservé",
-  reserveAsk: "Réserver ce cadeau ?", reserveBody: "Réserver indique à tous que ce cadeau est pris : personne d’autre ne l’offrira. Ne réservez que si vous comptez vraiment l’offrir.", reserveOk: "Réserver", cancel: "Annuler",
-  someoneReserved: "Quelqu’un a réservé ce cadeau.", grantedLine: "Cette envie est déjà exaucée.",
-  send: "Envoyer à quelqu’un", preparing: "Préparation…", sendText: (who, name, link) => who ? `Regardez ce dont ${who} a envie : ${name}. Ouvrez-le dans Wantd pour participer. ${link}` : `Regardez ce dont quelqu’un a envie : ${name}. Ouvrez-le dans Wantd pour participer. ${link}`,
-  copied: "Lien copié", giftCard: "Envoyer plutôt une carte cadeau",
-  report: "Signaler", reported: "Signalé", reportAsk: "Signaler cette envie ?", reportBody: "Nous examinons chaque signalement sous 24 heures. Vous ne verrez plus rien de ce membre, dès maintenant.", reportOk: "Signaler et bloquer ce membre",
-  groupGift: "Cadeau à plusieurs", startGift: "Lancer un cadeau à plusieurs", addShare: "Ajouter ma participation", editShare: "Modifier ma participation", removeShare: "Retirer ma participation",
-  yourShare: "Votre participation", yourName: "Votre nom", namePrompt: "ex. Camille", amount: "Montant", confirmShare: "Confirmer la participation",
-  shareFailed: "Impossible d’enregistrer votre participation", potUntouched: "La cagnotte est restée telle quelle. Vérifiez votre connexion et réessayez.",
-  letChoose: "Laisser choisir", nameAmount: (n) => `Indiquez un montant. ${n} choisit la pièce qu’il deviendra, et vous l’achetez vous-même.`, promise: "Le promettre", oneMoment: "Un instant…",
-  promiseWith: (n) => `Votre promesse est chez ${n}.`, theyChoose: "Cette personne choisira une pièce dans sa liste d’envies, et vous le saurez.", failed: "Cela n’a pas abouti", checkConn: "Vérifiez votre connexion et réessayez.",
-  from: (n) => `Repérée par ${n}`, keeps: "Wantd garde votre liste dans iCloud.", signIn: "Se connecter avec Apple", done: "OK",
-} : {
+const F = words("F", {
   newFromFriends: "New from friends", friendsN: (n) => `${n} ${n === 1 ? "friend" : "friends"}`, following: "Following",
   waitBack: "They'll become friends when they follow you back.",
   none: "No friends yet.", noneBody: "Friends are people you follow who follow you back. Share your handle, or find someone.",
@@ -55,8 +31,8 @@ const F = FR ? {
   shareFailed: "Couldn't save your contribution", potUntouched: "The pot was left as it was. Check your connection and try again.",
   letChoose: "Let them choose", nameAmount: (n) => `Name an amount. ${n} picks the piece it becomes, and you shop it yourself.`, promise: "Promise it", oneMoment: "One moment...",
   promiseWith: (n) => `Your promise is with ${n}.`, theyChoose: "They will choose a piece from their wishlist, and you will hear about it.", failed: "That did not go through", checkConn: "Check your connection and try again.",
-  from: (n) => `From ${n}`, keeps: "Wantd keeps your list in iCloud.", signIn: "Sign in with Apple", done: "Done",
-};
+  from: (n) => `From ${n}`, done: "Done",
+});
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
 const SHARE_HOST = "https://wantd.sedonatech.uk";

@@ -16,6 +16,31 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://wantd-reserve.wantd-reserve.workers.dev" crossorigin>
 <link rel="preconnect" href="https://api.apple-cloudkit.com" crossorigin>
+<script>
+// The language of the page: the first of the browser's languages the app
+// speaks (35, as Localizable.xcstrings), English otherwise. Its words come in
+// one small file before the page draws; English needs none.
+(function () {
+  var known = "ar ca cs da de el es es-419 fi fr he hi hr hu id it ja ko ms nb nl pl pt-BR pt-PT ro ru sk sv th tr uk vi zh-Hans zh-Hant".split(" ");
+  var langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || "en"];
+  var pick = "en";
+  for (var i = 0; i < langs.length; i++) {
+    var l = String(langs[i]).toLowerCase(), base = l.split("-")[0], found = null;
+    if (base === "zh") found = /hant|tw|hk|mo/.test(l) ? "zh-Hant" : "zh-Hans";
+    else if (base === "pt") found = /br/.test(l) ? "pt-BR" : "pt-PT";
+    else if (base === "es") found = (l === "es" || l === "es-es") ? "es" : "es-419";
+    else if (base === "no" || base === "nb" || base === "nn") found = "nb";
+    else if (base === "en") found = "en";
+    else if (known.indexOf(base) >= 0) found = base;
+    if (found) { pick = found; break; }
+  }
+  // A local try may ask for a language (?lang=ja); the site never does.
+  var asked = /[?&]lang=([A-Za-z-]+)/.exec(location.search);
+  if (asked && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (asked[1] === "en" || known.indexOf(asked[1]) >= 0)) pick = asked[1];
+  window.WANTD_LANG = pick;
+  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=1"><\/script>');
+})();
+</script>
 <script src="/feed/ck.js?v=1"></script>
 <style>
   /* The app's own tokens (ContentView.swift wantdAdaptive, Color.kt). */
@@ -323,6 +348,13 @@
   /* Google's own button over the pill, unseen and grown to its size: the click is Google's. */
   .way.google .gsi { position: absolute; inset: 0; opacity: 0.001; display: flex; align-items: center; justify-content: center; transform: scale(1.35); }
   .doornote { font-size: 13px; color: #8B3A3A; margin-top: 4px; text-align: center; }
+  .doorlegal { margin-top: 28px; text-align: center; font-size: 12px; font-weight: 300; color: var(--ink-soft); display: flex; justify-content: center; gap: 8px; align-items: center; }
+  .doorlegal button { font-size: 12px; font-weight: 300; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 2px; }
+  .wlegal { padding: 4px 0 8px; font-size: 13px; font-weight: 300; color: var(--ink); line-height: 1.45; overflow-y: auto; max-height: min(70vh, 640px); }
+  .wlegal p { white-space: pre-wrap; margin-bottom: 12px; }
+  .wlegal .wlegaldate, .wlegal .wlegalnote { color: var(--ink-soft); font-size: 12px; }
+  .wmenubox .wline + .wline { margin-top: 6px; }
+  .wmenubox .wline { white-space: nowrap; }
   @media (prefers-color-scheme: dark) {
     .way.apple { background: #FFFFFF; color: #000000; }
     .way.plain { background: #131314; color: #E3E3E3; border-color: #8E918F; }
@@ -635,7 +667,7 @@
         </div>
         <div class="wmenu">
           <button type="button" class="icon-btn" id="wMenu" aria-label="Menu"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
-          <div class="wmenubox" id="wMenuBox" hidden><button type="button" class="wline soft" id="wSignOut"></button><div id="ckSignOut" class="ckhidden"></div></div>
+          <div class="wmenubox" id="wMenuBox" hidden><button type="button" class="wline" id="wPrivacy"></button><button type="button" class="wline" id="wTerms"></button><button type="button" class="wline soft" id="wSignOut"></button><div id="ckSignOut" class="ckhidden"></div></div>
         </div>
       </div>
       <div class="wtabs" id="wTabs"></div>
@@ -725,19 +757,34 @@
 // The words, as the app says them (Localizable.xcstrings), by the browser's
 // language. Never a long dash.
 // ---------------------------------------------------------------------------
-const FR = (navigator.language || "en").toLowerCase().startsWith("fr");
-document.documentElement.lang = FR ? "fr" : "en";
-const T = FR ? {
-  feed: "Feed", friends: "Amis", wishlist: "Envies",
-  stores: "Boutiques populaires", search: "Rechercher", searchPrompt: "Rechercher dans le feed",
-  searching: "Recherche dans toutes les listes…", searchEmpty: "Rien dans le feed pour cela, pour l’instant.",
-  loading: "Chargement du feed…", onItsWay: "Votre feed arrive.",
-  storeEmpty: "Rien de cette boutique pour l’instant.", wanting: "ce dont on a envie",
-  open: (h) => `Ouvrir ${h}`, shop: "Acheter", from: (n) => `Repérée par ${n}`,
-  community: (n, more) => `${n}${more ? "+" : ""} ${n === 1 ? "envie" : "envies"} de la communauté`,
-  emptyTitle: "Rien ici pour l’instant", emptyBody: "Les envies apparaîtront ici, à mesure qu’on les ajoute.",
-  back: "Retour", close: "Fermer", clear: "Effacer", cancel: "Annuler", toCheck: "Prix à vérifier",
-} : {
+const LANG = window.WANTD_LANG || "en";
+const FR = LANG === "fr";
+document.documentElement.lang = LANG;
+document.documentElement.dir = (LANG === "ar" || LANG === "he") ? "rtl" : "ltr";
+// The words of the page in her language (feed/words/<lang>.js, written by
+// tools/words.py from the app's catalog), laid over the English of the
+// dictionaries below: a plain word replaces its English; a sentence with
+// {0} {1} fills in; a counted sentence is a table of plural forms picked by
+// the language's own rules, {n} being the count.
+const WORDS = window.WANTD_WORDS || {};
+const PLURAL = (() => { try { return new Intl.PluralRules(LANG); } catch (e) { return new Intl.PluralRules("en"); } })();
+const fill = (s, args) => String(s).replace(/\{(\d+|n)\}/g, (m, k) => (k === "n" ? args.n : args[Number(k)]));
+function words(dict, en) {
+  const over = WORDS[dict] || {};
+  const out = {};
+  for (const [k, v] of Object.entries(en)) {
+    const o = over[k];
+    if (o == null) { out[k] = v; continue; }
+    if (typeof v !== "function") { out[k] = typeof o === "string" ? o : v; continue; }
+    if (typeof o === "string") { out[k] = (...a) => fill(o, a); continue; }
+    if (o.a && o.b) { out[k] = (who, ...rest) => (who ? fill(o.a, [who, ...rest]) : fill(o.b, rest)); continue; }
+    // A counted sentence: the count first, shown in the viewer's digits; the
+    // community line adds its "+" after the count.
+    out[k] = (n, more) => fill(o[PLURAL.select(n)] || o.other || "", { n: Number(n).toLocaleString(LOCALE) + (more === true ? "+" : "") });
+  }
+  return out;
+}
+const T = words("T", {
   feed: "Feed", friends: "Friends", wishlist: "Wishlist",
   stores: "Popular Stores", search: "Search", searchPrompt: "Search the feed",
   searching: "Looking through every list...", searchEmpty: "Nothing in the feed for that, yet.",
@@ -747,7 +794,7 @@ const T = FR ? {
   community: (n, more) => `${n}${more ? "+" : ""} ${n === 1 ? "want" : "wants"} from the community`,
   emptyTitle: "Nothing here yet", emptyBody: "As people add wants, they'll show up here.",
   back: "Back", close: "Close", clear: "Clear", cancel: "Cancel", toCheck: "Price to check",
-};
+});
 document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[el.dataset.t]; });
 document.getElementById("q").placeholder = T.searchPrompt;
 document.getElementById("searchToggle").setAttribute("aria-label", T.search);
@@ -1496,8 +1543,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=1"></script>
-<script src="/feed/wishes.js?v=11"></script>
-<script src="/feed/friends.js?v=9"></script>
+<script src="/feed/account.js?v=2"></script>
+<script src="/feed/wishes.js?v=13"></script>
+<script src="/feed/friends.js?v=10"></script>
 </body>
 </html>
