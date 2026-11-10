@@ -58,6 +58,7 @@
     --shadow-card: 0 6px 16px rgba(0,0,0,0.06);
     --shadow-tile: 0 2px 5px rgba(0,0,0,0.05);
     --shadow-pill: 0 4px 12px rgba(0,0,0,0.08);
+    --glass-edge: inset 0 0.5px 0 rgba(255,255,255,0.8), inset 0 -0.5px 0 rgba(0,0,0,0.035), 0 1px 2px rgba(0,0,0,0.05);
     --scrim: rgba(14,14,15,0.16);
     --shadow-cartel: 0 12px 44px rgba(14,14,15,0.16);
   }
@@ -74,6 +75,7 @@
       --shadow-card: 0 6px 16px rgba(0,0,0,0.4);
       --shadow-tile: 0 2px 5px rgba(0,0,0,0.3);
       --shadow-pill: 0 4px 12px rgba(0,0,0,0.5);
+      --glass-edge: inset 0 0.5px 0 rgba(255,255,255,0.07), 0 1px 2px rgba(0,0,0,0.35);
       --scrim: rgba(0,0,1,0.5);
       --shadow-cartel: 0 12px 44px rgba(0,0,0,0.6);
     }
@@ -127,12 +129,25 @@
   }
   .bar .word { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; color: var(--ink); }
   .pill {
+    position: relative;
     display: flex; align-items: center;
     padding: 0 4px;
     background: var(--surface);
     border-radius: 999px;
     box-shadow: 0 0 0 0.5px rgba(102,102,105,0.10), var(--shadow-pill);
   }
+  /* The lens: one piece of glass that glides from word to word (seated by
+     seatGlass; the move is a view transition, the geometry morphs and the
+     pair stretches mid-way like a drop). */
+  .pill .glass {
+    position: absolute; top: 4px; bottom: 4px; left: 4px; width: 0;
+    border-radius: 999px;
+    background: var(--ivory-deep);
+    box-shadow: var(--glass-edge);
+    view-transition-name: tab-glass;
+    pointer-events: none;
+  }
+  html.novt .pill .glass { transition: left 0.48s cubic-bezier(0.22, 1, 0.36, 1), width 0.48s cubic-bezier(0.22, 1, 0.36, 1); }
   .pill button {
     position: relative;
     padding: 4px 0;
@@ -142,11 +157,29 @@
     padding: 9px 18px;
     border-radius: 999px;
     font-size: 15px; font-weight: 500;
-    color: var(--ink); opacity: 0.7;
-    transition: background-color 0.25s ease, opacity 0.25s ease;
+    color: var(--ink); opacity: 0.62;
+    text-align: center;
+    transition: opacity 0.2s ease;
   }
-  .pill button[aria-current="page"] span { background: var(--ivory-deep); font-weight: 600; opacity: 1; }
+  /* The bold word's width, reserved: the neighbours never shift. */
+  .pill button span::after { content: attr(data-label); display: block; height: 0; overflow: hidden; visibility: hidden; font-weight: 600; }
+  @media (hover: hover) { .pill button:hover span { opacity: 0.85; } }
+  .pill button[aria-current="page"] span { font-weight: 600; opacity: 1; }
   .pill button[aria-disabled="true"] { cursor: default; }
+  /* Each word travels in its own layer, above the glass, as the DOM paints it. */
+  #tabFeed span { view-transition-name: tab-feed; }
+  #tabFriends span { view-transition-name: tab-friends; }
+  #tabWishes span { view-transition-name: tab-wishes; }
+  ::view-transition-group(tab-glass) { animation-duration: 0.48s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+  ::view-transition-image-pair(tab-glass) { animation: glassTravel 0.48s cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes glassTravel { 45% { transform: scaleX(1.07) scaleY(0.93); } }
+  ::view-transition-old(root) { animation-duration: 0.18s; }
+  ::view-transition-new(root) { animation-duration: 0.24s; }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(tab-glass) { animation-duration: 0.01s; }
+    ::view-transition-image-pair(tab-glass) { animation: none; }
+    html.novt .pill .glass { transition: none; }
+  }
 
   /* ---------------------------------------------------------------- */
   /* The page: 16 of padding, like the app's section.                  */
@@ -635,6 +668,7 @@
 <header class="bar">
   <span class="word">Wantd</span>
   <nav class="pill" aria-label="Wantd">
+    <span class="glass" aria-hidden="true"></span>
     <button type="button" id="tabFeed" aria-current="page"><span data-t="feed">Feed</span></button>
     <button type="button" id="tabFriends"><span data-t="friends">Friends</span></button>
     <button type="button" id="tabWishes"><span data-t="wishlist">Wishlist</span></button>
@@ -1661,7 +1695,27 @@ function show(section) {
     const b = document.getElementById(id);
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   }
+  seatGlass();
   window.scrollTo(0, 0);
+}
+/// The glass of the pill under the current word. Its move from word to word
+/// is a view transition (the browser morphs the one snapshot across), so the
+/// element itself never transitions; where the browser has none, CSS glides it.
+const glass = document.querySelector(".pill .glass");
+document.documentElement.classList.toggle("novt", typeof document.startViewTransition !== "function");
+function seatGlass() {
+  for (const s of document.querySelectorAll(".pill button span")) if (s.dataset.label !== s.textContent) s.dataset.label = s.textContent;
+  const b = document.querySelector('.pill button[aria-current="page"]');
+  if (!b || !glass) return;
+  glass.style.left = b.offsetLeft + "px";
+  glass.style.width = b.offsetWidth + "px";
+}
+window.addEventListener("resize", seatGlass);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(seatGlass);
+/// One screen into the next: a cross-dissolve, with the glass gliding.
+function crossTo(fn) {
+  if (typeof document.startViewTransition !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches) { fn(); return; }
+  document.startViewTransition(fn);
 }
 function go(dest) {
   const u = new URL(location.href);
@@ -1671,7 +1725,7 @@ function go(dest) {
   if (dest.u) u.searchParams.set("u", dest.u);
   const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "", u: dest.u || "" };
   history.pushState(st, "", u);
-  render(st);
+  crossTo(() => render(st));
 }
 function render(st) {
   if (pieceOpen) closePiece(true);
@@ -1688,9 +1742,9 @@ window.addEventListener("popstate", (e) => {
   const u = new URL(location.href);
   const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" };
   const p = u.searchParams.get("p");
-  if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) render(st); return; }
-  render(st);
-  if (p) { const it = findPiece(p); if (it) openPiece(it, true); }
+  if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) crossTo(() => render(st)); return; }
+  if (p) { render(st); const it = findPiece(p); if (it) openPiece(it, true); }
+  else crossTo(() => render(st));
 });
 function findPiece(id) {
   // Her own copy first: the card edits the very object her list holds.
