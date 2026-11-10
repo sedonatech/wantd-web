@@ -64,7 +64,7 @@ const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceC
 const viaBridge = () => K.viaBridge();
 const Bridge = () => window.Account.bridge;
 const circle = { loaded: false, loading: false, error: null, following: [], mutual: new Set(), friends: [], pending: [], at: 0 };
-const visit = { handle: "", owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, sort: "manual", loading: false, notFound: false, seq: 0, following: false };
+const visit = { handle: "", owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, sort: "manual", budget: null, loading: false, notFound: false, seq: 0, following: false };
 // Who she reported: the feed page keeps the list, under her own id.
 const blocked = { has: (owner) => window.wantdBlocks.list().includes(owner) };
 /// Hers, or on a list she co-owns: she must never see its reservations or
@@ -329,7 +329,7 @@ function openMemberSearch() {
 // ---------------------------------------------------------------------------
 async function openProfile(handle) {
   const seq = ++visit.seq;
-  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, loading: true, notFound: false, following: false });
+  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, budget: null, loading: true, notFound: false, following: false });
   paintVisit();
   // Who she is: the worker knows her by handle; a member who joined minutes
   // ago is read from her Profile record (FriendsView tolerates "@Wtd-Gags ").
@@ -430,13 +430,39 @@ async function openProfile(handle) {
   paintVisit();
 }
 
+function viewerAmountOf(it) {
+  if (typeof it.pa !== "number" || !it.pc) return null;
+  const cur = it.pc.toUpperCase();
+  if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) return it.pa / rates[cur] * rates[VIEWER];
+  return it.pa;
+}
+function openVisitFilter() {
+  openSheet((panel) => {
+    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", K.W.filter)); head.appendChild(el("p", "wsub", K.W.yourBudget)); panel.appendChild(head);
+    const all = visit.items.concat(...Object.values(visit.sections));
+    const max = Math.max(1, ...all.map((it) => viewerAmountOf(it) || 0));
+    const cur = visit.budget || [0, Math.ceil(max)];
+    const lo = textInput(String(Math.round(cur[0])), "0", { type: "number" }); lo.min = "0";
+    const hi = textInput(String(Math.round(cur[1])), String(Math.ceil(max)), { type: "number" }); hi.min = "0";
+    const row = el("div", "wrow"); row.appendChild(labeled("Min", lo)); row.appendChild(labeled("Max", hi)); panel.appendChild(row);
+    const foot = el("div", "wfoot"); panel.appendChild(foot);
+    foot.appendChild(bar(K.W.done, () => { const a = Number(lo.value) || 0, b = Number(hi.value) || Math.ceil(max); visit.budget = (a <= 0 && b >= Math.ceil(max)) ? null : [Math.min(a, b), Math.max(a, b)]; paintVisit(); closeSheet(); }));
+    foot.appendChild(quietLine(K.W.reset, () => { visit.budget = null; paintVisit(); closeSheet(); }, true));
+  });
+}
 const isHadByOwner = (it) => it.st === "purchased" && it.rb === visit.owner;
 function visitShown() {
   let list = visit.items.slice();
   if (visit.shelf) list = list.filter(isHadByOwner);
   else if (visit.listID && visit.sections[visit.listID]) list = visit.sections[visit.listID].filter((it) => !isHadByOwner(it));
   else { list = list.filter((it) => !isHadByOwner(it)); if (visit.listID) list = list.filter((it) => (it.l || []).includes(visit.listID)); }
-  const by = { manual: (a, b) => a.si - b.si || b.at - a.at, recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at }[visit.sort] || ((a, b) => a.si - b.si);
+  if (visit.budget) {
+    // Items without a known price are kept (ContentView.filtered(budgetRange:)).
+    const [lo, hi] = visit.budget;
+    list = list.filter((it) => { const a = viewerAmountOf(it); return a == null ? true : a >= lo && a <= hi; });
+  }
+  const by = { manual: (a, b) => a.si - b.si || b.at - a.at, recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at,
+    priceAsc: (a, b) => (viewerAmountOf(a) ?? Infinity) - (viewerAmountOf(b) ?? Infinity), priceDesc: (a, b) => (viewerAmountOf(b) ?? -1) - (viewerAmountOf(a) ?? -1) }[visit.sort] || ((a, b) => a.si - b.si);
   return list.sort(by);
 }
 function paintVisit() {
@@ -452,6 +478,7 @@ function paintVisit() {
   $("vFounder").hidden = !(p && visit.owner === FOUNDER);
   const count = visit.items.filter((it) => !isHadByOwner(it)).length + Object.values(visit.sections).reduce((n, sec) => n + sec.length, 0);
   $("vFacts").textContent = p ? `@${p.h} · ${F.wantsN(visit.items.length ? count : 0)} · ${F.followersN(p.fr || 0)}` : "";
+  $("vFilterValue").textContent = visit.budget ? "· " + K.W.on : "";
   const fb = $("vFollow"); fb.hidden = !p || visit.owner === me().id; fb.textContent = visit.following ? F.followingYou : F.follow; fb.classList.toggle("soft", visit.following);
   $("vPledge").hidden = !p || visit.owner === me().id;
   const tabs = $("vTabs"); tabs.innerHTML = "";
@@ -852,8 +879,9 @@ function wire() {
   $("vNotFoundTitle").textContent = F.notFound; $("vNotFoundBody").textContent = F.checkHandle;
   $("vSortLabel").textContent = window.Wishes.kit.W.sort; $("vFilterLabel").textContent = window.Wishes.kit.W.filter;
   const sort = $("vSort");
-  for (const [k, label] of [["manual", K.W.sortDefault], ["recent", K.W.sortNewest], ["oldest", K.W.sortOldest]]) { const o = el("option", null, label); o.value = k; sort.appendChild(o); }
+  for (const [k, label] of [["manual", K.W.sortDefault], ["recent", K.W.sortNewest], ["oldest", K.W.sortOldest], ["priceAsc", K.W.sortPriceUp], ["priceDesc", K.W.sortPriceDown]]) { const o = el("option", null, label); o.value = k; sort.appendChild(o); }
   sort.addEventListener("change", () => { visit.sort = sort.value; paintVisit(); });
+  $("vFilter").addEventListener("click", openVisitFilter);
 }
 // On the Feed too, from the first page (FeedView.swift:990): the member link.
 $("memberLink").textContent = F.lookingMember; $("memberLink").addEventListener("click", openMemberSearch);

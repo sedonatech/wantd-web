@@ -373,6 +373,64 @@ function paint() {
 }
 function paintTabs() { paint(); }
 
+/// Her own order, by hand (WishlistStore.move): the dragged piece takes the
+/// place of the one it lands on, and the whole order is numbered again;
+/// only the pieces whose number changed are written.
+async function movePiece(draggedID, targetID) {
+  if (draggedID === targetID) return;
+  const ordered = me.items.slice().sort((a, b) => a.si - b.si || b.at - a.at);
+  const from = ordered.findIndex((x) => x.id === draggedID); if (from < 0) return;
+  const [moved] = ordered.splice(from, 1);
+  const at = ordered.findIndex((x) => x.id === targetID); if (at < 0) return;
+  ordered.splice(at, 0, moved);
+  const changed = [];
+  ordered.forEach((x, i) => { if (x.si !== i) { x.si = i; changed.push(x); } });
+  paint();
+  try {
+    if (viaBridge()) { for (const x of changed) await Bridge().saveItem(x.id, bridgeBody(x, { sortIndex: x.si })); }
+    else for (let i = 0; i < changed.length; i += 50) {
+      const recs = changed.slice(i, i + 50).map((x) => ({ recordType: "Item", recordName: x.id, recordChangeTag: x._tag, fields: { sortIndex: f(x.si, "DOUBLE") } }));
+      const res = await db().saveRecords(recs);
+      if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode).join(", "));
+      for (const r of res.records) { const x = me.items.find((y) => y.id === r.recordName); if (x) x._tag = r.recordChangeTag; }
+    }
+  } catch (e) { console.log("reorder failed", e); load(); }
+}
+/// The gesture: on a computer the card is dragged; on a phone a long press
+/// lifts it, then it follows the finger. Only in her own order.
+function wireReorder(host) {
+  if (DEMO || me.sort !== "manual" || me.shelf) return;
+  const cards = [...host.querySelectorAll(".card")].filter((c) => me.items.some((x) => x.id === c.dataset.id && x.o === me.id));
+  for (const c of cards) {
+    c.draggable = true;
+    c.addEventListener("dragstart", (e) => { c.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", c.dataset.id); });
+    c.addEventListener("dragend", () => { c.classList.remove("dragging"); host.querySelectorAll(".dropat").forEach((x) => x.classList.remove("dropat")); });
+    c.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; c.classList.add("dropat"); });
+    c.addEventListener("dragleave", () => c.classList.remove("dropat"));
+    c.addEventListener("drop", (e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); c.classList.remove("dropat"); if (id) movePiece(id, c.dataset.id); });
+    // The phone: a long press, then the finger.
+    let timer = null, lifted = false, ghost = null;
+    const end = () => { clearTimeout(timer); if (ghost) { ghost.remove(); ghost = null; } c.classList.remove("dragging"); host.querySelectorAll(".dropat").forEach((x) => x.classList.remove("dropat")); lifted = false; };
+    c.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      timer = setTimeout(() => { lifted = true; c.classList.add("dragging"); ghost = c.cloneNode(true); ghost.style.cssText = "position:fixed;pointer-events:none;width:" + c.offsetWidth + "px;opacity:0.9;z-index:70;left:0;top:0"; document.body.appendChild(ghost); }, 350);
+    }, { passive: true });
+    c.addEventListener("touchmove", (e) => {
+      if (!lifted) { clearTimeout(timer); return; }
+      e.preventDefault();
+      const t = e.touches[0];
+      ghost.style.transform = `translate(${t.clientX - c.offsetWidth / 2}px, ${t.clientY - 40}px)`;
+      const under = document.elementFromPoint(t.clientX, t.clientY); const over = under && under.closest(".card");
+      host.querySelectorAll(".dropat").forEach((x) => { if (x !== over) x.classList.remove("dropat"); });
+      if (over && over !== c) over.classList.add("dropat");
+    }, { passive: false });
+    c.addEventListener("touchend", (e) => {
+      if (lifted) { const t = e.changedTouches[0]; const under = document.elementFromPoint(t.clientX, t.clientY); const over = under && under.closest(".card"); if (over && over !== c) movePiece(c.dataset.id, over.dataset.id); }
+      end();
+    });
+    c.addEventListener("touchcancel", end);
+  }
+}
 function paintWall() {
   const host = $("wWall"), state = $("wState");
   const list = shown();
@@ -389,6 +447,7 @@ function paintWall() {
   }
   state.hidden = true; host.hidden = false;
   wall.add(list, { counts: wantedCount, own: true });
+  wireReorder(host);
 }
 function makeWallWith(host, n) {
   const w = makeWall(host);

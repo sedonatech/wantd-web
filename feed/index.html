@@ -358,6 +358,8 @@
   .wlegal .wlegaldate, .wlegal .wlegalnote { color: var(--ink-soft); font-size: 12px; }
   .wmenubox .wline + .wline { margin-top: 6px; }
   .wmenubox .wline { white-space: nowrap; }
+  .card.dragging { opacity: 0.4; }
+  .card.dropat { outline: 2px solid var(--cobalt); outline-offset: 4px; border-radius: 18px; }
   .wnewlist { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
   .wpick { margin: 10px 0 2px; align-self: flex-start; }
   @media (prefers-color-scheme: dark) {
@@ -723,7 +725,7 @@
           <div class="wtabs" id="vTabs"></div>
           <div class="wctl">
             <span class="text"><span id="vSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><select class="cover" id="vSort"></select></span>
-            <span class="text"><span id="vFilterLabel"></span></span>
+            <button type="button" class="text" id="vFilter"><span id="vFilterLabel"></span><span class="val" id="vFilterValue"></span></button>
             <span class="spacer"></span>
           </div>
           <div id="vState" class="state" hidden></div>
@@ -1044,6 +1046,7 @@ function card(it, opts) {
   const o = opts || {};
   const el = document.createElement("article");
   el.className = "card";
+  el.dataset.id = it.id;
   const photo = document.createElement("button");
   photo.type = "button";
   photo.className = "photo waiting";
@@ -1684,7 +1687,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=4"></script>
-<script src="/feed/wishes.js?v=15"></script>
-<script src="/feed/friends.js?v=12"></script>
+<script src="/feed/wishes.js?v=16"></script>
+<script src="/feed/friends.js?v=13"></script>
 </body>
 </html>
