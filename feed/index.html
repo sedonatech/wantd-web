@@ -365,7 +365,8 @@
   .wmenubox .wline + .wline { margin-top: 6px; }
   .wmenubox .wline { white-space: nowrap; }
   .card.dragging { opacity: 0.4; }
-  .card.dropat { outline: 2px solid var(--cobalt); outline-offset: 4px; border-radius: 18px; }
+  /* The place a dragged card will take: the card there steps aside a little, no frame. */
+  .card.dropat { transform: scale(0.96); transition: transform 0.15s ease; }
   .wnewlist { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
   .wpick { margin: 10px 0 2px; align-self: flex-start; }
   @media (prefers-color-scheme: dark) {
@@ -1719,7 +1720,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=4"></script>
-<script src="/feed/wishes.js?v=17"></script>
+<script src="/feed/wishes.js?v=18"></script>
 <script src="/feed/friends.js?v=13"></script>
 </body>
 </html>

@@ -405,7 +405,7 @@ function wireReorder(host) {
     c.draggable = true;
     c.addEventListener("dragstart", (e) => { c.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", c.dataset.id); });
     c.addEventListener("dragend", () => { c.classList.remove("dragging"); host.querySelectorAll(".dropat").forEach((x) => x.classList.remove("dropat")); });
-    c.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; c.classList.add("dropat"); });
+    c.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (!c.classList.contains("dragging")) c.classList.add("dropat"); });
     c.addEventListener("dragleave", () => c.classList.remove("dropat"));
     c.addEventListener("drop", (e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); c.classList.remove("dropat"); if (id) movePiece(id, c.dataset.id); });
     // The phone: a long press, then the finger.
