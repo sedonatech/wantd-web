@@ -414,6 +414,8 @@
   .wwho .facts { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .whdr .icon-btn { width: 36px; height: 36px; }
   .wmenu { position: relative; }
+  #wShare { position: relative; }
+  .wcopied { position: absolute; top: 40px; right: 0; white-space: nowrap; font-size: 12px; font-weight: 300; color: var(--ink-soft); background: var(--surface); padding: 6px 12px; border-radius: 999px; box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12), var(--shadow-pill); pointer-events: none; z-index: 5; }
   .wmenubox { position: absolute; right: 0; top: 40px; background: var(--surface); border-radius: 14px; box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12), var(--shadow-pill); padding: 10px 14px; z-index: 5; min-width: 160px; }
   .wtabs { display: flex; align-items: center; gap: 20px; overflow-x: auto; scrollbar-width: none; padding: 14px 2px 2px; }
   .wtabs::-webkit-scrollbar { display: none; }
@@ -708,6 +710,7 @@
           <div class="line1"><span class="name" id="wName"></span><span class="founder" id="wFounder" hidden></span></div>
           <div class="facts" id="wFacts"></div>
         </div>
+        <button type="button" class="icon-btn" id="wShare"><svg viewBox="0 0 16 16"><path d="M8 10V2.5M5.2 5.2 8 2.4l2.8 2.8M4.5 7.5H4a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-.5"/></svg><span class="wcopied" id="wCopied" hidden></span></button>
         <div class="wmenu">
           <button type="button" class="icon-btn" id="wMenu" aria-label="Menu"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
           <div class="wmenubox" id="wMenuBox" hidden><button type="button" class="wline" id="wPrivacy"></button><button type="button" class="wline" id="wTerms"></button><button type="button" class="wline soft" id="wSignOut"></button><div id="ckSignOut" class="ckhidden"></div></div>
@@ -1831,7 +1834,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=5"></script>
-<script src="/feed/wishes.js?v=20"></script>
+<script src="/feed/wishes.js?v=21"></script>
 <script src="/feed/friends.js?v=14"></script>
 </body>
 </html>

@@ -38,6 +38,7 @@ MAP = {
         "shareAsk": "%@ wants to share the %@ list with you.",
         "heardFriend": "A friend told me", "heardStore": "The App Store", "heardElse": "Somewhere else",
         "deleteListAsk": "Delete %@?",
+        "shareTitle": "%@'s WANTD",
         "offersYou": "%@ offers you %@.", "promiseCovers": "Their promise covers %@ of %@.", "willSee": "%@ will see the piece you chose and give it to you.",
     },
     "F": {

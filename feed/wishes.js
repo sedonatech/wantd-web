@@ -8,6 +8,7 @@
 // The words, as the app says them (Localizable.xcstrings).
 const W = words("W", {
   founder: "Founder",
+  share: "Share", copied: "Link copied", shareText: "Here is my WANTD wishlist", shareTitle: (n) => `${n}'s WANTD`,
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
   all: "All", edit: "Edit", granted: "Granted", sort: "Sort", filter: "Filter", on: "On",
   sortDefault: "Default", sortNewest: "Newest first", sortOldest: "Oldest first", sortPriceUp: "Ascending price", sortPriceDown: "Descending price",
@@ -502,6 +503,22 @@ function wireReorder(host) {
     });
     c.addEventListener("touchcancel", end);
   }
+}
+/// Her wishlist, passed on as the app does (SharePreviewSheet): the link of
+/// her page, or of the list on screen when it is public and not the main one.
+async function shareMine() {
+  const h = me.profile && me.profile.h;
+  if (!h) return;
+  const l = me.listID && me.lists.find((x) => x.id === me.listID && !x.isMain && !x.isPrivate);
+  const url = "https://wantd.sedonatech.uk/@" + h.toLowerCase() + (l ? "?list=" + String(l.id).toLowerCase() : "");
+  const name = (me.profile && me.profile.n) || h;
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title: W.shareTitle(name), text: W.shareText, url }); } catch (e) {}
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); } catch (e) { return; }
+  const c = $("wCopied"); c.textContent = W.copied; c.hidden = false;
+  clearTimeout(shareMine.t); shareMine.t = setTimeout(() => { c.hidden = true; }, 1800);
 }
 let wallKey = "";
 function paintWall() {
@@ -1238,6 +1255,8 @@ function wireControls() {
   buildDoor($("wDoorWays"));
   $("wFounder").textContent = W.founder;
   $("wMenu").addEventListener("click", () => { const m = $("wMenuBox"); m.hidden = !m.hidden; });
+  $("wShare").setAttribute("aria-label", W.share);
+  $("wShare").addEventListener("click", shareMine);
   $("wPrivacy").textContent = W.privacy; $("wPrivacy").addEventListener("click", () => openLegal("privacy"));
   $("wTerms").textContent = W.terms; $("wTerms").addEventListener("click", () => openLegal("terms"));
   $("wSignOut").textContent = W.signOut;
