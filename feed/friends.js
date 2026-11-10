@@ -231,11 +231,17 @@ function thumb(it, size, radius) {
   return b;
 }
 
+let circleKey = "";
 function paintCircle() {
   const signedIn = !!me().id;
   $("fDoor").hidden = signedIn; $("fHome").hidden = !signedIn;
   if (!signedIn) return;
   const head = $("fHead"), strip = $("fNew"), people = $("fPeople"), state = $("fState"), wait = $("fWait"), empty = $("fEmpty");
+  // The same circle as last time stays drawn: the portraits and the pieces
+  // would blink if torn down on each return to the tab.
+  const key = JSON.stringify([me().id, circle.loading && !circle.loaded, circle.error, REGULAR.matches, circle.friends, circle.pending, me().profile && me().profile.h]);
+  if (key === circleKey && (people.childElementCount || empty.childElementCount || state.hidden === false)) return;
+  circleKey = key;
   strip.innerHTML = ""; people.innerHTML = ""; wait.innerHTML = ""; empty.innerHTML = "";
   if (circle.loading && !circle.loaded) { state.hidden = false; state.className = "state tall"; state.innerHTML = '<div class="spin"></div>' + F.finding; head.hidden = true; return; }
   if (circle.error && !circle.loaded) { state.hidden = false; state.className = "state serif"; state.textContent = circle.error; return; }

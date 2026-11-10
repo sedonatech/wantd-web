@@ -503,9 +503,16 @@ function wireReorder(host) {
     c.addEventListener("touchcancel", end);
   }
 }
+let wallKey = "";
 function paintWall() {
   const host = $("wWall"), state = $("wState");
   const list = shown();
+  // The same picture as last time stays as it is: no card is torn down to
+  // be rebuilt (every photo would blink on each return to the tab).
+  const key = JSON.stringify([me.loading && !me.loaded, me.error || "", me.shelf, me.listID, REGULAR.matches && me.perRow,
+    list.map((it) => [it.id, it.st, it.n, it.pt, it.i, it.ia, it.rb, it.note ? 1 : 0, it.gift ? 1 : 0, it.l, wantedCount(it)])]);
+  if (key === wallKey && host.childElementCount) return;
+  wallKey = key;
   host.innerHTML = ""; wall = makeWall(host);
   if (REGULAR.matches) { wall.count = me.perRow; wall.reset(); for (let i = 0; i < 0; i++); }
   // makeWall deals by columnsNow(); the chosen density overrides it on a wide screen.
