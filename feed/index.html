@@ -105,6 +105,9 @@
   img { display: block; }
   :focus { outline: none; }
   :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 4px; }
+  /* A card never wears a ring: tapped or clicked, it opens, as in the app
+     (Agathe, 10 November 2026). */
+  .card .photo:focus, .card .photo:focus-visible, .ftile:focus, .ftile:focus-visible, .fthumb:focus, .fthumb:focus-visible { outline: none; }
   [hidden] { display: none !important; }
   .serif { font-family: var(--serif); }
   .num { font-family: var(--serif); font-weight: 300; font-style: italic; letter-spacing: -0.2px; font-variant-numeric: lining-nums; }
