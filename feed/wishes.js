@@ -1151,6 +1151,17 @@ function nameScreen() {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !go.disabled) { e.preventDefault(); go.click(); } });
     sync();
     page.appendChild(go);
+    // The wrong account, one tap ago: the way out of the card, back to the
+    // doors (a bridge session has no other exit while the card is up).
+    if (!entry.preview) {
+      const out = setIn(el("button", "equiet", W.signOut), 0.40); out.type = "button";
+      out.addEventListener("click", () => {
+        markEntering(false);
+        if (viaBridge()) { window.Account.signOut(); return; }
+        const b = $("ckSignOut").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click();
+      });
+      page.appendChild(out);
+    }
     if (REGULAR.matches) setTimeout(() => input.focus({ preventScroll: true }), 400);
   });
 }
