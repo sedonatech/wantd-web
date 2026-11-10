@@ -428,6 +428,63 @@
   #wAlert .abtns button { flex: 1; padding: 8px 0; border-radius: 999px; background: var(--ivory-deep); color: var(--ink); font-size: 13px; }
   #wAlert .abtns button:disabled { opacity: 0.5; }
 
+  /* The entrance of someone new, as the app's OnboardingView: one cobalt
+     card from her name to the welcome. A printed invitation stays paper,
+     day or night, so these colours are its own, never the theme's. */
+  #wEnter { position: fixed; inset: 0; z-index: 60; display: flex; overflow-y: auto; background: #0228B2; color: #F6F4EE; transition: opacity 0.55s ease-in, transform 0.55s ease-in, filter 0.55s ease-in; }
+  #wEnter[hidden] { display: none; }
+  #wEnter.leaving { opacity: 0; transform: scale(1.12); filter: blur(8px); pointer-events: none; }
+  #wEnter .epage { position: relative; margin: auto; width: 100%; max-width: 430px; min-height: min(100%, 800px); padding: calc(20px + env(safe-area-inset-top)) 30px calc(52px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; transition: opacity 0.4s ease; }
+  #wEnter .epage.out { position: absolute; left: 0; right: 0; top: 0; bottom: 0; opacity: 0; pointer-events: none; }
+  #wEnter .set { opacity: 0; transform: translateY(12px); transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1); transition-delay: var(--d, 0s); }
+  #wEnter .epage.in .set { opacity: 1; transform: none; }
+  #wEnter .eword { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  #wEnter .espace { flex: 1 1 0; min-height: 40px; }
+  #wEnter .espace.small { min-height: 16px; }
+  #wEnter .etitle { font-size: 31px; font-weight: 300; letter-spacing: -0.6px; line-height: 39px; }
+  #wEnter .eline { font-size: 13px; font-weight: 300; color: rgba(246,244,238,0.68); margin-top: 14px; }
+  #wEnter .efield { margin-top: 44px; }
+  #wEnter .efield input, #wEnter .ewhere { display: block; width: 100%; border: 0; border-radius: 0; background: none; font: inherit; color: #F6F4EE; caret-color: #F6F4EE; padding: 0; -webkit-appearance: none; appearance: none; }
+  #wEnter .efield input { font-size: 22px; font-weight: 300; line-height: 28px; }
+  #wEnter .efield input::placeholder, #wEnter .ewhere::placeholder { color: #F6F4EE; opacity: 0.4; }
+  #wEnter .efield input:focus, #wEnter .ewhere:focus { outline: none; }
+  #wEnter .efield .rule { height: 2px; margin-top: 9px; background: linear-gradient(rgba(246,244,238,0.28), rgba(246,244,238,0.28)) top / 100% 1px no-repeat; transition: background 0.25s ease; }
+  #wEnter .efield.filled .rule { background: rgba(246,244,238,0.9); }
+  #wEnter .ebar { display: block; width: 100%; padding: 15px 0; border-radius: 999px; font-size: 13px; font-weight: 400; letter-spacing: 0.3px; text-align: center; background: rgba(246,244,238,0.16); color: rgba(246,244,238,0.55); cursor: default; transition: background 0.25s ease, color 0.25s ease, opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0s), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0s); }
+  #wEnter .ebar.ready { background: #F6F4EE; color: #0228B2; cursor: pointer; }
+  #wEnter .ebar:focus-visible, #wEnter .equiet:focus-visible, #wEnter .eheard button:focus-visible, #wEnter .ewheel:focus-visible { outline: 2px solid #F6F4EE; outline-offset: 3px; }
+  #wEnter .equiet { display: block; margin: 16px auto 0; font-size: 13px; font-weight: 300; color: rgba(246,244,238,0.7); text-decoration: underline; text-underline-offset: 2px; }
+  #wEnter .eerror { font-size: 14px; color: #FFC7BD; margin-bottom: 18px; }
+  /* Her birthday: the wheels in their dark face, the chosen row bright in a faint band. */
+  #wEnter .ewheels { position: relative; height: 190px; margin-top: 24px; display: flex; gap: 4px; }
+  #wEnter .ewheels::before { content: ""; position: absolute; left: 0; right: 0; top: 78px; height: 34px; border-radius: 8px; background: rgba(246,244,238,0.12); pointer-events: none; }
+  #wEnter .ewheel { position: relative; height: 190px; overflow-y: scroll; scroll-snap-type: y mandatory; padding: 78px 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+  #wEnter .ewheel::-webkit-scrollbar { display: none; }
+  #wEnter .erow { height: 34px; line-height: 34px; text-align: center; font-size: 21px; font-weight: 400; white-space: nowrap; scroll-snap-align: center; cursor: pointer; opacity: 0.18; }
+  /* Where she heard of us. */
+  #wEnter .eheard { margin-top: 18px; }
+  #wEnter .eheard button { display: block; width: 100%; text-align: left; padding: 12px 0; font-size: 16px; font-weight: 400; color: rgba(246,244,238,0.55); transition: color 0.18s ease; }
+  #wEnter .eheard button.on { font-weight: 500; color: #F6F4EE; }
+  #wEnter .eheard button + button { border-top: 1px solid rgba(246,244,238,0.14); }
+  #wEnter .ewhere { font-size: 16px; font-weight: 400; margin-top: 14px; }
+  /* The welcome: the wordmark inks itself in, left to right. */
+  #wEnter .epage.ready { align-items: center; padding-left: 40px; padding-right: 40px; }
+  #wEnter .ewelcome { text-align: center; }
+  #wEnter .ewelcome .to { font-size: 26px; font-weight: 300; opacity: 0; transition: opacity 0.9s ease; }
+  #wEnter .ewelcome .mark { font-size: 52px; font-weight: 600; letter-spacing: -0.5px; margin-top: 4px; line-height: 1.2;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 50%, transparent 58.8%); mask-image: linear-gradient(90deg, #000 0%, #000 50%, transparent 58.8%);
+    -webkit-mask-size: 250% 100%; mask-size: 250% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: 100% 0; mask-position: 100% 0; transition: -webkit-mask-position 1.7s ease, mask-position 1.7s ease; }
+  #wEnter .epage.ready .ebar { font-size: 15px; font-weight: 500; letter-spacing: 0; opacity: 0; pointer-events: none; transition: opacity 0.9s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+  #wEnter .epage.ready.a1 .to { opacity: 1; }
+  #wEnter .epage.ready.a2 .mark { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+  #wEnter .epage.ready.a3 .ebar { opacity: 1; pointer-events: auto; }
+  #wEnter .epage.ready.a3 .ebar:active { transform: scale(0.985); opacity: 0.88; }
+  @media (prefers-reduced-motion: reduce) {
+    #wEnter, #wEnter .epage, #wEnter .set, #wEnter .ewelcome .to, #wEnter .ewelcome .mark, #wEnter .epage.ready .ebar { transition: none; }
+    #wEnter.leaving { transform: none; filter: none; }
+  }
+
   @media (max-width: 767px) {
     #wSheet .panel { left: 0; top: auto; bottom: 0; width: 100%; max-height: calc(100vh - 60px); transform: translate(0, 40px); border-radius: 22px 22px 0 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
     #wSheet.in .panel { transform: translate(0, 0); }
@@ -638,6 +695,9 @@
 <div id="wAlert" role="alertdialog" hidden>
   <div class="acard"><div class="atitle"></div><div class="abody"></div><div class="abtns"><button type="button" class="acancel" data-t="cancel">Cancel</button><button type="button" class="aok">Delete</button></div></div>
 </div>
+
+<!-- The entrance of someone new: her name, her birthday, where she heard of us, the welcome -->
+<div id="wEnter" role="dialog" aria-modal="true" hidden></div>
 
 <!-- One piece -->
 <div id="piece" role="dialog" aria-modal="true">
@@ -1426,7 +1486,7 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/wishes.js?v=8"></script>
-<script src="/feed/friends.js?v=6"></script>
+<script src="/feed/wishes.js?v=9"></script>
+<script src="/feed/friends.js?v=7"></script>
 </body>
 </html>

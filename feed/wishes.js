@@ -26,6 +26,11 @@ const W = FR ? {
   deleteListKeep: "Supprimer, garder ses envies",
   signIn: "Se connecter avec Apple", signOut: "Se déconnecter",
   shareAsk: (who, list) => `${who} souhaite partager la liste ${list} avec vous.`, aMember: "Un membre", yes: "Oui", no: "Non",
+  callYou: "Comment doit-on vous appeler\u00a0?", nameLine: "Le nom que votre cercle lira sur votre liste.", yourName: "Votre nom", thatsMe: "C’est moi",
+  spoilTitle: "Le jour où l’on vous gâte.", spoilLine: "Ajoutez votre anniversaire, pour que votre cercle n’ait jamais à le demander.", addBirthday: "Ajouter mon anniversaire", notNow: "Pas maintenant",
+  heardTitle: "Comment avez-vous connu Wantd\u00a0?", heardLine: "Je fais Wantd seule. Savoir d’où vous venez m’aide.",
+  heard: { "A friend told me": "On m’en a parlé", "The App Store": "L’App Store", "Somewhere else": "Ailleurs" }, where: "Où\u00a0?", cont: "Continuer",
+  welcomeTo: "Bienvenue sur", openMyList: "Ouvrir ma liste", connIssue: "Problème de connexion. Réessayez dans un instant.", oneMoment: "Un instant…",
 } : {
   keeps: "Wantd keeps your list in iCloud.", wishes: "wants", founder: "Founder",
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
@@ -46,6 +51,11 @@ const W = FR ? {
   deleteListKeep: "Delete, keep its wants",
   signIn: "Sign in with Apple", signOut: "Sign out",
   shareAsk: (who, list) => `${who} wants to share the ${list} list with you.`, aMember: "A member", yes: "Yes", no: "No",
+  callYou: "What should we call you?", nameLine: "The name your circle will read on your list.", yourName: "Your name", thatsMe: "That's me",
+  spoilTitle: "The day to spoil you.", spoilLine: "Add your birthday, so your circle never has to ask.", addBirthday: "Add my birthday", notNow: "Not now",
+  heardTitle: "How did you hear about us?", heardLine: "I make Wantd on my own. Knowing where you came from helps.",
+  heard: {}, where: "Where?", cont: "Continue",
+  welcomeTo: "Welcome to", openMyList: "Open my list", connIssue: "Connection issue. Try again in a moment.", oneMoment: "One moment...",
 };
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
@@ -64,6 +74,7 @@ const me = {
   asking: false,
   items: [],           // index-shaped pieces, with si (sortIndex), st (status), rb (reservedBy), note, _tag
   loaded: false, loading: false, error: null,
+  newcomer: false,     // her profile was read and she has none: the entrance is hers
   listID: null,        // null = All
   shelf: false,        // the Granted shelf
   sort: "manual",
@@ -178,12 +189,14 @@ async function load() {
       me.items = (page.items || []).map((it, i) => Object.assign({ si: i, st: "available", l: it.l || [] }, it));
       me.lists = [];
     } else {
-      const [items, mine, shared, profiles, member, words] = await Promise.all([
+      const [items, mine, shared, profilesRead, member, words] = await Promise.all([
         queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
                  { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset"] }),
         queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
         queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
-        queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5 }).catch(() => []),
+        // null when the read failed: a profile that could not be read is not
+        // "she has none" (ensureProfileOnce), and nobody is walked in on it.
+        queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5 }).catch(() => null),
         getJSON("/member?owner=" + encodeURIComponent(me.id)).catch(() => null),
         queryAll({ recordType: "ListMembership", filterBy: [{ fieldName: "memberID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => null),
       ]);
@@ -215,6 +228,16 @@ async function load() {
         const named = pr.map((r) => v(r, "displayName")).find((n) => n);
         if (named) me.pendingNames[id] = named;
       }
+      // Someone new (MemberDoor.existingProfiles): CloudKit could look and
+      // holds no profile of hers, and the server knows no member by her id.
+      const onServer = !!(member && member.profile && member.profile.h);
+      let profiles = profilesRead || [], unsure = !profilesRead;
+      if (profilesRead && !profilesRead.length && !onServer && keptHandle()) {
+        const st = await handleState(keptHandle());
+        if (st.record && st.state === "available") profiles = [st.record];
+        else if (st.state === "error") unsure = true;
+      }
+      me.newcomer = !unsure && !profiles.length && !onServer;
       const p = profiles.map((r) => r.fields || {}).find((x) => x.handle && x.handle.value !== "wtd-you") || (profiles[0] && profiles[0].fields) || null;
       const avatar = p && p.avatarAsset && p.avatarAsset.value && p.avatarAsset.value.downloadURL;
       me.profile = {
@@ -230,7 +253,10 @@ async function load() {
   }
   me.loading = false;
   paint();
-  askNextShare();
+  // Someone new is walked in first; so is one who left the entrance half way
+  // (the app's hasOnboarded), once her profile could be read again.
+  if (me.loaded && !DEMO && (me.newcomer || (entering() && me.profile && me.profile.h))) openEntrance();
+  else askNextShare();
 }
 
 // ---------------------------------------------------------------------------
@@ -815,12 +841,368 @@ function openFilterSheet() {
 }
 
 // ---------------------------------------------------------------------------
+// The entrance of someone new, as the app's OnboardingView from her name on
+// (the door before it is the sign-in): what should we call her, the day to
+// spoil her, where she heard of us, the welcome. Her profile is written the
+// moment she says who she is; her birthday, then the founder she follows
+// from day one, are written at "Open my list". A member never sees it: it
+// opens only when her profile was read and there is none.
+// ---------------------------------------------------------------------------
+const HEARD = ["A friend told me", "TikTok", "Instagram", "Pinterest", "The App Store", "Somewhere else"];
+const entry = { open: false, preview: false, name: "", hasBirthday: false, birthday: null, heard: null, other: "", heardSent: false, handle: null, chain: Promise.resolve(true) };
+const enteringKey = () => "wantd.entering." + me.id;
+/// She began the entrance in this browser and has not opened her list yet.
+function entering() { try { return !!me.id && localStorage.getItem(enteringKey()) === "1"; } catch (e) { return false; } }
+function markEntering(on) { try { if (on) localStorage.setItem(enteringKey(), "1"); else localStorage.removeItem(enteringKey()); } catch (e) {} }
+/// The handle she was given here, kept in this browser: CloudKit needs a few
+/// seconds to list a profile it has just accepted, and a page opened again in
+/// that moment must not take her for someone new (the app's doubles of
+/// 8 September). Read back by its own name, which answers at once.
+const handleKey = () => "wantd.handle." + me.id;
+function keptHandle() { try { return (me.id && localStorage.getItem(handleKey())) || ""; } catch (e) { return ""; } }
+function keepHandle(h) { entry.handle = h; try { localStorage.setItem(handleKey(), h); } catch (e) {} }
+const isPlaceholder = (h, n) => n === "You" || h === "wtd-you" || /^wtd-you\d+$/.test(h || "");
+
+/// A handle is free, or hers already (checkHandleAvailability). A read that
+/// failed is "error", never "taken" and never "free".
+async function handleState(handle) {
+  try {
+    const res = await db().fetchRecords([{ recordName: "profile-" + handle }], { desiredKeys: ["ownerID", "handle", "displayName"] });
+    const r = res.records && res.records[0];
+    if (r && r.fields) return { state: v(r, "ownerID") === me.id ? "available" : "taken", record: r };
+    const err = res.errors && res.errors[0];
+    return { state: err && err.ckErrorCode === "NOT_FOUND" ? "available" : "error" };
+  } catch (e) {
+    return { state: e && e.ckErrorCode === "NOT_FOUND" ? "available" : "error" };
+  }
+}
+/// "wtd-" and her name, accents folded, letters and digits only; numbered,
+/// then with four random characters, when someone else holds it
+/// (ProfileStore.pickAvailableHandle).
+function handleCore(name) {
+  let c = String(name).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!c) c = "user";
+  c = c.slice(0, 15);
+  if (c.length < 2) c += "0";
+  return c;
+}
+async function pickHandle(name) {
+  const c = handleCore(name);
+  const hex = (n) => crypto.randomUUID().replace(/-/g, "").slice(0, n).toLowerCase();
+  const tries = ["wtd-" + c].concat([2, 3, 4, 5].map((n) => "wtd-" + c.slice(0, 13) + n), [0, 1, 2].map(() => "wtd-" + c.slice(0, 11) + hex(4)));
+  for (const h of tries) {
+    const s = (await handleState(h)).state;
+    if (s === "available") return h;
+    if (s === "error") throw new Error("offline");
+  }
+  return "wtd-" + c.slice(0, 7) + hex(8);
+}
+/// A plain insert the server refuses when someone got there first
+/// (claimProfile): never written over another member's record.
+async function claimProfile(handle, name) {
+  let res = null;
+  try {
+    res = await db().saveRecords([{ recordType: "Profile", recordName: "profile-" + handle,
+      fields: { handle: f(handle, "STRING"), displayName: f(name, "STRING"), ownerID: f(me.id, "STRING") } }]);
+  } catch (e) { res = null; }
+  if (res && !res.hasErrors && res.records && res.records[0]) return "available";
+  const now = await handleState(handle);
+  return now.record ? now.state : "error";
+}
+/// Her profile, once (ensureProfile): passes are chained, never side by side,
+/// and each reads before it writes, so she is never doubled.
+function ensureProfile() {
+  entry.chain = entry.chain.then(async () => {
+    if (entry.handle || entry.preview) return true;
+    const name = entry.name.trim();
+    if (!name || name === "You") return false;
+    try {
+      const mine = await queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 5, desiredKeys: ["handle", "displayName"] });
+      const kept = mine.map((r) => ({ h: v(r, "handle"), n: v(r, "displayName") })).find((x) => x.h && !isPlaceholder(x.h, x.n));
+      if (kept) { keepHandle(kept.h); return true; }
+      for (let i = 0; i < 3; i++) {
+        const h = await pickHandle(name);
+        const got = await claimProfile(h, name);
+        if (got === "available") { keepHandle(h); return true; }
+        if (got === "error") return false;
+      }
+    } catch (e) { console.log("profile not written", e); }
+    return false;
+  });
+  return entry.chain;
+}
+/// Her name as she last typed it and her birthday, onto her own record.
+async function writeProfileEdits() {
+  const res = await db().fetchRecords([{ recordName: "profile-" + entry.handle }]);
+  const r = res.records && res.records[0];
+  if (!r || !r.fields || v(r, "ownerID") !== me.id) throw new Error("profile");
+  const fields = {}, name = entry.name.trim();
+  if (name && name !== "You" && v(r, "displayName") !== name) fields.displayName = f(name, "STRING");
+  if (entry.hasBirthday && entry.birthday) fields.birthday = f(entry.birthday.getTime(), "TIMESTAMP");
+  if (!Object.keys(fields).length) return;
+  const out = await db().saveRecords([{ recordType: "Profile", recordName: r.recordName, recordChangeTag: r.recordChangeTag, fields }]);
+  if (out.hasErrors) throw new Error(out.errors.map((e) => e.ckErrorCode).join(", "));
+}
+/// Day one is never empty: she follows the founder, her handle on the record
+/// so the follow can name who arrived. Written once, here, and never again.
+async function followFounder() {
+  if (me.id === FOUNDER) return false;
+  const make = (named) => {
+    const fields = { followerID: f(me.id, "STRING"), followedID: f(FOUNDER, "STRING"), status: f("accepted", "STRING") };
+    if (named && entry.handle) fields.followerHandle = f(entry.handle, "STRING");
+    return { recordType: "Follow", recordName: `follow-${me.id}-${FOUNDER}`, fields };
+  };
+  for (const named of [true, true, false]) {
+    try { const res = await db().saveRecords([make(named)], { operationType: "forceUpdate" }); if (!res.hasErrors) return true; } catch (e) {}
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return false;
+}
+/// Where she came from rides a Feedback record, in her name ("Heard: TikTok"):
+/// the answer stays one of the English values, the cockpit counts by that text.
+function sendHeard() {
+  if (!entry.heard || entry.heardSent || entry.preview) return;
+  entry.heardSent = true;
+  const other = entry.other.trim();
+  const answer = entry.heard === "Somewhere else" && other ? "Somewhere else: " + other : entry.heard;
+  ensureProfile().then(() => db().saveRecords([{ recordType: "Feedback", recordName: "feedback-" + crypto.randomUUID().toUpperCase(),
+    fields: { text: f("Heard: " + answer, "STRING"), senderID: f(me.id, "STRING"), senderHandle: f(entry.handle || "", "STRING"), appVersion: f("web", "STRING"), sentAt: f(Date.now(), "TIMESTAMP") } }])).catch(() => {});
+}
+
+// The card's grammar: each page enters in reading order, kicker, content, acts.
+function setIn(node, delay) { node.classList.add("set"); node.style.setProperty("--d", delay + "s"); return node; }
+function enterPage(build, cls) {
+  const root = $("wEnter");
+  const page = el("div", "epage" + (cls ? " " + cls : ""));
+  build(page);
+  for (const old of root.querySelectorAll(".epage")) { old.classList.add("out"); setTimeout(() => old.remove(), 420); }
+  root.appendChild(page);
+  root.scrollTop = 0;
+  requestAnimationFrame(() => requestAnimationFrame(() => page.classList.add("in")));
+  return page;
+}
+function cardBar(title, onClick) {
+  const b = el("button", "ebar", title); b.type = "button";
+  b.ready = (on) => { b.classList.toggle("ready", !!on); b.disabled = !on; };
+  b.ready(false);
+  b.addEventListener("click", onClick);
+  return b;
+}
+const cardSpace = (small) => el("div", "espace" + (small ? " small" : ""));
+
+function openEntrance(preview) {
+  if (entry.open) return;
+  Object.assign(entry, { open: true, preview: !!preview, name: (!preview && me.profile && me.profile.n) || "", hasBirthday: false, birthday: null, heard: null, other: "", heardSent: false,
+    handle: (!preview && me.profile && me.profile.h) || null, chain: Promise.resolve(true) });
+  if (!preview) markEntering(true);
+  closeSheet(true);
+  const root = $("wEnter");
+  root.innerHTML = ""; root.classList.remove("leaving"); root.hidden = false;
+  document.body.style.overflow = "hidden";
+  nameScreen();
+}
+function closeEntrance() {
+  if (!entry.open) return;
+  entry.open = false;
+  const root = $("wEnter");
+  root.hidden = true; root.innerHTML = ""; root.classList.remove("leaving");
+  document.body.style.overflow = "";
+}
+
+function nameScreen() {
+  enterPage((page) => {
+    page.appendChild(setIn(el("div", "eword", "Wantd."), 0.04));
+    page.appendChild(cardSpace());
+    page.appendChild(setIn(el("h1", "etitle", W.callYou), 0.12));
+    page.appendChild(setIn(el("p", "eline", W.nameLine), 0.20));
+    const field = setIn(el("div", "efield"), 0.26);
+    const input = el("input"); input.type = "text"; input.placeholder = W.yourName; input.value = entry.name; input.maxLength = 40;
+    input.autocomplete = "given-name"; input.autocapitalize = "words"; input.spellcheck = false; input.enterKeyHint = "done"; input.setAttribute("aria-label", W.yourName);
+    field.appendChild(input); field.appendChild(el("div", "rule"));
+    page.appendChild(field);
+    page.appendChild(cardSpace());
+    const go = setIn(cardBar(W.thatsMe, () => {
+      entry.name = input.value.trim();
+      if (!entry.name) return;
+      // Written now, not after the welcome: the birthday and the question
+      // that follow give this write all the time it needs.
+      ensureProfile();
+      birthdayScreen();
+    }), 0.32);
+    const sync = () => { const t = input.value.trim(); field.classList.toggle("filled", !!t); go.ready(!!t && t !== "You"); };
+    input.addEventListener("input", sync);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !go.disabled) { e.preventDefault(); go.click(); } });
+    sync();
+    page.appendChild(go);
+    if (REGULAR.matches) setTimeout(() => input.focus({ preventScroll: true }), 400);
+  });
+}
+
+/// Month, day and year in the order her language writes them, never past
+/// today; the chosen row bright in its band, the others fading.
+function dateWheels(onChange) {
+  const ROW = 34, today = new Date();
+  const box = el("div", "ewheels");
+  let y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+  const years = []; for (let i = 1900; i <= today.getFullYear(); i++) years.push(i);
+  const months = []; for (let i = 0; i < 12; i++) months.push(new Intl.DateTimeFormat(LOCALE, { month: "long" }).format(new Date(2021, i, 15)));
+  const daysIn = (yy, mm) => new Date(yy, mm + 1, 0).getDate();
+  function wheel(labels, selected, grow, label, onSelect) {
+    const col = el("div", "ewheel"); col.style.flex = grow + " 1 0"; col.tabIndex = 0; col.setAttribute("role", "spinbutton"); col.setAttribute("aria-label", label);
+    let current = selected, timer = null, count = 0;
+    const shade = () => {
+      const c = Math.max(0, Math.min(count - 1, Math.round(col.scrollTop / ROW)));
+      for (let i = 0; i < count; i++) { const dist = Math.abs(i - c); col.children[i].style.opacity = dist === 0 ? "1" : dist === 1 ? "0.55" : dist === 2 ? "0.32" : "0.18"; }
+      col.setAttribute("aria-valuetext", col.children[c] ? col.children[c].textContent : "");
+      return c;
+    };
+    col.fill = (list) => {
+      col.innerHTML = ""; count = list.length;
+      list.forEach((t, i) => { const r = el("div", "erow", String(t)); r.addEventListener("click", () => col.scrollTo({ top: i * ROW, behavior: "smooth" })); col.appendChild(r); });
+    };
+    col.set = (i) => { current = i; col.scrollTop = i * ROW; shade(); };
+    col.addEventListener("scroll", () => {
+      const c = shade();
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (c !== current) { current = c; onSelect(c); } }, 140);
+    }, { passive: true });
+    col.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      col.scrollTo({ top: Math.max(0, Math.min(count - 1, current + (e.key === "ArrowDown" ? 1 : -1))) * ROW, behavior: "smooth" });
+    });
+    col.fill(labels);
+    return col;
+  }
+  let last = new Date(y, m, d, 12).getTime();
+  const emit = () => {
+    d = Math.min(d, daysIn(y, m));
+    let chosen = new Date(y, m, d, 12);
+    if (chosen > today) { chosen = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12); y = chosen.getFullYear(); m = chosen.getMonth(); d = chosen.getDate(); }
+    const n = daysIn(y, m);
+    if (cols.day.children.length !== n) { const list = []; for (let i = 1; i <= n; i++) list.push(i); cols.day.fill(list); }
+    cols.year.set(years.indexOf(y)); cols.month.set(m); cols.day.set(d - 1);
+    if (chosen.getTime() === last) return;
+    last = chosen.getTime();
+    onChange(chosen);
+  };
+  const dayList = []; for (let i = 1; i <= daysIn(y, m); i++) dayList.push(i);
+  const cols = {
+    month: wheel(months, m, 1.6, "month", (i) => { m = i; emit(); }),
+    day: wheel(dayList, d - 1, 0.8, "day", (i) => { d = i + 1; emit(); }),
+    year: wheel(years, years.indexOf(y), 1, "year", (i) => { y = years[i]; emit(); }),
+  };
+  let order = ["month", "day", "year"];
+  try {
+    const parts = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric" }).formatToParts(today).map((p) => p.type).filter((t) => t === "day" || t === "month" || t === "year");
+    if (parts.length === 3) order = parts;
+  } catch (e) {}
+  for (const k of order) box.appendChild(cols[k]);
+  // Seated by the page once it stands in the document and has a size to scroll in.
+  box.seat = () => { cols.year.set(years.indexOf(y)); cols.month.set(m); cols.day.set(d - 1); };
+  return box;
+}
+
+function birthdayScreen() {
+  let wheels = null;
+  enterPage((page) => {
+    page.appendChild(setIn(el("div", "eword", "Wantd."), 0.04));
+    page.appendChild(cardSpace());
+    page.appendChild(setIn(el("h1", "etitle", W.spoilTitle), 0.12));
+    page.appendChild(setIn(el("p", "eline", W.spoilLine), 0.20));
+    const add = cardBar(W.addBirthday, () => heardScreen());
+    wheels = dateWheels((date) => { entry.birthday = date; entry.hasBirthday = true; add.ready(true); });
+    page.appendChild(setIn(wheels, 0.26));
+    page.appendChild(cardSpace());
+    page.appendChild(setIn(add, 0.32));
+    // A birthday cannot be required: the door does not wait for it, and
+    // walking past leaves her profile's birthday empty.
+    const skip = setIn(el("button", "equiet", W.notNow), 0.38); skip.type = "button";
+    skip.addEventListener("click", () => { entry.hasBirthday = false; entry.birthday = null; heardScreen(); });
+    page.appendChild(skip);
+  });
+  wheels.seat();
+}
+
+function heardScreen() {
+  enterPage((page) => {
+    page.appendChild(setIn(el("div", "eword", "Wantd."), 0.04));
+    page.appendChild(cardSpace(true));
+    page.appendChild(setIn(el("h1", "etitle", W.heardTitle), 0.12));
+    page.appendChild(setIn(el("p", "eline", W.heardLine), 0.20));
+    const list = setIn(el("div", "eheard"), 0.26);
+    const where = el("input", "ewhere"); where.type = "text"; where.placeholder = W.where; where.maxLength = 120; where.hidden = true; where.autocomplete = "off"; where.setAttribute("aria-label", W.where);
+    where.addEventListener("input", () => { entry.other = where.value; });
+    const go = cardBar(W.cont, () => { sendHeard(); readyScreen(); });
+    for (const source of HEARD) {
+      // TikTok, Instagram, Pinterest: names, never translated.
+      const b = el("button", null, W.heard[source] || source); b.type = "button";
+      b.addEventListener("click", () => {
+        entry.heard = source;
+        for (const x of list.children) x.classList.toggle("on", x === b);
+        where.hidden = source !== "Somewhere else";
+        if (where.hidden) { where.value = ""; entry.other = ""; } else where.focus({ preventScroll: true });
+        go.ready(true);
+      });
+      list.appendChild(b);
+    }
+    page.appendChild(list);
+    page.appendChild(where);
+    page.appendChild(cardSpace(true));
+    page.appendChild(setIn(go, 0.32));
+  });
+}
+
+function readyScreen() {
+  const page = enterPage((page) => {
+    page.appendChild(cardSpace());
+    const w = el("div", "ewelcome");
+    w.appendChild(el("div", "to", W.welcomeTo));
+    w.appendChild(el("div", "mark", "Wantd."));
+    page.appendChild(w);
+    page.appendChild(cardSpace());
+    const err = el("div", "eerror"); err.hidden = true; err.setAttribute("role", "alert"); page.appendChild(err);
+    const open = cardBar(W.openMyList, async () => {
+      open.ready(false); open.classList.add("ready"); err.hidden = true;
+      if (!entry.preview) {
+        open.textContent = W.oneMoment;
+        let ok = await ensureProfile();
+        if (!ok) ok = await ensureProfile();
+        if (ok) { try { await writeProfileEdits(); } catch (e) { ok = false; } }
+        if (!ok) { open.textContent = W.openMyList; err.textContent = W.connIssue; err.hidden = false; open.ready(true); return; }
+        const followed = await followFounder();
+        me.profile = Object.assign({ fr: 0, avatarURL: null, emoji: null }, me.profile || {}, { h: entry.handle, n: entry.name.trim(), fg: followed ? 1 : 0 });
+        me.newcomer = false;
+        markEntering(false);
+      }
+      // Into the app: the card grows away and her list is there.
+      $("wEnter").classList.add("leaving");
+      setTimeout(() => {
+        const preview = entry.preview;
+        closeEntrance();
+        if (preview) return;
+        if ($("wishes").hidden) go({ tab: "wishes" }); else paint();
+        if (window.Friends) window.Friends.onAuth();
+        askNextShare();
+      }, 560);
+    });
+    open.ready(true);
+    page.appendChild(open);
+  }, "ready");
+  // Sleeps, as the app: her welcome, the wordmark's ink, then the bar.
+  setTimeout(() => page.classList.add("a1"), 300);
+  setTimeout(() => page.classList.add("a2"), 900);
+  setTimeout(() => page.classList.add("a3"), 2200);
+}
+
+// ---------------------------------------------------------------------------
 // Sign in, sign out: CloudKit draws Apple's buttons into #ckSignIn and
 // #ckSignOut; the identity is the iPhone's.
 // ---------------------------------------------------------------------------
 function signedIn(identity) {
   me.id = identity && identity.userRecordName;
-  me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false;
+  me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
+  if (!entry.preview) closeEntrance();
   paint();
   if (me.id) load();
   // Signed out: her circle does not stay in this browser for the next person.
@@ -862,6 +1244,9 @@ window.Wishes = {
          listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });
+// A local try walks the entrance without writing anything (the app's
+// --preview-onboarding): /feed/?tab=wishes&preview=enter
+if (LOCAL && new URLSearchParams(location.search).get("preview") === "enter") openEntrance(true);
 // The page may have opened on this tab before this script was read.
 if (!document.getElementById("wishes").hidden) window.Wishes.enter();
 })();
