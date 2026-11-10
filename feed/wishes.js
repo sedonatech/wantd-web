@@ -484,7 +484,7 @@ function openSheet(build) {
   build(panel);
   root.classList.add("on");
   requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("in")));
-  document.body.style.overflow = "hidden";
+  holdPage(true);
   sheetOpen = true;
   const first = panel.querySelector("input, textarea, button");
   if (first && !REGULAR.matches) {} else if (first) first.focus({ preventScroll: true });
@@ -494,7 +494,7 @@ function closeSheet(now) {
   if (!sheetOpen) { if (now) root.classList.remove("on", "in"); return; }
   sheetOpen = false;
   root.classList.remove("in");
-  document.body.style.overflow = "";
+  holdPage(false);
   setTimeout(() => { if (!sheetOpen) root.classList.remove("on"); }, now ? 0 : 320);
 }
 $("wSheetScrim").addEventListener("click", () => closeSheet());
@@ -1373,7 +1373,7 @@ function openEntrance(preview) {
   closeSheet(true);
   const root = $("wEnter");
   root.innerHTML = ""; root.classList.remove("leaving"); root.hidden = false;
-  document.body.style.overflow = "hidden";
+  holdPage(true);
   nameScreen();
 }
 function closeEntrance() {
@@ -1381,7 +1381,7 @@ function closeEntrance() {
   entry.open = false;
   const root = $("wEnter");
   root.hidden = true; root.innerHTML = ""; root.classList.remove("leaving");
-  document.body.style.overflow = "";
+  holdPage(false);
 }
 
 function nameScreen() {
@@ -1698,7 +1698,7 @@ function openEmailDoor() {
   closeSheet(true);
   const root = $("wEnter");
   root.innerHTML = ""; root.classList.remove("leaving"); root.hidden = false;
-  document.body.style.overflow = "hidden";
+  holdPage(true);
   emailScreen();
 }
 function leaveDoor() { closeEntrance(); }

@@ -262,6 +262,9 @@
   /* ---------------------------------------------------------------- */
   /* The piece: a cartel on the Mac, a sheet on the phone.             */
   /* ---------------------------------------------------------------- */
+  /* The page held still under a card or a sheet, without a jump: the body
+     is pinned where she was, and set back there when the card goes. */
+  body.held { position: fixed; left: 0; right: 0; overflow: hidden; }
   #piece { position: fixed; inset: 0; z-index: 40; display: none; }
   #piece.on { display: block; }
   #piece .scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; transition: opacity 0.3s ease; }
@@ -1526,7 +1529,29 @@ document.getElementById("storeBack").addEventListener("click", () => history.bac
 // ---------------------------------------------------------------------------
 const pieceEl = document.getElementById("piece");
 let pieceOpen = null, pieceTimer = null, lastFocus = null;
+/// The page held still while a card or a sheet is up, and released without a
+/// jump: hiding the body's overflow alone sent Safari back to the top, so the
+/// card closed on a page that had moved (Agathe, 10 November 2026).
+// The browser must not put the scroll back itself: the entry left when a
+// card opens is recorded with the page already pinned (scroll 0), and Back
+// would restore that; the page restores its own place.
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+let holds = 0, heldAt = 0;
+function holdPage(on) {
+  if (on) {
+    if (holds++ > 0) return;
+    heldAt = window.scrollY;
+    document.body.style.top = -heldAt + "px";
+    document.body.classList.add("held");
+  } else {
+    if (holds === 0 || --holds > 0) return;
+    document.body.classList.remove("held");
+    document.body.style.top = "";
+    window.scrollTo(0, heldAt);
+  }
+}
 function openPiece(it, fromHistory) {
+  const pieceWasOpen = !!pieceOpen;
   pieceOpen = it;
   lastFocus = document.activeElement;
   const hero = document.getElementById("pieceHero"); hero.innerHTML = "";
@@ -1579,7 +1604,7 @@ function openPiece(it, fromHistory) {
   pieceEl.classList.add("on");
   document.getElementById("cartel").scrollTop = 0;
   requestAnimationFrame(() => requestAnimationFrame(() => pieceEl.classList.add("in")));
-  document.body.style.overflow = "hidden";
+  if (!pieceWasOpen) holdPage(true);
   // Focus the cartel itself, never its hidden close button: focusing the
   // button drew it (focus-visible), and the Mac has none.
   const cartelEl = document.getElementById("cartel"); cartelEl.tabIndex = -1; cartelEl.focus({ preventScroll: true });
@@ -1592,11 +1617,14 @@ function closePiece(fromHistory) {
   if (!pieceOpen) return;
   pieceOpen = null;
   pieceEl.classList.add("out"); pieceEl.classList.remove("in");
-  document.body.style.overflow = "";
+  holdPage(false);
   pieceTimer = setTimeout(() => { pieceEl.classList.remove("on", "out"); }, 360);
   if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
-  if (!fromHistory) history.back();
+  // Back only undoes the card's own entry: the page under it is not drawn
+  // again (that redraw scrolled it to the top, the jump Agathe saw).
+  if (!fromHistory) { closingByBack = true; history.back(); }
 }
+let closingByBack = false;
 document.getElementById("pieceScrim").addEventListener("click", () => closePiece());
 document.getElementById("pieceClose").addEventListener("click", () => closePiece());
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pieceOpen) closePiece(); });
@@ -1637,6 +1665,7 @@ document.getElementById("tabFeed").addEventListener("click", () => { if (documen
 document.getElementById("tabWishes").addEventListener("click", () => { if (document.getElementById("wishes").hidden) go({ tab: "wishes" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
 document.getElementById("tabFriends").addEventListener("click", () => { if (document.getElementById("friends").hidden || new URL(location.href).searchParams.get("u")) go({ tab: "friends" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
 window.addEventListener("popstate", (e) => {
+  if (closingByBack) { closingByBack = false; return; }
   const u = new URL(location.href);
   const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" };
   const p = u.searchParams.get("p");
@@ -1687,7 +1716,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=4"></script>
-<script src="/feed/wishes.js?v=16"></script>
+<script src="/feed/wishes.js?v=17"></script>
 <script src="/feed/friends.js?v=13"></script>
 </body>
 </html>
