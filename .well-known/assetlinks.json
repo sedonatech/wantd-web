@@ -1,10 +1,14 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.sedonatech.wantd",
-    "sha256_cert_fingerprints": [
-      "D8:1B:6F:D4:64:62:59:3C:E3:42:4F:D2:65:C6:CE:DB:D6:DE:F2:66:D8:37:4A:84:90:10:07:88:35:85:55:7C"
-    ]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sedonatech.wantd",
+      "sha256_cert_fingerprints": [
+        "D8:1B:6F:D4:64:62:59:3C:E3:42:4F:D2:65:C6:CE:DB:D6:DE:F2:66:D8:37:4A:84:90:10:07:88:35:85:55:7C",
+        "11:15:33:55:5B:92:46:FF:58:1D:43:0C:BB:84:85:33:02:4D:C9:2C:AF:08:78:AC:D1:FF:53:A8:44:7C:CB:A3",
+        "5E:6E:B0:11:A9:F1:48:77:04:BD:2C:08:49:0D:C0:53:EA:52:70:D1:7E:78:00:7E:3D:D9:BA:CB:68:16:1E:E8"
+      ]
+    }
   }
-}]
+]
