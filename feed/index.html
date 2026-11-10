@@ -154,7 +154,7 @@
     font-size: 15px; font-weight: 500;
     color: var(--ink); opacity: 0.62;
     text-align: center;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.42s cubic-bezier(0.16, 1, 0.3, 1);
   }
   /* The bold word's width, reserved: the neighbours never shift. */
   .pill button span::after { content: attr(data-label); display: block; height: 0; overflow: hidden; visibility: hidden; font-weight: 600; }
@@ -1667,28 +1667,36 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && pieceOpe
 // Where she is: /feed/, ?store=zara.com, ?p=<id>. The browser's own back.
 // ---------------------------------------------------------------------------
 const stateNow = (extra) => { const u = new URL(location.href); return Object.assign({ store: store.host || "", name: store.name || "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" }, extra || {}); };
-function show(section) {
-  document.getElementById("river").hidden = section !== "river";
-  document.getElementById("store").hidden = section !== "store";
-  document.getElementById("wishes").hidden = section !== "wishes";
-  document.getElementById("friends").hidden = section !== "friends";
-  for (const [id, on] of [["tabFeed", section === "river" || section === "store"], ["tabWishes", section === "wishes"], ["tabFriends", section === "friends"]]) {
-    const b = document.getElementById(id);
-    if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
-  }
-  seatGlass(true);
+let arriving = null;
+function show(section, animate) {
+  const next = document.getElementById(section);
+  for (const id of ["river", "store", "wishes", "friends"]) document.getElementById(id).hidden = id !== section;
+  markTab(section === "wishes" ? "tabWishes" : section === "friends" ? "tabFriends" : "tabFeed");
   window.scrollTo(0, 0);
+  if (arriving) { arriving.cancel(); arriving = null; }
+  // The screen arrives in a fade (opacity alone: a transform on the section
+  // would re-anchor the fixed sheets that live inside it).
+  if (animate && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    arriving = next.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 340, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+    arriving.finished.then(() => { arriving = null; }, () => {});
+  }
+}
+function markTab(id) {
+  for (const b of document.querySelectorAll(".pill button")) { if (b.id === id) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); }
+  seatGlass(true);
 }
 /// The glass of the pill under the current word: left cap, middle, right
 /// cap, placed by transform alone. A change of word glides (glide); a
 /// resize or a late font seats it where it belongs.
 const glass = { el: document.querySelector(".pill .glass"), at: null, anims: [] };
 glass.l = glass.el.querySelector(".l"); glass.m = glass.el.querySelector(".m"); glass.r = glass.el.querySelector(".r");
-function glassFrames(L, R, h) {
-  // The caps are h wide; the middle, 1px scaled, overlaps each cap by half a pixel.
+function glassFrames(L, R, h, s) {
+  // The caps are h wide; the middle, 1px scaled, overlaps each cap by half a
+  // pixel; `s` swells the drop a little while it travels.
+  const sy = s && s !== 1 ? ` scaleY(${s})` : "";
   return {
-    l: `translateX(${L}px)`, r: `translateX(${R - h}px)`,
-    m: `translateX(${L + h / 2 - 0.5}px) scaleX(${Math.max(1, R - L - h + 1)})`,
+    l: `translateX(${L}px)${sy}`, r: `translateX(${R - h}px)${sy}`,
+    m: `translateX(${L + h / 2 - 0.5}px) scaleX(${Math.max(1, R - L - h + 1)})${sy}`,
   };
 }
 function placeGlass(L, R) {
@@ -1720,13 +1728,15 @@ function glide(L1, R1) {
   for (let i = 0; i <= N; i++) {
     const t = i / N, pL = right ? trail(t) : lead(t), pR = right ? lead(t) : trail(t);
     const L = L0 + (L1 - L0) * pL, R = R0 + (R1 - R0) * pR;
-    const f = glassFrames(L, R, h);
+    const f = glassFrames(L, R, h, 1 + 0.06 * Math.sin(Math.PI * t));
     kf.l.push({ transform: f.l }); kf.m.push({ transform: f.m }); kf.r.push({ transform: f.r });
   }
   const opts = { duration: 520, easing: "linear", fill: "forwards" };
-  glass.anims = [glass.l.animate(kf.l, opts), glass.m.animate(kf.m, opts), glass.r.animate(kf.r, opts)];
-  Promise.all(glass.anims.map((a) => a.finished)).then(() => { for (const a of glass.anims) a.cancel(); glass.anims = []; placeGlass(L1, R1); }, () => {});
+  const mine = [glass.l.animate(kf.l, opts), glass.m.animate(kf.m, opts), glass.r.animate(kf.r, opts)];
+  glass.anims = mine;
   glass.at = [L1, R1];
+  // Only the latest glide seats the glass at its end; an older one, overtaken, never does.
+  Promise.all(mine.map((a) => a.finished)).then(() => { if (glass.anims !== mine) return; for (const a of mine) a.cancel(); glass.anims = []; placeGlass(L1, R1); }, () => {});
 }
 window.addEventListener("resize", () => seatGlass(false));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => seatGlass(false));
@@ -1738,26 +1748,45 @@ function go(dest) {
   if (dest.u) u.searchParams.set("u", dest.u);
   const st = { store: dest.store || "", name: dest.name || "", tab: dest.tab || "", u: dest.u || "" };
   history.pushState(st, "", u);
-  render(st);
+  want = st;
+  // The glass leaves at once; the screen is built on the frame after, so
+  // the glide never waits for the build.
+  markTab(st.tab === "wishes" ? "tabWishes" : st.tab === "friends" ? "tabFriends" : "tabFeed");
+  afterFrame(() => render(st, true));
 }
-function render(st) {
+/// After the next frame is painted; dropped if a newer screen came first.
+let frameToken = 0;
+function afterFrame(fn) {
+  const t = ++frameToken;
+  let done = false;
+  const run = () => { if (done) return; done = true; if (t === frameToken) fn(); };
+  requestAnimationFrame(() => setTimeout(run, 0));
+  setTimeout(run, 80);   // a tab in the background paints no frame: build anyway
+}
+let want = { store: "", name: "", tab: "", u: "" };
+function render(st, animate) {
+  want = st;
   if (pieceOpen) closePiece(true);
-  if (st.tab === "wishes") { show("wishes"); if (window.Wishes) window.Wishes.enter(); }
-  else if (st.tab === "friends") { show("friends"); if (window.Wishes) window.Wishes.wake(); if (window.Friends) window.Friends.enter(st.u || ""); }
-  else if (st.store) { show("store"); openStore(st.store, st.name); }
-  else { show("river"); }
+  if (st.tab === "wishes") { show("wishes", animate); if (window.Wishes) window.Wishes.enter(); }
+  else if (st.tab === "friends") { show("friends", animate); if (window.Wishes) window.Wishes.wake(); if (window.Friends) window.Friends.enter(st.u || ""); }
+  else if (st.store) { show("store", animate); openStore(st.store, st.name); }
+  else { show("river", animate); }
 }
-document.getElementById("tabFeed").addEventListener("click", () => { if (document.getElementById("river").hidden || document.getElementById("store").hidden === false) go({}); else window.scrollTo({ top: 0, behavior: "smooth" }); });
-document.getElementById("tabWishes").addEventListener("click", () => { if (document.getElementById("wishes").hidden) go({ tab: "wishes" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
-document.getElementById("tabFriends").addEventListener("click", () => { if (document.getElementById("friends").hidden || new URL(location.href).searchParams.get("u")) go({ tab: "friends" }); else window.scrollTo({ top: 0, behavior: "smooth" }); });
+// The word tapped again scrolls to the top; judged on the screen asked for
+// (`want`), not the one drawn, which follows a frame later.
+const toTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+document.getElementById("tabFeed").addEventListener("click", () => { if (want.tab || want.store) go({}); else toTop(); });
+document.getElementById("tabWishes").addEventListener("click", () => { if (want.tab !== "wishes") go({ tab: "wishes" }); else toTop(); });
+document.getElementById("tabFriends").addEventListener("click", () => { if (want.tab !== "friends" || want.u) go({ tab: "friends" }); else toTop(); });
 window.addEventListener("popstate", (e) => {
   if (closingByBack) { closingByBack = false; return; }
+  frameToken++;
   const u = new URL(location.href);
   const st = e.state || { store: u.searchParams.get("store") || "", name: "", tab: u.searchParams.get("tab") || "", u: u.searchParams.get("u") || "" };
   const p = u.searchParams.get("p");
-  if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) render(st); return; }
+  if (pieceOpen && !p) { closePiece(true); if (st.store !== store.host) render(st, true); return; }
   if (p) { render(st); const it = findPiece(p); if (it) openPiece(it, true); }
-  else render(st);
+  else render(st, true);
 });
 function findPiece(id) {
   // Her own copy first: the card edits the very object her list holds.
