@@ -210,6 +210,7 @@
   .state.serif { font-family: var(--serif); font-size: 15px; font-style: italic; color: var(--ink); }
   .state.tall { padding-top: 120px; }
   .state .title { font-family: var(--serif); font-size: 18px; font-weight: 300; color: var(--ink); margin-bottom: 12px; }
+  .state .findstores { display: block; margin: 14px auto 0; font-family: var(--sans); font-size: 13px; font-style: normal; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
   .state .spin { width: 18px; height: 18px; margin: 0 auto 14px; border-radius: 50%; border: 1.5px solid var(--ink-soft); border-top-color: transparent; animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .state .spin { animation: none; border-top-color: var(--ink-soft); opacity: 0.5; } }
@@ -285,6 +286,8 @@
   .cartel .hero .blank { width: 60%; height: 100%; background: var(--ivory-deep); border-radius: 4px; }
   .cartel .body { padding: 28px 32px 40px; }
   .cartel .maker { font-size: 14px; font-weight: 700; text-transform: uppercase; color: var(--ink); }
+  .cartel .note { font-family: var(--serif); font-size: 13px; font-weight: 300; font-style: italic; color: var(--ink-soft); margin-top: 8px; white-space: pre-wrap; }
+  .cartel .baseprice { font-size: 12px; font-weight: 300; color: var(--ink-soft); width: 100%; }
   .cartel .title { font-family: var(--serif); font-size: 24px; font-weight: 300; font-style: italic; color: var(--ink); line-height: 1.3; margin-top: 4px; padding-bottom: 2px; }
   .cartel .line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
   .cartel .line .price { font-size: 16px; color: var(--ink); }
@@ -794,6 +797,7 @@ const T = words("T", {
   community: (n, more) => `${n}${more ? "+" : ""} ${n === 1 ? "want" : "wants"} from the community`,
   emptyTitle: "Nothing here yet", emptyBody: "As people add wants, they'll show up here.",
   back: "Back", close: "Close", clear: "Clear", cancel: "Cancel", toCheck: "Price to check",
+  findStores: "Find it in the stores", perL: (p) => `${p} / 1 l`, perKg: (p) => `${p} / 1 kg`, reserved: "Reserved",
 });
 document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[el.dataset.t]; });
 document.getElementById("q").placeholder = T.searchPrompt;
@@ -947,6 +951,23 @@ function priceOf(it) {
   if (it.pt) return it.pt.replace(/([.,])00(?!\d)/, "");
   return null;
 }
+/// Per litre or per kilo, for a Douglas piece only, while what it holds still
+/// belongs to the price shown (WishItem.vouchedNetContent, CurrencyService
+/// .basePrice, SED-911): "50 ml" at 36 EUR reads "720 € / 1 l".
+function basePriceOf(it) {
+  if (!it.nc || !it.ncf || typeof it.pa !== "number" || it.pa <= 0 || !it.pc || !it.u) return null;
+  const host = hostOf(it.u).split("."); if (host.length < 2 || host[host.length - 2] !== "douglas") return null;
+  if (it.ncf !== `${Math.round(it.pa * 100)} ${it.pc.toUpperCase()} ${it.u}`) return null;
+  const m = /^(\d+(?:\.\d+)?) (ml|g)$/.exec(it.nc); if (!m) return null;
+  const qty = Number(m[1]); if (!(qty > 0)) return null;
+  const cur = it.pc.toUpperCase();
+  let perUnit = it.pa / (qty / 1000), code = cur;
+  if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) { perUnit = Math.round(perUnit / rates[cur] * rates[VIEWER]); code = VIEWER; }
+  const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(code);
+  const cents = noCents ? Math.round(perUnit) : Math.round(perUnit * 100) / 100;
+  const text = new Intl.NumberFormat(LOCALE, { style: "currency", currency: code, minimumFractionDigits: cents === Math.round(cents) ? 0 : 2, maximumFractionDigits: cents === Math.round(cents) ? 0 : 2 }).format(cents);
+  return m[2] === "ml" ? T.perL(text) : T.perKg(text);
+}
 const dateOf = (ms) => new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric" }).format(new Date(ms));
 
 // ---------------------------------------------------------------------------
@@ -1028,7 +1049,7 @@ function card(it, opts) {
   photo.setAttribute("aria-label", it.n || "");
   photo.addEventListener("click", () => openPiece(it));
   photoInto(photo, it);
-  if ((typeof o.status === "function" ? o.status(it) : o.status) && it.st === "reserved") { const b = document.createElement("span"); b.className = "badge"; b.textContent = FR ? "Réservée" : "Reserved"; photo.appendChild(b); }
+  if ((typeof o.status === "function" ? o.status(it) : o.status) && it.st === "reserved") { const b = document.createElement("span"); b.className = "badge"; b.textContent = T.reserved; photo.appendChild(b); }
   if (o.counts) {
     const n = o.counts(it);
     const pill = document.createElement("span");
@@ -1073,7 +1094,10 @@ const river = {
 const riverWall = makeWall(document.getElementById("riverWall"));
 const riverState = document.getElementById("riverState");
 const ownerName = (it) => { const p = river.profiles[it.o]; return p ? (p.n || p.h || "") : ""; };
-const meID = () => (window.wantdAuth && window.wantdAuth.identity && window.wantdAuth.identity.userRecordName) || "";
+// Who she is on this page: the Wishlist tab's member (Apple through
+// CloudKit JS, or a bridge session), the CloudKit identity before that
+// script is read.
+const meID = () => (window.Wishes && window.Wishes.kit ? (window.Wishes.kit.me().id || "") : ((window.wantdAuth && window.wantdAuth.identity && window.wantdAuth.identity.userRecordName) || ""));
 // The members she reported: kept on this browser under her own id, never
 // shared with whoever signs in next, and none for a visitor.
 function blockedOwners() {
@@ -1111,8 +1135,17 @@ function dropBlocked() {
 window.wantdBlocks = { list: blockedOwners, add: blockOwner, drop: dropBlocked };
 const countOf = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
+/// A link to a shop's front door, not to a product (ProductScraper
+/// .looksLikeStorefront): no path, or one short segment without a digit
+/// (/women, /sale). "C'est le produit ou rien" (Agathe, 2026-09-03).
 function looksLikeStorefront(u) {
-  try { const x = new URL(u); return (x.pathname === "/" || x.pathname === "") && !x.search; } catch (e) { return false; }
+  try {
+    const x = new URL(u);
+    if (!x.host) return false;
+    const segs = x.pathname.split("/").filter(Boolean);
+    if (!segs.length) return true;
+    return segs.length === 1 && segs[0].length <= 8 && !/\d/.test(segs[0]);
+  } catch (e) { return false; }
 }
 function takeIn(index, firstPage) {
   // One member, one want: /feed/first then /feed bring the same pairs twice.
@@ -1186,8 +1219,88 @@ function seatingTheDay(items, now, firstScreen = 12) {
   }
   return out;
 }
+/// The river as she sees it: never her own pieces, nor a product she
+/// already has (FeedView, decided 2026-07-06 and 2026-09-04), and, once the
+/// worker has answered, For you mixed in; a visitor sees everything.
+function riverForHer() {
+  const id = meID(), mine = window.Wishes ? window.Wishes.myKeys() : null;
+  if (!id) return river.items;
+  const fresh = river.items.filter((it) => it.o !== id && !(mine && it.u && mine.has(urlKey(it.u))));
+  if (!forYou.lists || forYou.member !== id) { loadForYou(); return fresh; }
+  return blendForHer(fresh);
+}
+
+// For you, mixed as Pinterest mixes a home feed (SED-862, FeedBlend): her
+// taste, the newest of the community, the week's trending, the members she
+// follows, each in its own order, a weighted round keeping their shares
+// (35, 30, 20, 15) through the whole river, one card a product, and never
+// two of a shop or a person in a row. The worker builds her three lists
+// (/feed/for, kept ten minutes); the river is the fourth.
+const forYou = { lists: null, at: 0, member: "", loading: false };
+async function loadForYou() {
+  const id = meID();
+  if (!id || forYou.loading || (forYou.member === id && Date.now() - forYou.at < 600000)) return;
+  forYou.loading = true;
+  try {
+    const a = await getJSON("/feed/for?member=" + encodeURIComponent(id));
+    for (const [u, who] of a.rewants || []) {
+      const k = urlKey(u), pair = k + "|" + who;
+      if (river.pairs.has(pair)) continue;
+      river.pairs.add(pair); river.counts.set(k, (river.counts.get(k) || 0) + 1);
+    }
+    Object.assign(river.profiles, a.profiles || {});
+    // Admitted under the river's rules: never hers, never a product she has,
+    // never a blocked piece, a picture always, no storefront.
+    const gone = blockedOwners(), mine = window.Wishes ? window.Wishes.myKeys() : null;
+    const admit = (pieces) => {
+      const seen = new Set(), out = [];
+      for (const it of pieces || []) {
+        if (!it.n || !it.u || !hasPhoto(it) || looksLikeStorefront(it.u) || it.o === id || (mine && mine.has(urlKey(it.u))) || gone.includes(it.o)) continue;
+        const k = urlKey(it.u); if (seen.has(k)) continue; seen.add(k); out.push(it);
+      }
+      return out;
+    };
+    forYou.lists = { taste: admit(a.taste), trending: admit(a.trending), followed: admit(a.followed) };
+    forYou.at = Date.now(); forYou.member = id;
+    riverRefresh();
+  } catch (e) { console.log("for you failed", e); }
+  forYou.loading = false;
+}
+function blendForHer(fresh) {
+  const sources = [forYou.lists.taste, fresh, forYou.lists.trending, forYou.lists.followed];
+  const weights = [35, 30, 20, 15];
+  const usedIDs = new Set(), usedKeys = new Set();
+  const at = sources.map(() => 0), credit = sources.map(() => 0), out = [];
+  for (;;) {
+    // The next card each source can still give, skipping what another
+    // source already placed.
+    const next = new Map();
+    sources.forEach((list, i) => {
+      while (at[i] < list.length) {
+        const it = list[at[i]];
+        if (usedIDs.has(it.id) || usedKeys.has(urlKey(it.u))) { at[i] += 1; continue; }
+        next.set(i, it); break;
+      }
+    });
+    if (!next.size) break;
+    let total = 0; for (const i of next.keys()) total += weights[i];
+    let pick = -1;
+    for (const i of [...next.keys()].sort()) { credit[i] += weights[i]; if (pick < 0 || credit[i] > credit[pick]) pick = i; }
+    credit[pick] -= total;
+    const it = next.get(pick); at[pick] += 1;
+    usedIDs.add(it.id); usedKeys.add(urlKey(it.u)); out.push(it);
+  }
+  return spacingBrands(out);
+}
+/// Her pieces came in, or she signed in or out: the river is dealt again.
+function riverRefresh() {
+  if (search.open && search.q) return;
+  if (document.getElementById("river").hidden) { river.dealAgain = true; return; }
+  riverWall.reset(); river.shown = 0; river.dealAgain = false;
+  if (!showMoreOfRiver()) { riverState.hidden = false; }
+}
 function showMoreOfRiver() {
-  const next = river.items.slice(river.shown, river.shown + PAGE);
+  const next = riverForHer().slice(river.shown, river.shown + PAGE);
   if (!next.length) return false;
   riverWall.add(next, { counts: countOf, quiet: true });
   river.shown += next.length;
@@ -1320,7 +1433,16 @@ async function runSearch(q) {
   const seen = new Set(); const uniq = [];
   for (const it of items) { const k = urlKey(it.u); if (!seen.has(k)) { seen.add(k); uniq.push(it); } }
   search.results = uniq;
-  if (!uniq.length) { riverState.textContent = T.searchEmpty; return; }
+  if (!uniq.length) {
+    // A search that finds nothing becomes a want: the stores are one tap
+    // away (FeedView.searchEmptyState, SED-622).
+    riverState.textContent = "";
+    riverState.appendChild(document.createTextNode(T.searchEmpty));
+    const find = document.createElement("button"); find.type = "button"; find.className = "findstores"; find.textContent = T.findStores;
+    find.addEventListener("click", () => { setSearchOpen(false); document.getElementById("stores").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    riverState.appendChild(find);
+    return;
+  }
   riverState.hidden = true;
   document.getElementById("riverWall").hidden = false;
   riverWall.add(uniq, { counts: countOf, quiet: true });
@@ -1330,6 +1452,8 @@ qInput.addEventListener("input", () => {
   document.getElementById("clearQ").hidden = !q;
   clearTimeout(search.timer);
   if (!q) { search.q = ""; search.seq++; showRiver(); return; }
+  // Two letters at least, as the app (FeedView.normalizedSearch).
+  if (q.length < 2) return;
   search.timer = setTimeout(() => { if (q !== search.q) { search.q = q; runSearch(q); } }, 280);
 });
 qInput.addEventListener("keydown", (e) => { if (e.key === "Escape") setSearchOpen(false); });
@@ -1416,9 +1540,16 @@ function openPiece(it, fromHistory) {
   const p = priceOf(it);
   if (p) { const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = p; pr._item = it; line.appendChild(pr); }
   const host = hostOf(it.u);
+  const base = basePriceOf(it);
+  if (p && base) { const b = document.createElement("span"); b.className = "baseprice"; b.textContent = base; line.appendChild(b); }
   if (host) { const h = document.createElement("span"); h.className = "host"; h.textContent = host; line.appendChild(h); }
   if (it.at) { const d = document.createElement("span"); d.className = "date"; d.textContent = dateOf(it.at); line.appendChild(d); }
   body.appendChild(line);
+  // Size, colour, the words she wrote for herself: on her own card and on a
+  // visited list, never in the river where it is nobody's business (Agathe,
+  // 2026-09-05).
+  const note = (it.note || "").trim();
+  if (note && ((window.Wishes && window.Wishes.isMine(it)) || it._visited)) { const n = document.createElement("p"); n.className = "note"; n.textContent = note; body.appendChild(n); }
   const who = meID() && it.o !== meID() ? (ownerName(it) || (window.Friends ? window.Friends.ownerName(it) : "")) : "";
   if (who) {
     const f = document.createElement("span"); f.className = "from"; f.textContent = T.from(who);
@@ -1514,8 +1645,14 @@ function findPiece(id) {
 function openDeepLink() {
   const p = new URL(location.href).searchParams.get("p");
   if (!p || pieceOpen) return;
+  // The page itself stands under the card: the address without ?p= is the
+  // one Back returns to, so closing the card never leaves the site.
+  const base = new URL(location.href); base.searchParams.delete("p");
+  history.replaceState(stateNow({}), "", base);
   const it = findPiece(p);
-  if (it) openPiece(it, true);
+  if (it) { openPiece(it); return; }
+  // Not among the pieces here: read by its id (any piece of the public base).
+  if (window.Wishes && window.Wishes.readPiece) window.Wishes.readPiece(p).then((found) => { if (found && !pieceOpen) openPiece(found); }).catch(() => {});
 }
 (function start() {
   const u = new URL(location.href);
@@ -1543,8 +1680,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=2"></script>
-<script src="/feed/wishes.js?v=13"></script>
-<script src="/feed/friends.js?v=10"></script>
+<script src="/feed/account.js?v=3"></script>
+<script src="/feed/wishes.js?v=14"></script>
+<script src="/feed/friends.js?v=11"></script>
 </body>
 </html>

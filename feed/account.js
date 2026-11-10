@@ -135,6 +135,7 @@ function itemOf(v) {
     // Who reserved it is never named by the bridge: hers, or someone's.
     rb: v.reservedByMe || (st === "purchased" && v.ownerID === me) ? me : (st === "reserved" ? "someone" : undefined),
     note: v.personalNote || undefined, aw: v.alsoWantedBy || [], rf: v.rewantedFrom || undefined, _tag: null,
+    nc: v.netContent || undefined, ncf: v.netContentFor || undefined, rn: v.reservedNote || undefined,
     gift: giftOf(v.groupGift, me),
   };
   if (v.ownPhoto && v.imageAssetURL) { it.op = 1; it.ia = v.imageAssetURL; }
@@ -182,6 +183,8 @@ const Bridge = {
   profiles: async (ids) => ((await api("GET", "/v1/profiles?ownerIDs=" + ids.join(","))).profiles || []).map(profileOf),
   profile: async (handle) => { const r = await api("GET", `/v1/profiles/${encodeURIComponent(handle)}`); return { profile: profileOf(r.profile), lists: (r.lists || []).map(listOf), items: (r.items || []).map(itemOf) }; },
   item: async (id) => itemOf((await api("GET", `/v1/items/${id}`)).item),
+  listItems: async (owner, id) => ((await api("GET", `/v1/lists/${owner}/${id}/items`)).items || []).map(itemOf),
+  reserveNote: (id, note) => api("PUT", `/v1/items/${id}/reservation/note`, { note }),
   reserve: (id, on) => api(on ? "PUT" : "DELETE", `/v1/items/${id}/reservation`),
   rewant: (itemID, listIDs) => api("POST", "/v1/rewants", listIDs && listIDs.length ? { itemID, listIDs } : { itemID }),
   unrewant: (productURL) => api("POST", "/v1/rewants/remove", { productURL }),

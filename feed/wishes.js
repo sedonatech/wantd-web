@@ -54,6 +54,7 @@ const me = {
   words: new Map(),    // her word on each shared list: LISTUUID -> { state, at, tag }
   asking: false,
   items: [],           // index-shaped pieces, with si (sortIndex), st (status), rb (reservedBy), note, _tag
+  extras: {},          // listID -> the co-members' pieces of a list kept with others (WishlistStore.sharedListExtras)
   loaded: false, loading: false, error: null,
   newcomer: false,     // her profile was read and she has none: the entrance is hers
   listID: null,        // null = All
@@ -88,6 +89,7 @@ function itemFromRecord(r) {
     at: v(r, "addedAt") || Date.now(), l: v(r, "listIDs") || [], o: v(r, "ownerID"),
     si: typeof v(r, "sortIndex") === "number" ? v(r, "sortIndex") : 0, st: v(r, "status") || "available", rb: v(r, "reservedBy"),
     note: v(r, "personalNote"), aw: v(r, "alsoWantedBy") || [], rf: v(r, "rewantedFrom"), _tag: r.recordChangeTag,
+    nc: v(r, "netContent") || undefined, ncf: v(r, "netContentFor") || undefined,
   };
   if (v(r, "ownPhoto") === 1 && asset && asset.downloadURL) { it.op = 1; it.ia = String(asset.downloadURL).replace("${f}", "photo.jpg"); }
   return it;
@@ -150,6 +152,12 @@ function askNextShare() {
 }
 const f = (value, type) => ({ value, type });
 
+/// Every piece filed on a list, whoever wrote it (fetchItems(inList:)).
+async function itemsInList(listID) {
+  const rows = await queryAll({ recordType: "Item", filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS", fieldValue: { value: listID } }] },
+    { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+  return rows.map(itemFromRecord);
+}
 async function queryAll(query, options) {
   const out = [];
   let res = await db().performQuery(query, options);
@@ -186,7 +194,7 @@ async function load() {
       } else {
         const [itemsR, mineR, sharedR, profR, m, wordsR] = await Promise.all([
           queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
-                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset"] }),
+                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
           // null when the read failed: a profile that could not be read is not
@@ -224,6 +232,15 @@ async function load() {
       }
       me.lists = lists.sort((a, b) => a.createdAt - b.createdAt);
       me.pending = pending;
+      // A co-owned tab shows the WHOLE list (HomeView): the co-members' pieces
+      // come beside hers, never pushed, deduplicated nor deleted by her.
+      me.extras = {};
+      await Promise.all(me.lists.filter((l) => (l.memberIDs || []).length).map(async (l) => {
+        try {
+          const found = viaBridge() ? await Bridge().listItems(l.creatorID, l.id) : await itemsInList(l.id);
+          me.extras[l.id] = found.filter((it) => it.n && it.o && it.o !== me.id).map((it) => Object.assign(it, { _visited: true }));
+        } catch (e) { console.log("shared list pieces", e); }
+      }));
       const unnamed = [...new Set(pending.map((l) => l.creatorID).filter((x) => x && !me.pendingNames[x]))];
       if (unnamed.length && viaBridge()) {
         for (const pr of await Bridge().profiles(unnamed).catch(() => [])) if (pr.o && pr.n) me.pendingNames[pr.o] = pr.n;
@@ -256,6 +273,7 @@ async function load() {
   }
   me.loading = false;
   paint();
+  if (window.riverRefresh) window.riverRefresh();
   // Someone new is walked in first; so is one who left the entrance half way
   // (the app's hasOnboarded), once her profile could be read again.
   if (me.loaded && !DEMO && (me.newcomer || (entering() && me.profile && me.profile.h))) openEntrance();
@@ -271,11 +289,12 @@ function shown() {
   if (me.shelf) list = list.filter(isHad);
   else {
     list = list.filter((it) => !isHad(it));
-    if (me.listID) list = list.filter((it) => (it.l || []).includes(me.listID));
+    if (me.listID) list = list.filter((it) => (it.l || []).includes(me.listID)).concat(me.extras[me.listID] || []);
   }
   if (me.budget) {
+    // Items without a known price are kept (ContentView.filtered(budgetRange:)).
     const [lo, hi] = me.budget;
-    list = list.filter((it) => { const a = viewerAmount(it); return a == null ? false : a >= lo && a <= hi; });
+    list = list.filter((it) => { const a = viewerAmount(it); return a == null ? true : a >= lo && a <= hi; });
   }
   const by = {
     manual: (a, b) => a.si - b.si || b.at - a.at,
@@ -516,7 +535,7 @@ function openAddSheet() {
     panel.appendChild(capsuleField(SHOP_ICON, shop));
     const body = el("div", "wbody"); panel.appendChild(body);
     const foot = el("div", "wfoot"); panel.appendChild(foot);
-    let draft = null, card = null, selected = new Set(), reading = false;
+    let draft = null, card = null, selected = new Set(me.listID && me.lists.some((l) => l.id === me.listID) ? [me.listID] : []), reading = false;
     const setState = (node) => { body.innerHTML = ""; if (node) body.appendChild(node); foot.innerHTML = ""; };
     const readLink = async () => {
       const t = url.value.trim();
@@ -532,7 +551,7 @@ function openAddSheet() {
       reading = false;
       if (!read) { setState(el("div", "werror", W.cantRead)); return; }
       draft = { n: read.name || "", s: read.store || "", b: read.brand || undefined, pa: typeof read.priceAmount === "number" ? read.priceAmount : undefined, pc: read.priceCurrency || undefined,
-                u: read.url || t, i: (read.images || [])[0], ic: read.images || [], blocked: !!read.blocked, storefront: !!read.storefront };
+                u: read.url || t, i: (read.images || [])[0], ic: read.images || [], blocked: !!read.blocked, storefront: !!read.storefront || looksLikeStorefront(read.url || t) };
       const already = me.items.some((it) => it.u && urlKey(it.u) === urlKey(draft.u));
       card = editableCard(draft, { already });
       const wrap = el("div");
@@ -1302,9 +1321,10 @@ function readyScreen() {
 function signedIn(identity) {
   me.id = identity && identity.userRecordName;
   me.via = me.id ? (identity.via === "bridge" ? "bridge" : "ck") : null;
-  me.loaded = false; me.items = []; me.lists = []; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
+  me.loaded = false; me.items = []; me.lists = []; me.extras = {}; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
   if (!entry.preview) closeEntrance();
   paint();
+  if (window.riverRefresh) window.riverRefresh();
   if (me.id) load();
   // Signed out: her circle does not stay in this browser for the next person.
   else { try { localStorage.removeItem("wantd.circle.v1"); } catch (e) {} }
@@ -1509,8 +1529,20 @@ window.Wishes = {
   wake() { if (!wired) { wired = true; wireControls(); watchAuth(); } },
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
+  /// The products she already has, by their link: the river leaves them out.
+  myKeys: () => (me.loaded ? new Set(me.items.filter((it) => it.u).map((it) => urlKey(it.u))) : null),
+  /// Any piece of the public base, by its id: a shared link outside the
+  /// loaded river. Through the bridge for a member born there; iCloud's
+  /// public base otherwise, signed in or not.
+  async readPiece(id) {
+    if (viaBridge()) return Bridge().item(id).catch(() => null);
+    if (!container()) return null;
+    const res = await db().fetchRecords([{ recordName: String(id).toUpperCase() }], { desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+    const r = res.records && res.records[0];
+    return r && r.fields ? itemFromRecord(r) : null;
+  },
   kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
-         listFromRecord, itemFromRecord, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
+         listFromRecord, itemFromRecord, itemsInList, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });
 // A local try walks the entrance without writing anything (the app's

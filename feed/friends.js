@@ -23,7 +23,7 @@ const F = words("F", {
   reserve: "Reserve this gift", reservedByYou: "Reserved by you. Tap to undo", alreadyReserved: "Already reserved",
   reserveAsk: "Reserve this gift?", reserveBody: "Reserving tells everyone this gift is taken, so nobody else will offer it. Only reserve if you truly plan to give it.", reserveOk: "Reserve", cancel: "Cancel",
   someoneReserved: "Someone has reserved this gift.", grantedLine: "This wish is already granted.",
-  send: "Send to someone", preparing: "Preparing...", sendText: (who, name, link) => who ? `Look what ${who} wants: ${name}. Open it in Wantd to add your share. ${link}` : `Look what someone wants: ${name}. Open it in Wantd to add your share. ${link}`,
+  send: "Send to someone", preparing: "Preparing...", leaveNote: "Leave a note with it", editNote: "Edit your note", noteTitle: "A note with the gift", noteBody: "They read it the day the gift reaches their hands, not before.", notePrompt2: "Happy birthday...", inkIt: "Ink it", sendText: (who, name, link) => who ? `Look what ${who} wants: ${name}. Open it in Wantd to add your share. ${link}` : `Look what someone wants: ${name}. Open it in Wantd to add your share. ${link}`,
   copied: "Link copied", giftCard: "Send a gift card instead",
   report: "Report", reported: "Reported", reportAsk: "Report this want?", reportBody: "We look at every report within 24 hours. You will stop seeing anything from this member straight away.", reportOk: "Report and block this member",
   groupGift: "Group gift", startGift: "Start a group gift", addShare: "Add my contribution", editShare: "Edit my contribution", removeShare: "Remove my contribution",
@@ -36,7 +36,7 @@ const F = words("F", {
 
 const FOUNDER = "_e4a756c55355bc6245fe776aede18bbb";
 const SHARE_HOST = "https://wantd.sedonatech.uk";
-const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON"];
+const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor"];
 
 // ---------------------------------------------------------------------------
 // State.
@@ -44,7 +44,7 @@ const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceC
 const viaBridge = () => K.viaBridge();
 const Bridge = () => window.Account.bridge;
 const circle = { loaded: false, loading: false, error: null, following: [], mutual: new Set(), friends: [], pending: [], at: 0 };
-const visit = { handle: "", owner: "", profile: null, lists: [], items: [], listID: null, shelf: false, sort: "manual", loading: false, notFound: false, seq: 0, following: false };
+const visit = { handle: "", owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, sort: "manual", loading: false, notFound: false, seq: 0, following: false };
 // Who she reported: the feed page keeps the list, under her own id.
 const blocked = { has: (owner) => window.wantdBlocks.list().includes(owner) };
 /// Hers, or on a list she co-owns: she must never see its reservations or
@@ -111,9 +111,10 @@ async function circlePages(owners) {
   const out = {};
   for (let i = 0; i < owners.length; i += 50) {
     const chunk = owners.slice(i, i + 50);
-    let page = null;
-    try { page = await getJSON("/circle?owners=" + chunk.join(",")); } catch (e) { page = null; }
+    let page = null, failed = null;
+    try { page = await getJSON("/circle?owners=" + chunk.join(",")); } catch (e) { page = null; failed = e; }
     if (page && page.circle) { for (const c of page.circle) out[c.o] = c; continue; }
+    if (failed && !(await memberPage(chunk[0]))) throw new Error(F.failed || "worker");
     // The worker of before this route: one member at a time.
     await Promise.all(chunk.map(async (owner) => {
       const m = await memberPage(owner);
@@ -308,7 +309,7 @@ function openMemberSearch() {
 // ---------------------------------------------------------------------------
 async function openProfile(handle) {
   const seq = ++visit.seq;
-  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], listID: null, shelf: false, loading: true, notFound: false, following: false });
+  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, loading: true, notFound: false, following: false });
   paintVisit();
   // Who she is: the worker knows her by handle.
   let person = null;
@@ -329,39 +330,64 @@ async function openProfile(handle) {
     visit.items = ((page && page.items) || []).map((it, i) => Object.assign({ si: i, st: "available", l: it.l || [] }, it));
     visit.loading = false; paintVisit(); return;
   }
-  if (viaBridge()) {
-    try {
-      const [page, following] = await Promise.all([Bridge().profile(handle), circle.loaded ? Promise.resolve(null) : Bridge().isFollowing(person.o).catch(() => null)]);
-      if (seq !== visit.seq) return;
-      // The bridge already keeps her private lists and their pieces with her.
-      visit.lists = page.lists.filter((l) => !l.isPrivate && !l.isMain).sort((a, b) => a.createdAt - b.createdAt);
-      visit.items = page.items.filter((it) => it.n && it.u !== undefined);
+  // The header is never drawn without knowing the answer (FriendsView):
+  // the one Follow record, read every time, never the cache.
+  const followingTask = viaBridge()
+    ? Bridge().isFollowing(person.o).catch(() => null)
+    : queryAll({ recordType: "Follow", filterBy: [
+        { fieldName: "followerID", comparator: "EQUALS", fieldValue: { value: me().id } },
+        { fieldName: "followedID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 2, desiredKeys: ["status"] })
+        .then((rows) => rows.some((r) => r.fields.status && r.fields.status.value === "accepted")).catch(() => null);
+  try {
+    // Her lists: the ones she created and the ones she joined, private ones
+    // never (fetchVisibleLists); her own pieces, those filed only on private
+    // lists kept with her (hidingPrivate).
+    let visible, items;
+    if (viaBridge()) {
+      const page = await Bridge().profile(handle);
+      visible = page.lists.filter((l) => !l.isPrivate);
+      items = page.items.filter((it) => it.n && it.u !== undefined);
       if (page.profile && page.profile.avatarURL) visit.profile.avatarURL = page.profile.avatarURL;
-      if (following != null) visit.following = following;
-    } catch (e) { console.log("visit load failed", e); }
+    } else {
+      const [rows, joined, own, profiles] = await Promise.all([
+        queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 200 }).catch(() => []),
+        queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: person.o } }] }, { resultsLimit: 200 }).catch(() => []),
+        queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 200, desiredKeys: ITEM_KEYS }),
+        queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 5, desiredKeys: ["avatarAsset", "avatarEmoji"] }).catch(() => []),
+      ]);
+      if (seq !== visit.seq) return;
+      const byID = new Map();
+      for (const r of rows.concat(joined)) { const l = K.listFromRecord(r); if (l.id && !l.isPrivate && !byID.has(l.id)) byID.set(l.id, l); }
+      visible = [...byID.values()];
+      const privateIDs = new Set(rows.map(K.listFromRecord).filter((l) => l.isPrivate).map((l) => l.id));
+      items = own.map(K.itemFromRecord).filter((it) => it.n && it.u !== undefined && !((it.l || []).length && (it.l || []).every((id) => privateIDs.has(id))));
+      const av = profiles[0] && profiles[0].fields;
+      if (av && av.avatarAsset && av.avatarAsset.value && av.avatarAsset.value.downloadURL) visit.profile.avatarURL = String(av.avatarAsset.value.downloadURL).replace("${f}", "avatar.jpg");
+    }
+    if (seq !== visit.seq) return;
+    // One tab per public list, the main one first and once; a co-owned list
+    // is its own tab, never blended into the grid: a piece kept with someone
+    // must read as such before anyone gifts it.
+    let mainSeen = false;
+    visit.lists = visible.filter((l) => { if (!l.isMain) return true; if (mainSeen) return false; mainSeen = true; return true; })
+      .filter((l) => !l.isMain).sort((a, b) => a.createdAt - b.createdAt);
+    const sharedIDs = new Set(visible.filter((l) => (l.memberIDs || []).length).map((l) => l.id));
+    visit.items = items.filter((it) => !(it.l || []).some((id) => sharedIDs.has(id))).map((it) => Object.assign(it, { _visited: true }));
     visit.loading = false;
     paintVisit();
-    return;
-  }
-  try {
-    const [items, lists, profiles, followRows] = await Promise.all([
-      queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 200, desiredKeys: ITEM_KEYS }),
-      queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 200 }).catch(() => []),
-      queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 5, desiredKeys: ["avatarAsset", "avatarEmoji"] }).catch(() => []),
-      circle.loaded ? Promise.resolve(null) : queryAll({ recordType: "Follow", filterBy: [
-        { fieldName: "followerID", comparator: "EQUALS", fieldValue: { value: me().id } },
-        { fieldName: "followedID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 2, desiredKeys: ["status"] }).catch(() => []),
-    ]);
-    if (seq !== visit.seq) return;
-    const all = lists.map(K.listFromRecord).filter((l) => l.id);
-    const privateIDs = new Set(all.filter((l) => l.isPrivate).map((l) => l.id));
-    visit.lists = all.filter((l) => !l.isPrivate && !l.isMain).sort((a, b) => a.createdAt - b.createdAt);
-    // A piece filed only on private lists stays with her (hidingPrivate).
-    visit.items = items.map(K.itemFromRecord).filter((it) => it.n && it.u !== undefined && !((it.l || []).length && (it.l || []).every((id) => privateIDs.has(id))));
-    const av = profiles[0] && profiles[0].fields;
-    if (av && av.avatarAsset && av.avatarAsset.value && av.avatarAsset.value.downloadURL) visit.profile.avatarURL = String(av.avatarAsset.value.downloadURL).replace("${f}", "avatar.jpg");
-    if (followRows) visit.following = followRows.some((r) => r.fields.status && r.fields.status.value === "accepted");
+    // Each shared list whole, every member's pieces, after the grid is up.
+    await Promise.all([...sharedIDs].map(async (id) => {
+      const l = visible.find((x) => x.id === id);
+      try {
+        const found = viaBridge() ? await Bridge().listItems(l.creatorID, id) : await K.itemsInList(id);
+        if (seq !== visit.seq) return;
+        visit.sections[id] = found.filter((it) => it.n && it.o).map((it) => Object.assign(it, { _visited: true }));
+      } catch (e) { console.log("shared list", id, e); }
+    }));
   } catch (e) { console.log("visit load failed", e); }
+  const following = await followingTask;
+  if (seq !== visit.seq) return;
+  if (following != null) visit.following = following;
   visit.loading = false;
   paintVisit();
 }
@@ -370,6 +396,7 @@ const isHadByOwner = (it) => it.st === "purchased" && it.rb === visit.owner;
 function visitShown() {
   let list = visit.items.slice();
   if (visit.shelf) list = list.filter(isHadByOwner);
+  else if (visit.listID && visit.sections[visit.listID]) list = visit.sections[visit.listID].filter((it) => !isHadByOwner(it));
   else { list = list.filter((it) => !isHadByOwner(it)); if (visit.listID) list = list.filter((it) => (it.l || []).includes(visit.listID)); }
   const by = { manual: (a, b) => a.si - b.si || b.at - a.at, recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at }[visit.sort] || ((a, b) => a.si - b.si);
   return list.sort(by);
@@ -385,7 +412,7 @@ function paintVisit() {
   const av = $("vAvatar"); av.innerHTML = ""; if (p) av.appendChild(avatar(p, 40, "inline"));
   $("vName").textContent = p ? (p.n || p.h) : "";
   $("vFounder").hidden = !(p && visit.owner === FOUNDER);
-  const count = visit.items.filter((it) => !isHadByOwner(it)).length;
+  const count = visit.items.filter((it) => !isHadByOwner(it)).length + Object.values(visit.sections).reduce((n, sec) => n + sec.length, 0);
   $("vFacts").textContent = p ? `@${p.h} · ${F.wantsN(visit.items.length ? count : 0)} · ${F.followersN(p.fr || 0)}` : "";
   const fb = $("vFollow"); fb.hidden = !p || visit.owner === me().id; fb.textContent = visit.following ? F.followingYou : F.follow; fb.classList.toggle("soft", visit.following);
   $("vPledge").hidden = !p || visit.owner === me().id;
@@ -475,13 +502,13 @@ async function readState(it) {
     try {
       const fresh = await Bridge().item(it.id);
       if (!(it.l || []).length && fresh.l.length) it.l = fresh.l;
-      const s = { st: fresh.st, rb: fresh.rb, gift: fresh.gift, _tag: null, aw: fresh.aw || [] };
+      const s = { st: fresh.st, rb: fresh.rb, gift: fresh.gift, _tag: null, aw: fresh.aw || [], rn: fresh.rn || null };
       live.set(it.id, s);
       return s;
     } catch (e) { return null; }
   }
   try {
-    const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "groupGiftJSON", "alsoWantedBy", "listIDs"] });
+    const res = await db().fetchRecords([{ recordName: it.id }], { desiredKeys: ["status", "reservedBy", "groupGiftJSON", "alsoWantedBy", "listIDs", "reservedNote"] });
     if (res.hasErrors || !res.records[0]) return null;
     const r = res.records[0];
     const gj = r.fields.groupGiftJSON && r.fields.groupGiftJSON.value;
@@ -490,11 +517,15 @@ async function readState(it) {
     // comes back "ChloÃ©" and is saved that way for everyone.
     if (gj) { try { gift = JSON.parse(new TextDecoder("utf-8").decode(Uint8Array.from(atob(gj), (c) => c.charCodeAt(0)))); } catch (e) { gift = null; } }
     if (!(it.l || []).length && r.fields.listIDs && r.fields.listIDs.value) it.l = r.fields.listIDs.value;
-    const s = { st: (r.fields.status && r.fields.status.value) || "available", rb: r.fields.reservedBy && r.fields.reservedBy.value, gift, _tag: r.recordChangeTag, aw: (r.fields.alsoWantedBy && r.fields.alsoWantedBy.value) || [] };
+    const s = { st: (r.fields.status && r.fields.status.value) || "available", rb: r.fields.reservedBy && r.fields.reservedBy.value, gift, _tag: r.recordChangeTag, aw: (r.fields.alsoWantedBy && r.fields.alsoWantedBy.value) || [],
+      rn: r.fields.reservedNote && r.fields.reservedNote.value ? unveil(r.fields.reservedNote.value, it.id) : null };
     live.set(it.id, s);
     return s;
   } catch (e) { return null; }
 }
+/// The veil of a note (NoteVeil): the UTF-8 bytes XOR the item's id, base64.
+function veil(text, key) { const k = new TextEncoder().encode(key), b = new TextEncoder().encode(text); return btoa(String.fromCharCode(...b.map((x, i) => x ^ k[i % k.length]))); }
+function unveil(blob, key) { try { const k = new TextEncoder().encode(key), b = Uint8Array.from(atob(blob), (c) => c.charCodeAt(0)); return new TextDecoder("utf-8").decode(b.map((x, i) => x ^ k[i % k.length])); } catch (e) { return null; } }
 const giftB64 = (gift) => btoa(unescape(encodeURIComponent(JSON.stringify(gift))));
 const nowCK = () => Date.now() / 1000 - 978307200;   // seconds since 2001, as JSONEncoder writes a Date
 
@@ -542,6 +573,9 @@ function othersActions(it, body) {
       const r = quietLine(mine ? F.reservedByYou : taken ? F.alreadyReserved : F.reserve, () => { if (mine) toggleReserve(false); else if (!taken) confirmReserve(); }, taken);
       if (taken) r.disabled = true;
       lines.appendChild(r);
+      // The unwrapping note (SED-614): one line that travels with the
+      // reservation and unveils the day she shelves the piece.
+      if (mine) lines.appendChild(quietLine(s.rn ? F.editNote : F.leaveNote, () => openNote(s.rn || "")));
     } else lines.appendChild(el("div", "fstatus", F.grantedLine));
     if (taken) lines.appendChild(el("div", "fstatus", F.someoneReserved));
     // Send to someone.
@@ -624,6 +658,27 @@ function othersActions(it, body) {
     } catch (e) { console.log("reserve failed", e); }
     render();
   };
+
+  // --- The note with the gift: a sheet with the app's alert's words.
+  const openNote = (current) => openSheet((panel) => {
+    const head = el("div", "whead left"); head.appendChild(el("h2", "wtitle", F.noteTitle)); head.appendChild(el("p", "wsub", F.noteBody)); panel.appendChild(head);
+    const field = textInput(current, F.notePrompt2, { caps: "sentences" }); field.maxLength = 280; field.className = "wbig";
+    panel.appendChild(field);
+    const foot = el("div", "wfoot"); panel.appendChild(foot);
+    const err = el("div", "wnote"); foot.appendChild(err);
+    const ok = bar(F.inkIt, async () => {
+      const note = field.value.trim().slice(0, 280);
+      ok.disabled = true;
+      try {
+        if (viaBridge()) await Bridge().reserveNote(it.id, note);
+        else await changeState(it, (s) => (s.st === "reserved" && s.rb === m.id ? { reservedNote: f(note ? veil(note, it.id) : null, "STRING") } : null));
+        await readState(it); closeSheet(); render();
+      } catch (e) { ok.disabled = false; err.textContent = F.failed + ". " + F.checkConn; }
+    });
+    foot.appendChild(ok);
+    foot.appendChild(quietLine(F.cancel || K.W.cancel, () => closeSheet(), true));
+    setTimeout(() => field.focus({ preventScroll: true }), 50);
+  });
 
   // --- Send to someone: the app's words and the piece's own link.
   const sendToSomeone = async () => {

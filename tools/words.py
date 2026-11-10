@@ -31,6 +31,7 @@ LANGS = "ar ca cs da de el es es-419 fi fr he hi hr hu id it ja ko ms nb nl pl p
 MAP = {
     "T": {
         "open": "Open %@", "from": "From %@", "community": "%lld wants from the community",
+        "perL": "%@ / 1 l", "perKg": "%@ / 1 kg",
     },
     "W": {
         "wantsN": "%lld wants", "followersN": "%lld followers",
