@@ -28,7 +28,7 @@ const W = words("W", {
   choosePhoto: "Choose photo",
   offersYou: (from, amount) => `${from} offers you ${amount}.`, choosePiece: " Choose a piece.", chooseLine: "Choose the piece it becomes. They will see your choice and shop it themselves.",
   promiseCovers: (a, b) => `Their promise covers ${a} of ${b}.`, chooseThisOne: "Choose this one?", chooseIt: "Choose it", willSee: (from) => `${from} will see the piece you chose and give it to you.`,
-  removePromise: "Remove this promise", removePromiseAsk: "Remove this promise?", remove: "Remove", leavesUntold: (from) => `It leaves your wishlist. ${from} will not be told.`,
+  declinePromise: "Decline this promise", declinePromiseAsk: "Decline this promise?", decline: "Decline", leavesUntold: (from) => `It leaves your wishlist. ${from} will not be told.`,
   didNotGo: "That did not go through", checkConn: "Check your connection and try again.", ok: "OK",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
@@ -432,9 +432,9 @@ function openPledgeChoose(p) {
     head.appendChild(el("p", "wsub", W.chooseLine));
     // The way out, one underlined line as the app says it (SED-976): the
     // promise leaves her list, the giver is not told.
-    const out = el("button", "wsubact", W.removePromise); out.type = "button";
+    const out = el("button", "wsubact", W.declinePromise); out.type = "button";
     out.addEventListener("click", () => {
-      alertBox(W.removePromiseAsk, W.leavesUntold(p.fromName), W.remove, async () => {
+      alertBox(W.declinePromiseAsk, W.leavesUntold(p.fromName), W.decline, async () => {
         let ok = false;
         try {
           if (viaBridge()) { await Bridge().dismissPledge(p.token); ok = true; }
