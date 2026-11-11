@@ -240,6 +240,17 @@
   /* ---------------------------------------------------------------- */
   .wall { display: flex; align-items: flex-start; gap: 12px; margin: 18px -6px 0; }
   .col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  /* The feed's walls breathe less (SED-982, Agathe, 11 November: "agrandir les
+     images et réduire l'écart"): eight pixels between photos and from the
+     phone's edge, as Pinterest's phone grid; the wide wall keeps sixteen at
+     the edge, where the header sits, and ten between. Her own list and a
+     friend's keep their air until she says so. */
+  #riverWall, #storeWall { gap: 10px; margin-left: 0; margin-right: 0; }
+  #riverWall .col, #storeWall .col { gap: 10px; }
+  @media (max-width: 767px) {
+    #riverWall, #storeWall { gap: 8px; margin-left: -8px; margin-right: -8px; }
+    #riverWall .col, #storeWall .col { gap: 8px; }
+  }
   .card {
     background: var(--surface);
     border-radius: 20px;
