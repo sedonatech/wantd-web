@@ -176,6 +176,7 @@ const Bridge = {
   deleteList: (id) => api("DELETE", `/v1/lists/${id}`),
   handleFree: async (h) => (await api("GET", `/v1/handles/${encodeURIComponent(h)}`)).available === true,
   putProfile: async (body) => profileOf((await api("PUT", "/v1/me/profile", body)).profile),
+  renameProfile: async (handle) => profileOf((await api("POST", "/v1/me/profile/rename", { handle })).profile),
   follow: (owner) => api("PUT", `/v1/follows/${owner}`, { silent: false }),
   unfollow: (owner) => api("DELETE", `/v1/follows/${owner}`),
   isFollowing: async (owner) => (await api("GET", `/v1/follows/${owner}`)).following === true,

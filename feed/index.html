@@ -495,6 +495,37 @@
   .wchip.on { color: var(--cobalt); font-weight: 400; text-decoration: underline; text-underline-offset: 2px; }
   .wchip.soft { color: var(--ink-soft); }
   .wdot { color: var(--ink-soft); opacity: 0.6; font-size: 13px; }
+  /* Edit profile (ProfileEditSheet): photo, name, username, birthday, money, legal. */
+  .wprofile { display: flex; flex-direction: column; gap: 24px; }
+  .wpavatar { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .wppills { display: flex; gap: 8px; }
+  .wpill { font-size: 12px; font-weight: 300; color: var(--ink); padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .wpill.soft { color: var(--ink-soft); }
+  .wplabel { font-size: 13px; font-weight: 300; color: var(--ink-soft); margin: 0 0 6px 4px; }
+  .wprofile .wcap { margin-bottom: 0; gap: 2px; }
+  .wppre { font-size: 15px; font-weight: 300; color: var(--ink-soft); }
+  .wphint { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin: 6px 0 0 4px; min-height: 14px; }
+  .wphint.ok { color: var(--ink); }
+  .wphint.bad { color: var(--clay); font-weight: 400; }
+  .wpswitchrow { display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 14px; font-weight: 300; color: var(--ink); text-align: left; }
+  .wswitch { position: relative; width: 46px; height: 28px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 14%, transparent); transition: background 0.25s ease; flex: none; }
+  .wswitch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 4px rgba(14,14,15,0.18); transition: transform 0.25s ease; }
+  .wpswitchrow[aria-checked="true"] .wswitch { background: var(--ink); }
+  .wpswitchrow[aria-checked="true"] .wswitch::after { transform: translateX(18px); }
+  .wpwheels { margin-top: 10px; }
+  .wpwheels .ewheels { position: relative; height: 170px; display: flex; gap: 4px; }
+  .wpwheels .ewheels::before { content: ""; position: absolute; left: 0; right: 0; top: 68px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 6%, transparent); pointer-events: none; }
+  .wpwheels .ewheel { position: relative; height: 170px; overflow-y: scroll; scroll-snap-type: y mandatory; padding: 68px 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+  .wpwheels .ewheel::-webkit-scrollbar { display: none; }
+  .wpwheels .ewheel:focus-visible { outline: 1px solid var(--ink-soft); outline-offset: 2px; }
+  .wpwheels .erow { height: 34px; line-height: 34px; text-align: center; font-size: 18px; font-weight: 300; color: var(--ink); white-space: nowrap; scroll-snap-align: center; cursor: pointer; opacity: 0.18; }
+  .wpcur { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 300; color: var(--ink); padding: 2px 4px; cursor: pointer; }
+  .wpcur select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 16px; }
+  .wpchev { width: 8px; height: 12px; stroke: var(--ink-soft); fill: none; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .wpgroup { border-radius: 18px; background: color-mix(in srgb, var(--ink) 4%, transparent); overflow: hidden; }
+  .wprow { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 14px 18px; font-size: 14px; font-weight: 300; color: var(--ink); text-align: left; }
+  .wprow + .wprow { box-shadow: inset 0 0.5px 0 color-mix(in srgb, var(--ink-soft) 18%, transparent); }
+  .wpsmall { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin: 8px 0 0 4px; }
   .wfoot { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
   .wbar { display: block; width: 100%; text-align: center; padding: 15px 0; background: var(--ink); color: var(--ivory); font-size: 13px; }
   .wbar:disabled { opacity: 0.4; }
@@ -714,7 +745,7 @@
         <button type="button" class="icon-btn" id="wShare"><svg viewBox="0 0 16 16"><path d="M8 10V2.5M5.2 5.2 8 2.4l2.8 2.8M4.5 7.5H4a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1h-.5"/></svg><span class="wcopied" id="wCopied" hidden></span></button>
         <div class="wmenu">
           <button type="button" class="icon-btn" id="wMenu" aria-label="Menu"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
-          <div class="wmenubox" id="wMenuBox" hidden><button type="button" class="wline" id="wPrivacy"></button><button type="button" class="wline" id="wTerms"></button><button type="button" class="wline soft" id="wSignOut"></button><div id="ckSignOut" class="ckhidden"></div></div>
+          <div class="wmenubox" id="wMenuBox" hidden><button type="button" class="wline" id="wEditProfile"></button><button type="button" class="wline" id="wPrivacy"></button><button type="button" class="wline" id="wTerms"></button><button type="button" class="wline soft" id="wSignOut"></button><div id="ckSignOut" class="ckhidden"></div></div>
         </div>
       </div>
       <div class="wtabs" id="wTabs"></div>
@@ -962,7 +993,10 @@ function viewerCurrency() {
   const lang = LOCALE.split("-")[0];
   return ({ fr: "EUR", de: "EUR", es: "EUR", it: "EUR", nl: "EUR", pt: "EUR", en: "USD", sv: "SEK", da: "DKK", nb: "NOK", pl: "PLN", ja: "JPY" })[lang] || null;
 }
-const VIEWER = viewerCurrency();
+/// The money she chose in Edit profile wins over the browser's guess, as on
+/// the phone (wantd.currency, kept on this device).
+function chosenCurrency() { try { const c = localStorage.getItem("wantd.currency"); return c && /^[A-Z]{3}$/.test(c) ? c : null; } catch (e) { return null; } }
+const VIEWER = chosenCurrency() || viewerCurrency();
 let rates = null;
 (async function loadRates() {
   try {

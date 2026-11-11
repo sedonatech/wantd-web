@@ -32,6 +32,10 @@ const W = words("W", {
   didNotGo: "That did not go through", checkConn: "Check your connection and try again.", ok: "OK",
   yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
+  editProfile: "Edit profile", useInitial: "Use initial", nameLabel: "Name", username: "Username", usernamePrompt: "yourname",
+  handleHint: "Your public handle. Friends use it to find you.", handleInvalid: "2 to 15 letters or numbers.", handleChecking: "Checking availability…",
+  handleAvailable: (h) => `@wtd-${h} is available.`, handleTaken: "Already taken. Try another.", handleOffline: "Can't check right now. Check your connection.",
+  pricesIn: "Prices in", legal: "Legal", saving: "Saving…",
   signOut: "Sign out", privacy: "Privacy Policy", terms: "Terms of Service", commission: "Shop links may earn Wantd a commission, at no cost to you.",
   shareAsk: (who, list) => `${who} wants to share the ${list} list with you.`, aMember: "A member", yes: "Yes", no: "No",
   callYou: "What should we call you?", nameLine: "The name your circle will read on your list.", yourName: "Your name", thatsMe: "That's me",
@@ -245,7 +249,7 @@ async function load() {
         }
         profilesRead = profR && profR.map((r) => {
           const x = r.fields || {}; const asset = x.avatarAsset && x.avatarAsset.value && x.avatarAsset.value.downloadURL;
-          return { h: (x.handle && x.handle.value) || "", n: (x.displayName && x.displayName.value) || "", avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (x.avatarEmoji && x.avatarEmoji.value) || null };
+          return { b: (x.birthday && x.birthday.value) || null, h: (x.handle && x.handle.value) || "", n: (x.displayName && x.displayName.value) || "", avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (x.avatarEmoji && x.avatarEmoji.value) || null };
         });
       }
       me.items = items.filter((it) => it.n);
@@ -295,7 +299,7 @@ async function load() {
         h: (p && p.h) || (member && member.profile && member.profile.h) || "",
         n: (p && p.n) || (member && member.profile && member.profile.n) || "",
         fr: (member && member.profile && member.profile.fr) || 0, fg: (member && member.profile && member.profile.fg) || 0,
-        avatarURL: (p && p.avatarURL) || null, emoji: (p && p.emoji) || null,
+        avatarURL: (p && p.avatarURL) || null, emoji: (p && p.emoji) || null, b: (p && p.b) || null,
       };
     }
     me.loaded = true;
@@ -1285,6 +1289,7 @@ function wireControls() {
   $("wMenu").addEventListener("click", () => { const m = $("wMenuBox"); m.hidden = !m.hidden; });
   $("wShare").setAttribute("aria-label", W.share);
   $("wShare").addEventListener("click", shareMine);
+  $("wEditProfile").textContent = W.editProfile; $("wEditProfile").addEventListener("click", () => openProfileSheet(false));
   $("wPrivacy").textContent = W.privacy; $("wPrivacy").addEventListener("click", () => openLegal("privacy"));
   $("wTerms").textContent = W.terms; $("wTerms").addEventListener("click", () => openLegal("terms"));
   $("wSignOut").textContent = W.signOut;
@@ -1318,6 +1323,227 @@ function openFilterSheet() {
 // ---------------------------------------------------------------------------
 const HEARD = ["A friend told me", "TikTok", "Instagram", "Pinterest", "The App Store", "Somewhere else"];
 const entry = { open: false, preview: false, name: "", hasBirthday: false, birthday: null, heard: null, other: "", heardSent: false, handle: null, chain: Promise.resolve(true) };
+// ---------------------------------------------------------------------------
+// Edit profile (SED-967): the app's ProfileEditSheet, field for field. Her
+// photo, her name, her username, her birthday, the money every price is
+// shown in, and the legal texts. Leaving Wantd and the duplicates cleanup
+// are still the app's alone.
+// ---------------------------------------------------------------------------
+const CURRENCY_KEY = "wantd.currency";
+/// "wtd-" and 2 to 15 letters or digits (ProfileStore.isValidHandle).
+const validHandle = (h) => /^wtd-[a-z0-9]{2,15}$/.test(h);
+/// What she types after "@wtd-": accents folded, lower case, letters and
+/// digits only, 15 at most (the app filters the field the same way).
+const handleTyped = (t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 15);
+function chevronIcon() { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 8 12"); s.innerHTML = '<path d="M2 1.5 6.5 6 2 10.5"/>'; s.classList.add("wpchev"); return s; }
+/// Every money the rates know, in her language; the short list before they arrive.
+function currencyChoices(current) {
+  let codes = rates ? Object.keys(rates) : CURRENCIES.slice();
+  try { const known = new Set(Intl.supportedValuesOf("currency")); codes = codes.filter((c) => known.has(c)); } catch (e) {}
+  if (current && !codes.includes(current)) codes.push(current);
+  let names = null; try { names = new Intl.DisplayNames([LOCALE], { type: "currency" }); } catch (e) {}
+  return codes.map((c) => ({ code: c, name: (names && names.of(c)) || c })).sort((a, b) => a.name.localeCompare(b.name, LOCALE));
+}
+function openProfileSheet(preview) {
+  $("wMenuBox").hidden = true;
+  const p = preview ? { h: "wtd-agathe", n: "Agathe", avatarURL: null, emoji: null, b: new Date(2001, 3, 1, 12).getTime() } : Object.assign({}, me.profile || {});
+  const kept = (() => { try { return localStorage.getItem(CURRENCY_KEY) || ""; } catch (e) { return ""; } })();
+  // photo: undefined = as it is, a Blob = a new one, null = her initial.
+  const draft = { name: p.n || "", core: (p.h || "").startsWith("wtd-") ? p.h.slice(4) : "", photo: undefined,
+                  hasBirthday: !!p.b, birthday: p.b ? new Date(p.b) : null, currency: kept || VIEWER || "EUR", status: "unchanged" };
+  let wheels = null, objectURL = null, checkSeq = 0, checkTimer = null;
+  openSheet((panel) => {
+    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", W.editProfile)); panel.appendChild(head);
+    const body = el("div", "wprofile"); panel.appendChild(body);
+
+    // The photo, with her initial when there is none.
+    const photo = el("div", "wpavatar");
+    const face = el("div", "wpface"); photo.appendChild(face);
+    const pills = el("div", "wppills");
+    const file = el("input"); file.type = "file"; file.accept = "image/*"; file.hidden = true;
+    const choose = el("button", "wpill", W.choosePhoto); choose.type = "button"; choose.addEventListener("click", () => file.click());
+    const initial = el("button", "wpill soft", W.useInitial); initial.type = "button";
+    pills.append(choose, initial, file); photo.appendChild(pills); body.appendChild(photo);
+    const paintFace = () => {
+      if (objectURL) { URL.revokeObjectURL(objectURL); objectURL = null; }
+      let url = null;
+      if (draft.photo instanceof Blob) url = objectURL = URL.createObjectURL(draft.photo);
+      else if (draft.photo === undefined) url = p.avatarURL || null;
+      const emoji = draft.photo === undefined ? p.emoji : null;
+      face.replaceChildren(avatarNode({ n: draft.name.trim() || p.n || "?", h: p.h, e: emoji, avatarURL: url }, 100));
+      initial.hidden = !url;
+    };
+    initial.addEventListener("click", () => { draft.photo = null; paintFace(); });
+    file.addEventListener("change", async () => {
+      const chosen = file.files && file.files[0]; file.value = "";
+      if (!chosen) return;
+      try { draft.photo = await downsample(chosen, 400); paintFace(); } catch (e) { console.log("profile photo", e); }
+    });
+    paintFace();
+
+    // Her name.
+    const nameSec = el("div", "wpsec"); nameSec.appendChild(el("div", "wplabel", W.nameLabel));
+    const nameCap = el("label", "wcap"); const nameIn = textInput(draft.name, W.yourName, { caps: "words" }); nameIn.maxLength = 40;
+    nameIn.addEventListener("input", () => { draft.name = nameIn.value; if (draft.photo !== undefined || !p.avatarURL) paintFace(); });
+    nameCap.appendChild(nameIn); nameSec.appendChild(nameCap); body.appendChild(nameSec);
+
+    // Her username, checked while she types.
+    const userSec = el("div", "wpsec"); userSec.appendChild(el("div", "wplabel", W.username));
+    const userCap = el("label", "wcap"); userCap.appendChild(el("span", "wppre", "@wtd-"));
+    const userIn = textInput(draft.core, W.usernamePrompt, { caps: "none" }); userIn.autocorrect = "off";
+    userCap.appendChild(userIn); userSec.appendChild(userCap);
+    const hint = el("div", "wphint"); userSec.appendChild(hint); body.appendChild(userSec);
+    const showStatus = () => {
+      const s = draft.status;
+      hint.className = "wphint" + (s === "available" ? " ok" : s === "taken" ? " bad" : "");
+      hint.textContent = s === "invalid" ? W.handleInvalid : s === "checking" ? W.handleChecking : s === "available" ? W.handleAvailable(draft.core)
+        : s === "taken" ? W.handleTaken : s === "offline" ? W.handleOffline : W.handleHint;
+      go.disabled = s === "taken" || s === "invalid" || s === "checking";
+    };
+    userIn.addEventListener("input", () => {
+      const typed = handleTyped(userIn.value);
+      if (typed !== userIn.value) userIn.value = typed;
+      draft.core = typed;
+      clearTimeout(checkTimer);
+      const candidate = "wtd-" + typed, seq = ++checkSeq;
+      if (!typed || candidate === p.h) { draft.status = "unchanged"; showStatus(); return; }
+      if (!validHandle(candidate)) { draft.status = "invalid"; showStatus(); return; }
+      draft.status = "checking"; showStatus();
+      checkTimer = setTimeout(async () => {
+        const st = preview ? { state: "available" } : await handleState(candidate);
+        if (seq !== checkSeq) return;
+        draft.status = st.state === "available" ? (st.record && st.record.h === p.h ? "unchanged" : "available") : st.state === "taken" ? "taken" : "offline";
+        showStatus();
+      }, 450);
+    });
+
+    // Her birthday, on the same wheels as the entrance.
+    const bdSec = el("div", "wpsec");
+    const bdRow = el("button", "wpswitchrow"); bdRow.type = "button"; bdRow.setAttribute("role", "switch");
+    bdRow.appendChild(el("span", null, W.addBirthday)); const knob = el("span", "wswitch"); bdRow.appendChild(knob);
+    bdSec.appendChild(bdRow);
+    const bdBox = el("div", "wpwheels"); bdSec.appendChild(bdBox); body.appendChild(bdSec);
+    const paintBirthday = () => {
+      bdRow.setAttribute("aria-checked", draft.hasBirthday ? "true" : "false");
+      bdBox.hidden = !draft.hasBirthday;
+      if (draft.hasBirthday && !wheels) {
+        wheels = dateWheels((date) => { draft.birthday = date; }, draft.birthday);
+        bdBox.appendChild(wheels);
+      }
+    };
+    bdRow.addEventListener("click", () => {
+      draft.hasBirthday = !draft.hasBirthday;
+      if (draft.hasBirthday && !draft.birthday) draft.birthday = new Date(new Date().getFullYear() - 25, 0, 1, 12);
+      paintBirthday();
+      if (draft.hasBirthday && wheels) requestAnimationFrame(() => wheels.seat());
+    });
+    paintBirthday();
+
+    // The money every price is shown in, on this device (the app keeps it
+    // on the phone too: wantd.currency).
+    const curSec = el("div", "wpsec"); curSec.appendChild(el("div", "wplabel", W.pricesIn));
+    const curBox = el("label", "wpcur");
+    const curText = el("span", "wpcurcode", draft.currency); curBox.appendChild(curText);
+    const updown = document.createElementNS("http://www.w3.org/2000/svg", "svg"); updown.setAttribute("viewBox", "0 0 8 12"); updown.innerHTML = '<path d="M1.5 4.5 4 2l2.5 2.5M1.5 7.5 4 10l2.5-2.5"/>'; updown.classList.add("wpchev"); curBox.appendChild(updown);
+    const curSel = el("select"); curSel.setAttribute("aria-label", W.pricesIn);
+    for (const c of currencyChoices(draft.currency)) { const o = el("option", null, c.code + " · " + c.name); o.value = c.code; curSel.appendChild(o); }
+    curSel.value = draft.currency;
+    curSel.addEventListener("change", () => { draft.currency = curSel.value; curText.textContent = curSel.value; });
+    curBox.appendChild(curSel); curSec.appendChild(curBox); body.appendChild(curSec);
+
+    // The legal texts, and the one honest line the affiliation needs.
+    const legal = el("div", "wpsec"); legal.appendChild(el("div", "wplabel", W.legal));
+    const group = el("div", "wpgroup");
+    for (const [label, which] of [[W.privacy, "privacy"], [W.terms, "terms"]]) {
+      const row = el("button", "wprow"); row.type = "button"; row.appendChild(el("span", null, label)); row.appendChild(chevronIcon());
+      row.addEventListener("click", () => openLegal(which)); group.appendChild(row);
+    }
+    legal.appendChild(group); legal.appendChild(el("div", "wpsmall", W.commission)); body.appendChild(legal);
+
+    const foot = el("div", "wfoot"); panel.appendChild(foot);
+    const err = el("div", "wnote"); foot.appendChild(err);
+    const go = bar(W.save, async () => {
+      go.disabled = true; go.textContent = W.saving; err.textContent = "";
+      const result = await saveProfile(p, draft, preview);
+      go.textContent = W.save;
+      if (result === "ok") {
+        const moneyMoved = draft.currency !== (kept || VIEWER || "EUR");
+        if (moneyMoved) { try { localStorage.setItem(CURRENCY_KEY, draft.currency); } catch (e) {} }
+        closeSheet();
+        if (moneyMoved && !preview) setTimeout(() => location.reload(), 340); else paint();
+        return;
+      }
+      if (result === "taken" || result === "invalid") { draft.status = result; showStatus(); }
+      else { err.textContent = W.connIssue; go.disabled = false; }
+    });
+    foot.appendChild(go);
+    showStatus();
+  });
+  if (wheels) wheels.seat();
+}
+/// Rename first, then the edits, onto whichever record is hers now
+/// (ProfileEditSheet.saveAll): "ok", "taken", "invalid" or "error".
+async function saveProfile(p, draft, preview) {
+  if (preview || DEMO) return "ok";
+  const name = draft.name.trim() && draft.name.trim() !== "You" ? draft.name.trim() : p.n;
+  const birthday = draft.hasBirthday && draft.birthday ? draft.birthday.getTime() : null;
+  const wanted = draft.core ? "wtd-" + draft.core : p.h;
+  if (wanted !== p.h && !validHandle(wanted)) return "invalid";
+  try {
+    if (viaBridge()) {
+      let handle = p.h;
+      if (wanted !== p.h) {
+        try { handle = (await Bridge().renameProfile(wanted)).h || wanted; }
+        catch (e) { return e && e.code === "handle_taken" ? "taken" : "error"; }
+      }
+      const body = { handle, displayName: name, birthday };
+      if (draft.photo instanceof Blob) body.avatarJpegBase64 = await blobBase64(draft.photo);
+      else if (draft.photo === null) body.removeAvatar = true;
+      const saved = await Bridge().putProfile(body);
+      me.profile = Object.assign({}, me.profile, { h: saved.h || handle, n: saved.n || name, avatarURL: saved.avatarURL || null, emoji: saved.emoji || null, b: saved.b || birthday });
+      keepHandle(me.profile.h);
+      return "ok";
+    }
+    const got = await db().fetchRecords([{ recordName: "profile-" + p.h }]);
+    const r = got.records && got.records[0];
+    if (!r || !r.fields || v(r, "ownerID") !== me.id) return "error";
+    const fields = { displayName: f(name, "STRING"), birthday: f(birthday, "TIMESTAMP") };
+    if (draft.photo instanceof Blob) { fields.avatarAsset = { value: draft.photo }; fields.avatarEmoji = f(null, "STRING"); }
+    else if (draft.photo === null) { fields.avatarAsset = { value: null }; fields.avatarEmoji = f(null, "STRING"); }
+    let saved;
+    if (wanted !== p.h) {
+      // A plain insert on the new name (claimProfile): refused when someone
+      // holds it. Her photo is carried over; the old record goes after.
+      fields.handle = f(wanted, "STRING"); fields.ownerID = f(me.id, "STRING");
+      if (draft.photo === undefined) {
+        const emoji = v(r, "avatarEmoji"); if (emoji) fields.avatarEmoji = f(emoji, "STRING");
+        const asset = r.fields.avatarAsset && r.fields.avatarAsset.value && r.fields.avatarAsset.value.downloadURL;
+        if (asset) {
+          const res = await fetch(String(asset).replace("${f}", "avatar.jpg"));
+          if (!res.ok) return "error";
+          fields.avatarAsset = { value: await res.blob() };
+        }
+      }
+      const out = await db().saveRecords([{ recordType: "Profile", recordName: "profile-" + wanted, fields }]);
+      if (out.hasErrors) { const now = await handleState(wanted); return now.state === "taken" ? "taken" : "error"; }
+      saved = out.records[0];
+      try { await db().deleteRecords([r]); } catch (e) { console.log("old profile kept", e); }
+      keepHandle(wanted);
+    } else {
+      const out = await db().saveRecords([{ recordType: "Profile", recordName: r.recordName, recordChangeTag: r.recordChangeTag, fields }]);
+      if (out.hasErrors) return "error";
+      saved = out.records[0];
+    }
+    const asset = saved && saved.fields && saved.fields.avatarAsset && saved.fields.avatarAsset.value && saved.fields.avatarAsset.value.downloadURL;
+    me.profile = Object.assign({}, me.profile, { h: wanted, n: name, b: birthday,
+      avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (saved && v(saved, "avatarEmoji")) || null });
+    return "ok";
+  } catch (e) {
+    console.log("profile not saved", e);
+    return "error";
+  }
+}
+
 const enteringKey = () => "wantd.entering." + me.id;
 /// She began the entrance in this browser and has not opened her list yet.
 function entering() { try { return !!me.id && localStorage.getItem(enteringKey()) === "1"; } catch (e) { return false; } }
@@ -1552,10 +1778,11 @@ function nameScreen() {
 
 /// Month, day and year in the order her language writes them, never past
 /// today; the chosen row bright in its band, the others fading.
-function dateWheels(onChange) {
+function dateWheels(onChange, initial) {
   const ROW = 34, today = new Date();
   const box = el("div", "ewheels");
-  let y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+  const start = initial instanceof Date && !isNaN(initial) && initial <= today ? initial : today;
+  let y = start.getFullYear(), m = start.getMonth(), d = start.getDate();
   const years = []; for (let i = 1900; i <= today.getFullYear(); i++) years.push(i);
   const months = []; for (let i = 0; i < 12; i++) months.push(new Intl.DateTimeFormat(LOCALE, { month: "long" }).format(new Date(2021, i, 15)));
   const daysIn = (yy, mm) => new Date(yy, mm + 1, 0).getDate();
@@ -1943,6 +2170,7 @@ REGULAR.addEventListener("change", () => { if (me.id) paint(); });
 // A local try walks the entrance without writing anything (the app's
 // --preview-onboarding): /feed/?tab=wishes&preview=enter
 if (LOCAL && new URLSearchParams(location.search).get("preview") === "enter") openEntrance(true);
+if (LOCAL && new URLSearchParams(location.search).get("preview") === "profile") setTimeout(() => openProfileSheet(true), 400);
 // The page may have opened on this tab before this script was read.
 if (!document.getElementById("wishes").hidden) window.Wishes.enter();
 })();
