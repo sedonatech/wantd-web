@@ -38,7 +38,7 @@
   var asked = /[?&]lang=([A-Za-z-]+)/.exec(location.search);
   if (asked && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (asked[1] === "en" || known.indexOf(asked[1]) >= 0)) pick = asked[1];
   window.WANTD_LANG = pick;
-  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=1"><\/script>');
+  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=2"><\/script>');
 })();
 </script>
 <script src="/feed/ck.js?v=1"></script>
@@ -1896,8 +1896,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=5"></script>
-<script src="/feed/wishes.js?v=22"></script>
+<script src="/feed/account.js?v=6"></script>
+<script src="/feed/wishes.js?v=23"></script>
 <script src="/feed/friends.js?v=14"></script>
 </body>
 </html>
