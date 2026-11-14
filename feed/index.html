@@ -283,14 +283,19 @@
   /* The river's bare card (SED-983): no surface, no shadow; the photo is the card. */
   .card.bare { background: none; box-shadow: none; border-radius: 16px; }
   .card.bare .photo { border-radius: 16px; }
-  .card.bare .edge { position: absolute; left: 0; right: 0; bottom: 0; height: 15%; width: 100%; object-fit: cover; object-position: center bottom; filter: blur(9px); transform: scale(1.12); transform-origin: center bottom; pointer-events: none;
-    mask-image: linear-gradient(to top, #000 0, #000 30%, transparent 100%); -webkit-mask-image: linear-gradient(to top, #000 0, #000 30%, transparent 100%); }
-  .card.bare .photo.waiting .edge { display: none; }
-  /* The browser cannot read the foot's colour (the shops' photos are not ours):
-     white in difference blend reads as ink on a light foot and ivory on a dark one. */
-  .card.bare .line { position: absolute; left: 10px; right: 10px; bottom: 9px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #fff; mix-blend-mode: difference; pointer-events: none; white-space: nowrap; }
-  .card.bare .line .shop { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; }
-  .card.bare .line .price { font-size: 13px; color: #fff; margin: 0; flex: none; }
+  /* The same picture again, cut to its foot and blurred, exactly over itself
+     (same width, so the same scale; it runs 12px past the bottom so the blur's
+     own halo is clipped away), fading out towards its top. */
+  .card.bare .edge { position: absolute; left: 0; width: 100%; bottom: -12px; height: calc(15% + 12px); object-fit: cover; object-position: center bottom; filter: blur(7px); pointer-events: none;
+    mask-image: linear-gradient(to top, #000 0, #000 40%, transparent 100%); -webkit-mask-image: linear-gradient(to top, #000 0, #000 40%, transparent 100%); }
+  /* The browser cannot read the foot's colour (the shops' photos are not ours),
+     so a breath of ivory settles on the blur and ink always reads. */
+  .card.bare .veil { position: absolute; left: 0; right: 0; bottom: 0; height: 15%; pointer-events: none;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ivory) 62%, transparent), color-mix(in srgb, var(--ivory) 30%, transparent) 55%, transparent); }
+  .card.bare .photo.waiting .edge, .card.bare .photo.waiting .veil { display: none; }
+  .card.bare .line { position: absolute; left: 10px; right: 10px; bottom: 9px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--ink); pointer-events: none; white-space: nowrap; }
+  .card.bare .line .shop { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 66%, transparent); overflow: hidden; text-overflow: ellipsis; }
+  .card.bare .line .price { font-size: 13px; color: var(--ink); margin: 0; flex: none; }
   .card .shop { font-size: 8.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .name {
     font-family: var(--serif); font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.25;
@@ -1171,6 +1176,7 @@ function card(it, opts) {
     const main = photo.querySelector("img");
     if (main) { edge.src = main.src; main.addEventListener("load", () => { if (edge.src !== main.src) edge.src = main.src; }); }
     photo.appendChild(edge);
+    const veil = document.createElement("div"); veil.className = "veil"; photo.appendChild(veil);
     const line = document.createElement("div"); line.className = "line";
     const shopQ = it.s || it.b;
     if (shopQ) { const s = document.createElement("span"); s.className = "shop"; s.textContent = shopQ; line.appendChild(s); }
