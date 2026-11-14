@@ -280,6 +280,17 @@
   }
   .rewant svg { width: 15px; height: 10px; stroke: currentColor; fill: none; stroke-width: 0.78; stroke-linecap: round; stroke-linejoin: round; }
   .card .text { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 4px; text-align: left; }
+  /* The river's bare card (SED-983): no surface, no shadow; the photo is the card. */
+  .card.bare { background: none; box-shadow: none; border-radius: 16px; }
+  .card.bare .photo { border-radius: 16px; }
+  .card.bare .edge { position: absolute; left: 0; right: 0; bottom: 0; height: 15%; width: 100%; object-fit: cover; object-position: center bottom; filter: blur(9px); transform: scale(1.12); transform-origin: center bottom; pointer-events: none;
+    mask-image: linear-gradient(to top, #000 0, #000 30%, transparent 100%); -webkit-mask-image: linear-gradient(to top, #000 0, #000 30%, transparent 100%); }
+  .card.bare .photo.waiting .edge { display: none; }
+  /* The browser cannot read the foot's colour (the shops' photos are not ours):
+     white in difference blend reads as ink on a light foot and ivory on a dark one. */
+  .card.bare .line { position: absolute; left: 10px; right: 10px; bottom: 9px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #fff; mix-blend-mode: difference; pointer-events: none; white-space: nowrap; }
+  .card.bare .line .shop { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; }
+  .card.bare .line .price { font-size: 13px; color: #fff; margin: 0; flex: none; }
   .card .shop { font-size: 8.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .name {
     font-family: var(--serif); font-size: 13px; font-weight: 400; color: var(--ink); line-height: 1.25;
@@ -1150,6 +1161,24 @@ function card(it, opts) {
     photo.appendChild(pill);
   }
   el.appendChild(photo);
+  if (o.quiet) {
+    // The river's card is the photo alone (SED-983, Agathe, 14 November):
+    // its last line carries the shop at the left end and the price at the
+    // right, resting on the photo's own foot blurred once (a second copy of
+    // the same picture, cut to the foot, filtered and faded).
+    el.classList.add("bare");
+    const edge = document.createElement("img"); edge.className = "edge"; edge.alt = ""; edge.loading = "lazy"; edge.decoding = "async"; edge.referrerPolicy = "no-referrer";
+    const main = photo.querySelector("img");
+    if (main) { edge.src = main.src; main.addEventListener("load", () => { if (edge.src !== main.src) edge.src = main.src; }); }
+    photo.appendChild(edge);
+    const line = document.createElement("div"); line.className = "line";
+    const shopQ = it.s || it.b;
+    if (shopQ) { const s = document.createElement("span"); s.className = "shop"; s.textContent = shopQ; line.appendChild(s); }
+    const pq = priceOf(it);
+    if (pq) { const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = pq; pr._item = it; line.appendChild(pr); }
+    photo.appendChild(line);
+    return el;
+  }
 
   const text = document.createElement("div"); text.className = "text";
   const shop = it.s || it.b;
