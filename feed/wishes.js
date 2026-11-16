@@ -780,9 +780,18 @@ function openAddSheet() {
     const foot = el("div", "wfoot"); panel.appendChild(foot);
     let draft = null, card = null, selected = new Set(me.listID && me.lists.some((l) => l.id === me.listID) ? [me.listID] : []), reading = false;
     const setState = (node) => { body.innerHTML = ""; if (node) body.appendChild(node); foot.innerHTML = ""; };
+    // The first web link in what she pasted: the link itself, or the one an
+    // app's Copy wrapped in words ("Découvrez … sur Sephora https://…").
+    const firstLink = (text) => {
+      const t = String(text || "").trim();
+      if (/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(t)) return t;
+      const m = t.match(/https?:\/\/[^\s<>"']+\.[^\s<>"']+/i);
+      return m ? m[0].replace(/[)\].,;:!?]+$/, "") : null;
+    };
     const readLink = async () => {
-      const t = url.value.trim();
-      if (!/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(t)) { const e = el("div", "werror", W.badLink); setState(e); return; }
+      const t = firstLink(url.value);
+      if (!t) { const e = el("div", "werror", W.badLink); setState(e); return; }
+      if (url.value.trim() !== t) url.value = t;
       if (reading) return; reading = true;
       const r = el("div", "wreading"); r.innerHTML = '<span class="spin"></span>'; r.appendChild(el("span", null, W.reading)); setState(r);
       let read = null;
@@ -821,7 +830,7 @@ function openAddSheet() {
       foot.appendChild(add);
     };
     url.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); readLink(); } });
-    url.addEventListener("input", () => { const t = url.value.trim(); if (/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(t) && t.length > 12 && !reading && !draft) readLink(); });
+    url.addEventListener("input", () => { const t = firstLink(url.value); if (t && t.length > 12 && !reading && !draft) readLink(); });
     url.addEventListener("paste", () => setTimeout(() => { if (!draft) readLink(); }, 50));
     shop.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
