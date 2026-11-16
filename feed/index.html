@@ -282,7 +282,10 @@
   .card .text { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 4px; text-align: left; }
   /* The river's bare card (SED-983): no surface, no shadow; the photo is the card. */
   .card.bare { background: none; box-shadow: none; border-radius: 16px; }
-  .card.bare .photo { border-radius: 16px; }
+  /* Safari lets a blurred child spill past its parent's rounded corners
+     unless the parent is masked: the corners showed under the edge in dark
+     mode (Agathe, 16 November). The mask keeps the clip honest. */
+  .card.bare .photo { border-radius: 16px; isolation: isolate; -webkit-mask-image: -webkit-radial-gradient(white, black); mask-image: radial-gradient(white, black); }
   /* The same picture again, cut to its foot and blurred, exactly over itself
      (same width, so the same scale; it runs 12px past the bottom so the blur's
      own halo is clipped away), fading out towards its top. */
