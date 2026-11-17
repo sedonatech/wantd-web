@@ -306,6 +306,14 @@
     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     color: var(--ink-soft); font-size: 14px; font-weight: 300;
   }
+  /* One list's link (SED-984): its name where the tabs would be. */
+  .onlylist { font-family: Georgia, serif; font-style: italic; font-weight: 400;
+    font-size: 24px; line-height: 1.2; color: var(--ink); margin: 6px 0 2px; }
+  /* A private list's link: nothing of the list, two lines, the app's words. */
+  .closed { position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; padding: 40px; text-align: center; }
+  .closed .t { font-family: Georgia, serif; font-style: italic; font-size: 22px; color: var(--ink); }
+  .closed .s { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
 </style>
 </head>
 <body>
@@ -471,7 +479,7 @@ const SAMPLE = {
 // tabs, balanced masonry, and the product sheet with its black Shop bar —
 // so ordering a gift from this link asks nothing of anyone (SED, 2026-08-30).
 // ---------------------------------------------------------------------------
-let ALL = [], LISTS = [], CURRENT = "all";
+let ALL = [], LISTS = [], CURRENT = "all", ONLY = null;
 
 function startPage(profile, items, lists) {
   ALL = items; LISTS = lists || [];
@@ -509,12 +517,18 @@ function startPage(profile, items, lists) {
   // amount on the whole list; she picks in the app; he keeps a link.
   if (RESERVE_API && profile.handle) buildPledgeEntry(profile);
 
-  // A list passed around on its own (?list=<uuid>, SED-613) opens on its tab.
-  const wanted = (new URLSearchParams(location.search).get("list") || "").toUpperCase();
-  if (wanted && LISTS.some(l => l.uuid === wanted)) CURRENT = wanted;
-
+  // A list passed around on its own (?list=<uuid>, SED-984) is the whole
+  // page: its name where the tabs would be, no way to the other lists.
   const tabs = document.getElementById("tabs");
   tabs.replaceChildren();
+  if (ONLY) {
+    CURRENT = ONLY.uuid;
+    const t = document.createElement("h1"); t.className = "onlylist"; t.textContent = ONLY.name;
+    tabs.replaceWith(t);
+    renderGrid();
+    renderOccasion();
+    return;
+  }
   const mk = (label, key) => {
     const b = document.createElement("button");
     b.textContent = label;
@@ -1559,11 +1573,25 @@ async function loadWishlist(handle) {
       };
     })
     .filter(it => it.name && !it.spoiled && !it.hidden);
-  if (!items.length) throw new Error("no items");
+  // A list's own link answers for itself, even when the rest is empty.
+  if (!items.length && !new URLSearchParams(location.search).get("list")) throw new Error("no items");
 
   // Tabs only for lists that actually show something.
   const lists = publicLists.filter(l => items.some(it => (it.listIDs || []).includes(l.uuid)));
-  return { profile, items, lists };
+  return { profile, items, lists, privateLists, publicLists };
+}
+
+// A private list's link, or one whose list is gone (SED-984, Agathe
+// 2026-11-11: "une liste privée doit rester privée"): nothing of the list,
+// not even how many pieces it holds.
+function showClosed(isPrivate) {
+  const box = document.createElement("div"); box.className = "closed";
+  const t = document.createElement("div"); t.className = "t";
+  t.textContent = isPrivate ? "This list is private." : "This list no longer exists.";
+  const sub = document.createElement("div"); sub.className = "s";
+  sub.textContent = isPrivate ? "Only its owner can see it." : "Its owner may have removed it.";
+  box.append(t, sub);
+  document.body.append(box);
 }
 
 function showEmpty() {
@@ -1587,9 +1615,19 @@ if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
 } else if (CK.token.startsWith("__")) {
   showEmpty();
 } else {
+  const wanted = (new URLSearchParams(location.search).get("list") || "").toUpperCase();
   loadRates().then(() => loadWishlist(HANDLE))
-    .then(({ profile, items, lists }) =>
-      preload(items).then(loaded => startPage(profile, loaded, lists)))
+    .then(({ profile, items, lists, privateLists, publicLists }) => {
+      if (wanted) {
+        if (privateLists.has(wanted)) return showClosed(true);
+        const one = publicLists.find(l => l.uuid === wanted);
+        if (!one) return showClosed(false);
+        ONLY = one;
+        items = items.filter(it => (it.listIDs || []).includes(wanted));
+        lists = [one];
+      }
+      return preload(items).then(loaded => startPage(profile, loaded, lists));
+    })
     .catch(showEmpty);
 }
 </script>
