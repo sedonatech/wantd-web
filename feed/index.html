@@ -312,6 +312,9 @@
   .card .price.onsale, .cartel .line .price.onsale { color: var(--cobalt); }
   .card .was { font-size: 10.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
   .card.bare .line .was { font-size: 9.5px; color: color-mix(in srgb, var(--ink) 66%, transparent); flex: none; }
+  .card.bare .line .pricegroup { display: flex; align-items: baseline; gap: 6px; flex: none; }
+  .card.bare .line .price.onsale { color: var(--cobalt); }
+  .card.bare .line .shop { text-align: right; margin-left: auto; }
   .cartel .line .was { font-size: 11px; font-weight: 300; color: var(--ink-soft); }
   .card .owner { font-size: 10px; color: var(--ink-soft); opacity: 0.7; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .owner.linked { cursor: pointer; }
@@ -1210,15 +1213,16 @@ function card(it, opts) {
     photo.appendChild(edge);
     const veil = document.createElement("div"); veil.className = "veil"; photo.appendChild(veil);
     const line = document.createElement("div"); line.className = "line";
-    const shopQ = it.s || it.b;
-    if (shopQ) { const s = document.createElement("span"); s.className = "shop"; s.textContent = shopQ; line.appendChild(s); }
+    // The price on the left, with its "was" when on sale, the shop on the
+    // right (Agathe, 2026-11-20, as in the app's FeedCard).
     const pq = priceOf(it);
     if (pq) {
-      // The shop on the left, the price and its "was" together on the right.
-      const right = document.createElement("span"); right.style.display = "flex"; right.style.alignItems = "baseline"; right.style.gap = "6px"; right.style.flex = "none";
+      const left = document.createElement("span"); left.className = "pricegroup";
       const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = pq; pr._item = it;
-      pricePieces(right, it, pr); line.appendChild(right);
+      pricePieces(left, it, pr); line.appendChild(left);
     }
+    const shopQ = it.s || it.b;
+    if (shopQ) { const s = document.createElement("span"); s.className = "shop"; s.textContent = shopQ; line.appendChild(s); }
     photo.appendChild(line);
     return el;
   }
