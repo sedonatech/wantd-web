@@ -1592,12 +1592,13 @@ async function loadWishlist(handle) {
 // A private list's link, or one whose list is gone (SED-984, Agathe
 // 2026-11-11: "une liste privée doit rester privée"): nothing of the list,
 // not even how many pieces it holds.
-function showClosed(isPrivate) {
+function showClosed(isPrivate, friendsOnly = false) {
   const box = document.createElement("div"); box.className = "closed";
   const t = document.createElement("div"); t.className = "t";
   t.textContent = isPrivate ? "This list is private." : "This list no longer exists.";
   const sub = document.createElement("div"); sub.className = "s";
-  sub.textContent = isPrivate ? "Only its owner can see it." : "Its owner may have removed it.";
+  sub.textContent = !isPrivate ? "Its owner may have removed it."
+    : friendsOnly ? "Only its owner's friends can see it, signed in to Wantd." : "Only its owner can see it.";
   box.append(t, sub);
   document.body.append(box);
 }
@@ -1640,7 +1641,7 @@ if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
                            "&list=" + encodeURIComponent(wanted.toLowerCase()));
           return;
         }
-        if (privateLists.has(wanted)) return showClosed(true);
+        if (privateLists.has(wanted)) return showClosed(true, friendsLists.has(wanted));
         const one = publicLists.find(l => l.uuid === wanted);
         if (!one) return showClosed(false);
         ONLY = one;
