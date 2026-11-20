@@ -306,6 +306,13 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
   .card .price { font-size: 13px; color: var(--ink); margin-top: 1px; }
+  /* On sale (SED-980): the price in cobalt, the shop's own "was" after it. */
+  .card .pricerow { display: flex; align-items: baseline; gap: 6px; margin-top: 1px; white-space: nowrap; overflow: hidden; }
+  .card .pricerow .price { margin-top: 0; flex: none; }
+  .card .price.onsale, .cartel .line .price.onsale { color: var(--cobalt); }
+  .card .was { font-size: 10.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+  .card.bare .line .was { font-size: 9.5px; color: color-mix(in srgb, var(--ink) 66%, transparent); flex: none; }
+  .cartel .line .was { font-size: 11px; font-weight: 300; color: var(--ink-soft); }
   .card .owner { font-size: 10px; color: var(--ink-soft); opacity: 0.7; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .owner.linked { cursor: pointer; }
   .sentinel { height: 1px; }
@@ -905,6 +912,7 @@ const T = words("T", {
   emptyTitle: "Nothing here yet", emptyBody: "As people add wants, they'll show up here.",
   back: "Back", close: "Close", clear: "Clear", cancel: "Cancel", toCheck: "Price to check",
   findStores: "Find it in the stores", perL: (p) => `${p} / 1 l`, perKg: (p) => `${p} / 1 kg`, reserved: "Reserved",
+  was: (p) => `was ${p}`,
 });
 document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[el.dataset.t]; });
 document.getElementById("q").placeholder = T.searchPrompt;
@@ -1041,6 +1049,7 @@ let rates = null;
       rates = j.rates;
       try { localStorage.setItem("wantd.rates", JSON.stringify({ at: Date.now(), rates })); } catch (e) {}
       document.querySelectorAll(".card .price, .cartel .price").forEach((el) => { if (el._item) el.textContent = priceOf(el._item) || ""; });
+      document.querySelectorAll(".card .was, .cartel .was").forEach((el) => { if (el._item) el.textContent = T.was(wasOf(el._item) || ""); });
     }
   } catch (e) {}
 })();
@@ -1060,6 +1069,25 @@ function priceOf(it) {
   }
   if (it.pt) return it.pt.replace(/([.,])00(?!\d)/, "");
   return null;
+}
+/// The shop's own "was" for the price shown (SED-980, WishItem.shownWas),
+/// in the same money as priceOf: converted and rounded alike.
+function wasOf(it) {
+  if (typeof it.pw !== "number" || typeof it.pa !== "number" || !it.pc || !(it.pa > 0) || !(it.pw > it.pa * 1.01)) return null;
+  const cur = it.pc.toUpperCase();
+  if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) {
+    return money(Math.round(it.pw / rates[cur] * rates[VIEWER]), VIEWER);
+  }
+  return money(it.pw, cur);
+}
+/// The price, cobalt when on sale, and its "was" after it, in `parent`.
+function pricePieces(parent, it, priceEl) {
+  const w = wasOf(it);
+  parent.appendChild(priceEl);
+  if (!w) return;
+  priceEl.classList.add("onsale");
+  const s = document.createElement("span"); s.className = "was"; s.textContent = T.was(w); s._item = it;
+  parent.appendChild(s);
 }
 /// Per litre or per kilo, for a Douglas piece only, while what it holds still
 /// belongs to the price shown (WishItem.vouchedNetContent, CurrencyService
@@ -1185,7 +1213,12 @@ function card(it, opts) {
     const shopQ = it.s || it.b;
     if (shopQ) { const s = document.createElement("span"); s.className = "shop"; s.textContent = shopQ; line.appendChild(s); }
     const pq = priceOf(it);
-    if (pq) { const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = pq; pr._item = it; line.appendChild(pr); }
+    if (pq) {
+      // The shop on the left, the price and its "was" together on the right.
+      const right = document.createElement("span"); right.style.display = "flex"; right.style.alignItems = "baseline"; right.style.gap = "6px"; right.style.flex = "none";
+      const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = pq; pr._item = it;
+      pricePieces(right, it, pr); line.appendChild(right);
+    }
     photo.appendChild(line);
     return el;
   }
@@ -1197,7 +1230,11 @@ function card(it, opts) {
   // name, no member name, a calm wall (the app's FeedView, SED-909).
   if (!o.quiet) { const name = document.createElement("div"); name.className = "name"; name.textContent = it.n || ""; text.appendChild(name); }
   const p = priceOf(it);
-  if (p) { const pr = document.createElement("div"); pr.className = "price num"; pr.textContent = p; pr._item = it; text.appendChild(pr); }
+  if (p) {
+    const row = document.createElement("div"); row.className = "pricerow";
+    const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = p; pr._item = it;
+    pricePieces(row, it, pr); text.appendChild(row);
+  }
   else if (o.own) { const tc = document.createElement("div"); tc.className = "tocheck"; tc.textContent = T.toCheck; text.appendChild(tc); }
   if (o.owner && !o.quiet) {
     const who = o.owner(it);
@@ -1690,7 +1727,7 @@ function openPiece(it, fromHistory) {
   const t = document.createElement("h2"); t.className = "title"; t.textContent = it.n || ""; body.appendChild(t);
   const line = document.createElement("div"); line.className = "line";
   const p = priceOf(it);
-  if (p) { const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = p; pr._item = it; line.appendChild(pr); }
+  if (p) { const pr = document.createElement("span"); pr.className = "price num"; pr.textContent = p; pr._item = it; pricePieces(line, it, pr); }
   const host = hostOf(it.u);
   const base = basePriceOf(it);
   if (p && base) { const b = document.createElement("span"); b.className = "baseprice"; b.textContent = base; line.appendChild(b); }

@@ -129,6 +129,7 @@ function itemOf(v) {
   const it = {
     id: v.id, n: v.name || "", b: v.brand || undefined, s: v.store || undefined,
     pt: v.priceText || undefined, pa: typeof v.priceAmount === "number" ? v.priceAmount : undefined, pc: v.priceCurrency || undefined,
+    pw: typeof v.priceWas === "number" ? v.priceWas : undefined,
     u: v.urlString || "", i: v.imageURLString || undefined, ic: v.imageCandidateURLs || [],
     at: v.addedAt || Date.now(), l: v.listIDs || [], o: v.ownerID,
     si: typeof v.sortIndex === "number" ? v.sortIndex : 0, st,

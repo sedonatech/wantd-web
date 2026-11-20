@@ -98,6 +98,7 @@ function itemFromRecord(r) {
   const it = {
     id: r.recordName, n: v(r, "name") || "", b: v(r, "brand"), s: v(r, "store"),
     pt: v(r, "priceText"), pa: typeof v(r, "priceAmount") === "number" ? v(r, "priceAmount") : undefined, pc: v(r, "priceCurrency"),
+    pw: typeof v(r, "priceWas") === "number" ? v(r, "priceWas") : undefined,
     u: v(r, "urlString") || "", i: v(r, "imageURLString") || undefined, ic: v(r, "imageCandidateURLs") || [],
     at: v(r, "addedAt") || Date.now(), l: v(r, "listIDs") || [], o: v(r, "ownerID"),
     si: typeof v(r, "sortIndex") === "number" ? v(r, "sortIndex") : 0, st: v(r, "status") || "available", rb: v(r, "reservedBy"),
@@ -183,7 +184,7 @@ function bridgeBody(it, changes) {
 /// Every piece filed on a list, whoever wrote it (fetchItems(inList:)).
 async function itemsInList(listID) {
   const rows = await queryAll({ recordType: "Item", filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS", fieldValue: { value: listID } }] },
-    { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+    { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
   return rows.map(itemFromRecord);
 }
 async function queryAll(query, options) {
@@ -223,7 +224,7 @@ async function load() {
       } else {
         const [itemsR, mineR, sharedR, profR, m, wordsR] = await Promise.all([
           queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
-                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] }),
+                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
           // null when the read failed: a profile that could not be read is not
@@ -805,6 +806,8 @@ function openAddSheet() {
       // shops): she writes the name and the price, and gives her own photo.
       if (!read) read = { url: t, blocked: true, images: [] };
       draft = { n: read.name || "", s: read.store || "", b: read.brand || undefined, pa: typeof read.priceAmount === "number" ? read.priceAmount : undefined, pc: read.priceCurrency || undefined,
+                // The shop's own "was" (SED-980), kept only with the very price it belongs to.
+                pw: typeof read.priceWas === "number" ? read.priceWas : undefined, pwFor: read.priceAmount,
                 u: read.url || t, i: (read.images || [])[0], ic: read.images || [], blocked: !!read.blocked, storefront: !!read.storefront || looksLikeStorefront(read.url || t) };
       const already = me.items.some((it) => it.u && urlKey(it.u) === urlKey(draft.u));
       card = editableCard(draft, { already });
@@ -860,6 +863,7 @@ async function savePiece(d, selected) {
     if (d.s) body.store = d.s;
     if (d.b) body.brand = d.b;
     if (typeof d.pa === "number" && d.pc) { body.priceAmount = d.pa; body.priceCurrency = d.pc; body.priceText = money(d.pa, d.pc); }
+    if (typeof d.pw === "number" && d.pa === d.pwFor && d.pc) body.priceWas = d.pw;
     if (listIDs.length) body.listIDs = listIDs;
     if (d.note) body.personalNote = d.note;
     if (d.ic && d.ic.length) body.imageCandidateURLs = d.ic.slice(0, 20);
@@ -882,6 +886,7 @@ async function savePiece(d, selected) {
   if (d.b) fields.brand = f(d.b, "STRING");
   if (typeof d.pa === "number" && d.pc) { fields.priceAmount = f(d.pa, "DOUBLE"); fields.priceCurrency = f(d.pc, "STRING"); fields.priceText = f(money(d.pa, d.pc), "STRING"); }
   else fields.priceText = f(null, "STRING");
+  if (typeof d.pw === "number" && d.pa === d.pwFor && d.pc) fields.priceWas = f(d.pw, "DOUBLE");
   if (listIDs.length) fields.listIDs = f(listIDs, "STRING_LIST");
   if (d.note) fields.personalNote = f(d.note, "STRING");
   if (d.ic && d.ic.length) fields.imageCandidateURLs = f(d.ic.slice(0, 20), "STRING_LIST");
@@ -962,6 +967,8 @@ async function updatePiece(it, read) {
   // survives a rename.
   const hadAmount = typeof it.pa === "number" ? it.pa : null;
   if (read.pa !== hadAmount || (read.pc || null) !== (it.pc || null)) {
+    // Her own price: the shop's "was" no longer describes it (SED-980).
+    if (typeof it.pw === "number") fields.priceWas = f(null, "DOUBLE");
     if (typeof read.pa === "number") {
       fields.priceAmount = f(read.pa, "DOUBLE"); fields.priceCurrency = f(read.pc || null, "STRING");
       fields.priceText = f(read.pc ? money(read.pa, read.pc) : String(read.pa), "STRING");
@@ -2168,7 +2175,7 @@ window.Wishes = {
   async readPiece(id) {
     if (viaBridge()) return Bridge().item(id).catch(() => null);
     if (!container()) return null;
-    const res = await db().fetchRecords([{ recordName: String(id).toUpperCase() }], { desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+    const res = await db().fetchRecords([{ recordName: String(id).toUpperCase() }], { desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
     const r = res.records && res.records[0];
     return r && r.fields ? itemFromRecord(r) : null;
   },

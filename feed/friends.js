@@ -56,7 +56,7 @@ function giftCardURL(u) {
     return shopURL(entry[1], { brand: host.split(".")[0], name: "" });
   } catch (e) { return null; }
 }
-const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor"];
+const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor"];
 
 // ---------------------------------------------------------------------------
 // State.
