@@ -361,7 +361,13 @@ function rememberHandle() {
     else if (!me.id) localStorage.removeItem(ME_HANDLE);
   } catch (e) {}
 }
+let pendingListID = "";
 function paint() {
+  if (pendingListID && me.loaded) {
+    const l = me.lists.find((x) => String(x.id).toUpperCase() === pendingListID);
+    if (l) { me.listID = l.id; me.shelf = false; }
+    pendingListID = "";
+  }
   const sec = $("wishes");
   const signedIn = !!me.id;
   rememberHandle();
@@ -2174,7 +2180,9 @@ function codeScreen() {
 // ---------------------------------------------------------------------------
 let wired = false;
 window.Wishes = {
-  enter() {
+  // A list her own link named opens on its tab (Agathe, 2026-11-20).
+  enter(listID) {
+    if (listID) pendingListID = String(listID).toUpperCase();
     if (!wired) { wired = true; wireControls(); watchAuth(); }
     paint();
   },

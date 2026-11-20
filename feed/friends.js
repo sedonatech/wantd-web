@@ -377,7 +377,8 @@ async function openProfile(handle) {
   const wanted = linkList && (candidates.includes(linkList.handle) || (person && person.h === linkList.handle)) ? linkList.id : "";
   if (wanted) linkList = null;
   if (!person) { if (wanted) { toBoard(handle, wanted); return; } visit.loading = false; visit.notFound = true; paintVisit(); return; }
-  if (person.o === me().id) { go({ tab: "wishes" }); return; }
+  // Her own link: home, on the list it named.
+  if (person.o === me().id) { go({ tab: "wishes", list: wanted || "" }); return; }
   visit.owner = person.o;
   visit.profile = { h: person.h, n: person.n, fr: person.fr || 0, fg: person.fg || 0, b: person.b, e: person.e || null };
   visit.following = circle.loaded ? circle.following.includes(person.o) : false;

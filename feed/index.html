@@ -1929,7 +1929,7 @@ let want = { store: "", name: "", tab: "", u: "", list: "" };
 function render(st, animate) {
   want = st;
   if (pieceOpen) closePiece(true);
-  if (st.tab === "wishes") { show("wishes", animate); if (window.Wishes) window.Wishes.enter(); }
+  if (st.tab === "wishes") { show("wishes", animate); if (window.Wishes) window.Wishes.enter(st.list || ""); }
   else if (st.tab === "friends") { show("friends", animate); if (window.Wishes) window.Wishes.wake(); if (window.Friends) window.Friends.enter(st.u || "", st.list || ""); }
   else if (st.store) { show("store", animate); openStore(st.store, st.name); }
   else { show("river", animate); }
@@ -1994,7 +1994,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=7"></script>
-<script src="/feed/wishes.js?v=25"></script>
-<script src="/feed/friends.js?v=15"></script>
+<script src="/feed/wishes.js?v=26"></script>
+<script src="/feed/friends.js?v=16"></script>
 </body>
 </html>
