@@ -419,8 +419,9 @@ async function openProfile(handle) {
       // Friends = they follow each other (SED-985, VisitProfileView): her
       // "Friends only" lists open to a friend, to nobody else. An unknown
       // answer opens nothing.
-      let friend = false;
-      if (rows.some((r) => K.listFromRecord(r).friendsOnly)) {
+      // Her own link opens as her friends see it (Agathe, 2026-11-20).
+      let friend = person.o === me().id;
+      if (!friend && rows.some((r) => K.listFromRecord(r).friendsOnly)) {
         const [a, b] = await Promise.all([followingTask, queryAll({ recordType: "Follow", filterBy: [
           { fieldName: "followerID", comparator: "EQUALS", fieldValue: { value: person.o } },
           { fieldName: "followedID", comparator: "EQUALS", fieldValue: { value: me().id } }] }, { resultsLimit: 2, desiredKeys: ["status"] })
