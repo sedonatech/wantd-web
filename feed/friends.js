@@ -64,7 +64,18 @@ const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceC
 const viaBridge = () => K.viaBridge();
 const Bridge = () => window.Account.bridge;
 const circle = { loaded: false, loading: false, error: null, following: [], mutual: new Set(), friends: [], pending: [], at: 0 };
-const visit = { handle: "", owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, sort: "manual", budget: null, loading: false, notFound: false, seq: 0, following: false };
+const visit = { handle: "", owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, sort: "manual", budget: null, loading: false, notFound: false, seq: 0, following: false, loadedFor: null };
+// A list's own link, /@handle?list=<id> (SED-985): the board sends a member
+// signed in here for a "Friends only" list. Opened in her Friends tab when
+// she and its owner follow each other; anyone else goes back to the board,
+// which says the list is private.
+let linkList = null;   // { handle, id } (handle lowercased, id uppercased)
+const bareHandle = (h) => String(h || "").trim().toLowerCase().replace(/^@/, "");
+function toBoard(handle, id) {
+  location.replace("/board/?handle=" + encodeURIComponent(bareHandle(handle)) + "&list=" + encodeURIComponent(String(id).toLowerCase()) + "&from=friends");
+}
+/// Signed out for sure: Apple's sign-in has answered, and no Google or email session.
+const signedOutForSure = () => !me().id && !!(window.wantdAuth && window.wantdAuth.ready && !window.wantdAuth.identity) && !(window.Account && window.Account.identity());
 // Who she reported: the feed page keeps the list, under her own id.
 const blocked = { has: (owner) => window.wantdBlocks.list().includes(owner) };
 /// Hers, or on a list she co-owns: she must never see its reservations or
@@ -335,7 +346,7 @@ function openMemberSearch() {
 // ---------------------------------------------------------------------------
 async function openProfile(handle) {
   const seq = ++visit.seq;
-  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, budget: null, loading: true, notFound: false, following: false });
+  Object.assign(visit, { handle, owner: "", profile: null, lists: [], items: [], sections: {}, listID: null, shelf: false, budget: null, loading: true, notFound: false, following: false, loadedFor: me().id });
   paintVisit();
   // Who she is: the worker knows her by handle; a member who joined minutes
   // ago is read from her Profile record (FriendsView tolerates "@Wtd-Gags ").
@@ -362,7 +373,10 @@ async function openProfile(handle) {
   }
   if (person && (person.h === "wtd-you" || /^wtd-you\d+$/.test(person.h))) person = null;
   if (seq !== visit.seq) return;
-  if (!person) { visit.loading = false; visit.notFound = true; paintVisit(); return; }
+  // The list her link names, if it named one for this member.
+  const wanted = linkList && (candidates.includes(linkList.handle) || (person && person.h === linkList.handle)) ? linkList.id : "";
+  if (wanted) linkList = null;
+  if (!person) { if (wanted) { toBoard(handle, wanted); return; } visit.loading = false; visit.notFound = true; paintVisit(); return; }
   if (person.o === me().id) { go({ tab: "wishes" }); return; }
   visit.owner = person.o;
   visit.profile = { h: person.h, n: person.n, fr: person.fr || 0, fg: person.fg || 0, b: person.b, e: person.e || null };
@@ -388,8 +402,10 @@ async function openProfile(handle) {
     // lists kept with her (hidingPrivate).
     let visible, items;
     if (viaBridge()) {
+      // The bridge opens her "Friends only" lists to a friend, and to
+      // nobody else (SED-985): what it gives is what she may see.
       const page = await Bridge().profile(handle);
-      visible = page.lists.filter((l) => !l.isPrivate);
+      visible = page.lists.filter((l) => !l.isPrivate || l.friendsOnly);
       items = page.items.filter((it) => it.n && it.u !== undefined);
       if (page.profile && page.profile.avatarURL) visit.profile.avatarURL = page.profile.avatarURL;
     } else {
@@ -400,15 +416,35 @@ async function openProfile(handle) {
         queryAll({ recordType: "Profile", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: person.o } }] }, { resultsLimit: 5, desiredKeys: ["avatarAsset", "avatarEmoji"] }).catch(() => []),
       ]);
       if (seq !== visit.seq) return;
+      // Friends = they follow each other (SED-985, VisitProfileView): her
+      // "Friends only" lists open to a friend, to nobody else. An unknown
+      // answer opens nothing.
+      let friend = false;
+      if (rows.some((r) => K.listFromRecord(r).friendsOnly)) {
+        const [a, b] = await Promise.all([followingTask, queryAll({ recordType: "Follow", filterBy: [
+          { fieldName: "followerID", comparator: "EQUALS", fieldValue: { value: person.o } },
+          { fieldName: "followedID", comparator: "EQUALS", fieldValue: { value: me().id } }] }, { resultsLimit: 2, desiredKeys: ["status"] })
+          .then((r) => r.some((x) => x.fields.status && x.fields.status.value === "accepted")).catch(() => false)]);
+        friend = a === true && b === true;
+        if (seq !== visit.seq) return;
+      }
+      const opens = (l) => !l.isPrivate || (friend && l.friendsOnly);
       const byID = new Map();
-      for (const r of rows.concat(joined)) { const l = K.listFromRecord(r); if (l.id && !l.isPrivate && !byID.has(l.id)) byID.set(l.id, l); }
+      for (const r of rows.concat(joined)) { const l = K.listFromRecord(r); if (l.id && opens(l) && !byID.has(l.id)) byID.set(l.id, l); }
       visible = [...byID.values()];
-      const privateIDs = new Set(rows.map(K.listFromRecord).filter((l) => l.isPrivate).map((l) => l.id));
+      const privateIDs = new Set(rows.map(K.listFromRecord).filter((l) => !opens(l)).map((l) => l.id));
       items = own.map(K.itemFromRecord).filter((it) => it.n && it.u !== undefined && !((it.l || []).length && (it.l || []).every((id) => privateIDs.has(id))));
       const av = profiles[0] && profiles[0].fields;
       if (av && av.avatarAsset && av.avatarAsset.value && av.avatarAsset.value.downloadURL) visit.profile.avatarURL = String(av.avatarAsset.value.downloadURL).replace("${f}", "avatar.jpg");
     }
     if (seq !== visit.seq) return;
+    // Her link's list: open on its own tab when she may see it; otherwise
+    // the board answers, as it does for anyone (This list is private.).
+    if (wanted) {
+      const one = visible.find((l) => String(l.id).toUpperCase() === wanted);
+      if (!one) { toBoard(person.h, wanted); return; }
+      if (!one.isMain) visit.listID = one.id;
+    }
     // One tab per public list, the main one first and once; a co-owned list
     // is its own tab, never blended into the grid: a piece kept with someone
     // must read as such before anyone gifts it.
@@ -428,7 +464,10 @@ async function openProfile(handle) {
         visit.sections[id] = found.filter((it) => it.n && it.o).map((it) => Object.assign(it, { _visited: true }));
       } catch (e) { console.log("shared list", id, e); }
     }));
-  } catch (e) { console.log("visit load failed", e); }
+  } catch (e) {
+    console.log("visit load failed", e);
+    if (wanted && seq === visit.seq && !visit.lists.length) { toBoard(person.h, wanted); return; }
+  }
   const following = await followingTask;
   if (seq !== visit.seq) return;
   if (following != null) visit.following = following;
@@ -892,11 +931,18 @@ function wire() {
 // On the Feed too, from the first page (FeedView.swift:990): the member link.
 $("memberLink").textContent = F.lookingMember; $("memberLink").addEventListener("click", openMemberSearch);
 window.Friends = {
-  enter(handle) {
+  enter(handle, list) {
     window.Wishes.wake();   // the member is signed in once, for both tabs
     if (!wired) { wired = true; wire(); }
+    // A list's link (SED-985): kept until her profile is read. After the
+    // wake, whose sign-in may already have entered this tab again.
+    linkList = handle && list ? { handle: bareHandle(handle), id: String(list).toUpperCase() } : null;
     const signedIn = !!me().id;
-    if (handle) { if (signedIn) { if (visit.handle !== handle) openProfile(handle); else paintVisit(); } else { visit.handle = handle; paintVisit(); } }
+    // Signed out, the list's link is the board's: it says the list is private.
+    if (handle && linkList && !signedIn && signedOutForSure()) { const l = linkList; linkList = null; toBoard(l.handle, l.id); return; }
+    // Read again once she is known (signed in after the page opened): who
+    // she is decides which of the lists open.
+    if (handle) { if (signedIn) { if (visit.handle !== handle || visit.loadedFor !== me().id) openProfile(handle); else paintVisit(); } else { visit.handle = handle; paintVisit(); } }
     else { visit.handle = ""; paintVisit(); }
     if (signedIn && !circle.loaded && !circle.loading && restoreCircle()) { paintCircle(); if (Date.now() - circle.at > 60000) loadCircle(); return; }
     paintCircle();
@@ -904,10 +950,11 @@ window.Friends = {
   },
   othersActions, removeRewant,
   ownerName, ownerHandle,
-  onAuth() { circle.loaded = false; circle.loading = false; circle.friends = []; circle.pending = []; if (!$("friends").hidden) window.Friends.enter(visit.handle); },
+  onAuth() { circle.loaded = false; circle.loading = false; circle.friends = []; circle.pending = []; if (!$("friends").hidden) window.Friends.enter(visit.handle, linkList && linkList.handle === bareHandle(visit.handle) ? linkList.id : ""); },
   isBlocked: (owner) => blocked.has(owner),
 };
-if (!document.getElementById("friends").hidden) window.Friends.enter(new URL(location.href).searchParams.get("u") || "");
+// The page's own state first: the address may already read /@handle.
+if (!document.getElementById("friends").hidden) { const st = history.state || {}, q = new URL(location.href).searchParams; window.Friends.enter(st.u || q.get("u") || "", st.list || q.get("list") || ""); }
 // The member is known from the first page, the Feed included: "Also want
 // this" and Report need her there too.
 window.Wishes.wake();

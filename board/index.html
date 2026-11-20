@@ -1423,6 +1423,10 @@ async function loadWishlist(handle) {
   // things they are a little ashamed of wanting, and nobody is ever meant to
   // see it: not a friend, not a stranger with the link (Agathe, 2026-08-28).
   const privateLists = new Set();
+  // Of those, the "Friends only" ones (SED-985): still closed here, but a
+  // member signed in on this site is sent to her Friends tab, which opens
+  // the list when she and its owner follow each other.
+  const friendsLists = new Set();
   // Co-owned lists live on every member's board: the other members' pieces
   // on her shared, PUBLIC lists join it (SED-598). Private ones never do.
   const sharedPublicLists = new Set();
@@ -1437,7 +1441,11 @@ async function loadWishlist(handle) {
     for (const r of (listRes.records || []).filter(r => !r.serverErrorCode)) {
       const uuid = r.fields.listUUID?.value;
       if (!uuid) continue;
-      if ((r.fields.isPrivate?.value ?? 0) === 1) { privateLists.add(uuid); continue; }
+      if ((r.fields.isPrivate?.value ?? 0) === 1) {
+        privateLists.add(uuid);
+        if ((r.fields.friendsOnly?.value ?? 0) === 1) friendsLists.add(uuid);
+        continue;
+      }
       publicLists.push({ uuid, name: r.fields.name?.value || "List",
                          main: (r.fields.isMain?.value ?? 0) === 1,
                          occasion: r.fields.occasion?.value || null,
@@ -1578,7 +1586,7 @@ async function loadWishlist(handle) {
 
   // Tabs only for lists that actually show something.
   const lists = publicLists.filter(l => items.some(it => (it.listIDs || []).includes(l.uuid)));
-  return { profile, items, lists, privateLists, publicLists };
+  return { profile, items, lists, privateLists, friendsLists, publicLists };
 }
 
 // A private list's link, or one whose list is gone (SED-984, Agathe
@@ -1592,6 +1600,12 @@ function showClosed(isPrivate) {
   sub.textContent = isPrivate ? "Only its owner can see it." : "Its owner may have removed it.";
   box.append(t, sub);
   document.body.append(box);
+}
+
+/// A member signed in to Wantd on this site: the feed keeps her handle here
+/// (feed/wishes.js, wantd.me.handle), as the /@ pages read it (at.js).
+function signedInHere() {
+  try { return !!localStorage.getItem("wantd.me.handle"); } catch (e) { return false; }
 }
 
 function showEmpty() {
@@ -1616,9 +1630,16 @@ if (SANTA_G && /^[0-9a-fA-F-]{36}$/.test(SANTA_G)
   showEmpty();
 } else {
   const wanted = (new URLSearchParams(location.search).get("list") || "").toUpperCase();
+  // Back from the Friends tab, which did not open it: closed, no second trip.
+  const fromFriends = new URLSearchParams(location.search).get("from") === "friends";
   loadRates().then(() => loadWishlist(HANDLE))
-    .then(({ profile, items, lists, privateLists, publicLists }) => {
+    .then(({ profile, items, lists, privateLists, friendsLists, publicLists }) => {
       if (wanted) {
+        if (friendsLists.has(wanted) && !fromFriends && signedInHere()) {
+          location.replace("/feed/?tab=friends&u=" + encodeURIComponent(String(HANDLE).toLowerCase()) +
+                           "&list=" + encodeURIComponent(wanted.toLowerCase()));
+          return;
+        }
         if (privateLists.has(wanted)) return showClosed(true);
         const one = publicLists.find(l => l.uuid === wanted);
         if (!one) return showClosed(false);

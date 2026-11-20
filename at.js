@@ -2,7 +2,10 @@
 // opens the right screen for whoever clicks it, as a profile link does on
 // Instagram: her own Wishlist when it is hers, that member in Friends when
 // she is signed in to Wantd here, the public board otherwise. This browser's
-// handle is kept by feed/wishes.js (wantd.me.handle).
+// handle is kept by feed/wishes.js (wantd.me.handle). A list's own link
+// (?list=) goes to the board, which knows what the list is: public, it
+// shows it; "Friends only", it sends a member signed in here on to her
+// Friends tab, which opens it to a friend (SED-985); private, it says so.
 (function () {
   var m = location.pathname.match(/^\/@([\w-]+)\/?$/);
   if (!m) return;
