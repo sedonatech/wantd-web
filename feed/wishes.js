@@ -20,7 +20,7 @@ const W = words("W", {
   productName: "Product name", namePrompt: "e.g. Wide-leg trousers", storeOrBrand: "Store or brand", storePrompt: "ASOS, Sephora…", amount: "Amount", currency: "Currency", select: "Select",
   note: "Personal note", notePrompt: "Size, color, comment…", addToLists: "Add to lists", newList: "New list",
   addToWishlist: "Add to wishlist", addAnyway: "Add anyway", already: "Already Wantd.",
-  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.", visEveryone: "Everyone", visFriends: "Friends", visOnlyMe: "Only me",
+  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.", inAll: (t) => `${t} in all`, visEveryone: "Everyone", visFriends: "Friends", visOnlyMe: "Only me",
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
   deleteAsk: "Delete this want?", deleteBody: "It will leave your wishlist for good.", unwantAsk: "Unwant this?", unwantBody: "It leaves your wishlist, and your want mark comes off everywhere.",
@@ -349,6 +349,24 @@ function viewerAmount(it) {
   if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) return it.pa / rates[cur] * rates[VIEWER];
   return it.pa;
 }
+/// What these pieces would cost together, in her money, round; null when
+/// none has a price the rates can carry (SED-916, the app's total of a list).
+function listTotal(items) {
+  let sum = 0, priced = 0;
+  for (const it of items) {
+    if (typeof it.pa !== "number" || it.pa <= 0) continue;
+    const cur = (it.pc || VIEWER || "").toUpperCase();
+    let v = it.pa;
+    if (VIEWER && cur !== VIEWER) { if (!(rates && rates[cur] > 0 && rates[VIEWER])) continue; v = it.pa / rates[cur] * rates[VIEWER]; }
+    sum += v; priced++;
+  }
+  return priced ? money(Math.round(sum), VIEWER || "EUR") : null;
+}
+function paintTotal(node, items) {
+  const t = listTotal(items);
+  node.hidden = !t;
+  if (t) node.textContent = W.inAll(t);
+}
 const wantedCount = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
 /// This browser's own handle, for the /@ pages: the link of her wishlist
@@ -401,6 +419,8 @@ function paint() {
     tabs.appendChild(b);
     if (active && l.creatorID === me.id && !DEMO) { const e = el("button", "wedit", W.edit); e.type = "button"; e.addEventListener("click", () => openListSheet(l)); tabs.appendChild(e); }
   }
+  // What the list in view would cost (SED-916): hers and, on a visit, anyone's.
+  if (me.shelf) $("wTotal").hidden = true; else paintTotal($("wTotal"), shown());
   if (me.items.some(isHad)) { const g = tab(W.granted, me.shelf); g.addEventListener("click", () => { me.shelf = true; me.listID = null; paintWall(); paintTabs(); }); tabs.appendChild(g); }
   if (!DEMO) { const plus = el("button", "wplus"); plus.type = "button"; plus.setAttribute("aria-label", W.newList); plus.innerHTML = '<svg viewBox="0 0 12 12"><path d="M6 1.5v9M1.5 6h9"/></svg>'; plus.addEventListener("click", () => openListSheet(null)); tabs.appendChild(plus); }
   // Sort, filter, grid.

@@ -38,7 +38,7 @@
   var asked = /[?&]lang=([A-Za-z-]+)/.exec(location.search);
   if (asked && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (asked[1] === "en" || known.indexOf(asked[1]) >= 0)) pick = asked[1];
   window.WANTD_LANG = pick;
-  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=5"><\/script>');
+  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=6"><\/script>');
 })();
 </script>
 <script src="/feed/ck.js?v=1"></script>
@@ -227,6 +227,8 @@
 
   /* Quiet states, in the app's words. */
   .state { text-align: center; padding-top: 48px; color: var(--ink-soft); font-size: 13px; font-weight: 300; }
+  /* The total of the list in view (SED-916), as the app's occasion line. */
+  .wtotal { font-family: var(--serif); font-size: 15px; font-weight: 300; font-style: italic; color: var(--ink-soft); margin: 2px 0 6px; font-variant-numeric: lining-nums; }
   .state.serif { font-family: var(--serif); font-size: 15px; font-style: italic; color: var(--ink); }
   .state.tall { padding-top: 120px; }
   .state .title { font-family: var(--serif); font-size: 18px; font-weight: 300; color: var(--ink); margin-bottom: 12px; }
@@ -798,6 +800,7 @@
         </div>
       </div>
       <div class="wtabs" id="wTabs"></div>
+      <p class="wtotal" id="wTotal" hidden></p>
       <div id="wPledges" hidden></div>
       <div class="wctl">
         <span class="text"><span id="wSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><span class="val" id="wSortValue"></span><select class="cover" id="wSort"></select></span>
@@ -844,6 +847,7 @@
           </div>
           <button type="button" class="vpledge" id="vPledge"></button>
           <div class="wtabs" id="vTabs"></div>
+          <p class="wtotal" id="vTotal" hidden></p>
           <div class="wctl">
             <span class="text"><span id="vSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><select class="cover" id="vSort"></select></span>
             <button type="button" class="text" id="vFilter"><span id="vFilterLabel"></span><span class="val" id="vFilterValue"></span></button>
@@ -1998,7 +2002,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=8"></script>
-<script src="/feed/wishes.js?v=29"></script>
-<script src="/feed/friends.js?v=16"></script>
+<script src="/feed/wishes.js?v=30"></script>
+<script src="/feed/friends.js?v=17"></script>
 </body>
 </html>

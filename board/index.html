@@ -328,6 +328,7 @@
   </header>
   <nav class="lists" id="tabs"></nav>
   <p class="occasion serif" id="occasion" hidden></p>
+  <p class="occasion serif" id="total" hidden></p>
   <div id="grid"></div>
   <footer class="house">
     <span class="mark">Wantd.</span>
@@ -527,6 +528,7 @@ function startPage(profile, items, lists) {
     tabs.replaceWith(t);
     renderGrid();
     renderOccasion();
+    renderTotal();
     return;
   }
   const mk = (label, key) => {
@@ -548,9 +550,11 @@ function startPage(profile, items, lists) {
     for (const b of tabs.querySelectorAll("button"))
       b.classList.toggle("on", b.dataset.key === CURRENT);
     renderOccasion();
+    renderTotal();
   }
   renderGrid();
   renderOccasion();
+  renderTotal();
 }
 
 // The sentence under the tabs, word for word the app's own (SED-613).
@@ -571,6 +575,23 @@ function renderOccasion() {
   const line = occasionLine(LISTS.find(l => l.uuid === CURRENT));
   el.textContent = line || "";
   el.hidden = !line;
+}
+
+// What the list in view would cost, in euros as every price here reads
+// (SED-916, Agathe 22/11: "je veux que tout le monde puisse voir").
+function renderTotal() {
+  const el = document.getElementById("total");
+  let sum = 0, priced = 0;
+  for (const it of visibleItems()) {
+    if (it.spoiled || typeof it.pa !== "number" || !(it.pa > 0) || !it.pc) continue;
+    const cur = it.pc.toUpperCase();
+    if (cur === "EUR") sum += it.pa;
+    else if (RATES && RATES[cur] > 0 && RATES.EUR) sum += it.pa / RATES[cur] * RATES.EUR;
+    else continue;
+    priced++;
+  }
+  el.hidden = !priced;
+  if (priced) el.textContent = formatPrice(Math.round(sum), "EUR", "") + " in all";
 }
 
 function visibleItems() {
@@ -1556,6 +1577,8 @@ async function loadWishlist(handle) {
         price: formatPrice(f.priceAmount?.value, f.priceCurrency?.value,
                            f.priceText?.value || ""),
         basePrice: basePrice(f),
+        // Kept for the list's total (SED-916).
+        pa: f.priceAmount?.value, pc: f.priceCurrency?.value,
         store: f.store?.value || f.brand?.value || "",
         img,
         url: f.urlString?.value || "",

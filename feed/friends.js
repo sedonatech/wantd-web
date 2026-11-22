@@ -538,6 +538,8 @@ function paintVisit() {
     for (const l of visit.lists) { const b = tab(l.name, !visit.shelf && visit.listID === l.id, { shared: l.memberIDs.length > 0 }); b.addEventListener("click", () => { visit.shelf = false; visit.listID = l.id; paintVisit(); }); tabs.appendChild(b); }
     if (hasGranted) { const g = tab(F.granted, visit.shelf); g.addEventListener("click", () => { visit.shelf = true; visit.listID = null; paintVisit(); }); tabs.appendChild(g); }
   }
+  // What the list in view would cost, as its owner sees it (SED-916).
+  if (visit.shelf || !visit.items.length) $("vTotal").hidden = true; else paintTotal($("vTotal"), visitShown());
   const host = $("vWall"), state = $("vState");
   host.innerHTML = ""; wall = K.makeWallWith(host, REGULAR.matches ? 5 : 2);
   if (visit.loading && !visit.items.length) { state.hidden = false; state.className = "state"; state.innerHTML = '<div class="spin"></div>'; host.hidden = true; return; }
