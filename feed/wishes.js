@@ -1149,6 +1149,8 @@ function openEditSheet(it) {
     const err = el("div", "wnote"); foot.appendChild(err);
     const go = bar(W.save, async () => {
       const read = card.read(); if (!read.n) return;
+      // No price, no saving (Agathe, 22/11): an edit cannot take it away.
+      if (!(read.pa > 0)) { err.textContent = W.noPrice; card.querySelector("input[inputmode=decimal]").focus(); return; }
       go.disabled = true;
       try { await updatePiece(it, read); closeSheet(); if (pieceOpen && pieceOpen.id === it.id) openPiece(it, true); }
       catch (e) { go.disabled = false; err.textContent = String(e && (e.message || e)); }
