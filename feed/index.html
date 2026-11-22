@@ -38,7 +38,7 @@
   var asked = /[?&]lang=([A-Za-z-]+)/.exec(location.search);
   if (asked && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (asked[1] === "en" || known.indexOf(asked[1]) >= 0)) pick = asked[1];
   window.WANTD_LANG = pick;
-  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=4"><\/script>');
+  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=5"><\/script>');
 })();
 </script>
 <script src="/feed/ck.js?v=1"></script>
@@ -577,6 +577,10 @@
   .wline { font-size: 13px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-align: left; align-self: flex-start; padding: 2px 0; }
   .wline.soft { color: var(--ink-soft); }
   .wline.cobalt { color: var(--cobalt); }
+  /* Who sees a list, three words on one line, as the app's VisibilityChoice (SED-985, SED-964). */
+  .wvis { display: flex; gap: 14px; margin-top: 10px; }
+  .wvis button { border: 0; background: none; font: inherit; font-size: 13px; font-weight: 300; color: var(--ink-soft); padding: 6px 0; cursor: pointer; }
+  .wvis button.on { font-weight: 400; color: var(--ink); text-decoration: underline; text-decoration-color: var(--cobalt); text-underline-offset: 3px; cursor: default; }
   .wbig { width: 100%; border: 0; background: none; font: inherit; font-size: 26px; font-weight: 500; color: var(--cobalt); padding: 6px 0; margin-top: 8px; border-bottom: 0.5px solid rgba(102,102,105,0.3); }
   .wbig::placeholder { color: var(--ink); opacity: 0.18; }
   .wbig:focus { outline: none; border-bottom-color: var(--cobalt); }
@@ -1993,8 +1997,8 @@ REGULAR.addEventListener("change", () => {
   if (store.host) { storeWall.reset(); storeWall.add(store.items, {}); }
 });
 </script>
-<script src="/feed/account.js?v=7"></script>
-<script src="/feed/wishes.js?v=28"></script>
+<script src="/feed/account.js?v=8"></script>
+<script src="/feed/wishes.js?v=29"></script>
 <script src="/feed/friends.js?v=16"></script>
 </body>
 </html>

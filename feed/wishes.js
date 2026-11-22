@@ -20,7 +20,7 @@ const W = words("W", {
   productName: "Product name", namePrompt: "e.g. Wide-leg trousers", storeOrBrand: "Store or brand", storePrompt: "ASOS, Sephora…", amount: "Amount", currency: "Currency", select: "Select",
   note: "Personal note", notePrompt: "Size, color, comment…", addToLists: "Add to lists", newList: "New list",
   addToWishlist: "Add to wishlist", addAnyway: "Add anyway", already: "Already Wantd.",
-  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.",
+  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.", visEveryone: "Everyone", visFriends: "Friends", visOnlyMe: "Only me",
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
   deleteAsk: "Delete this want?", deleteBody: "It will leave your wishlist for good.", unwantAsk: "Unwant this?", unwantBody: "It leaves your wishlist, and your want mark comes off everywhere.",
@@ -960,12 +960,21 @@ async function saveList(d, existing) {
   const fields = {
     listUUID: f(id, "STRING"), name: f(d.name, "STRING"), ownerID: f(me.id, "STRING"),
     isMain: f(d.isMain ? 1 : 0, "INT64"), isPrivate: f(d.isPrivate ? 1 : 0, "INT64"),
+    // Written only on a private list, cleared otherwise (record(from: WishList)).
+    friendsOnly: f(d.isPrivate && d.friendsOnly ? 1 : null, "INT64"),
     createdAt: f(existing ? existing.createdAt : Date.now(), "TIMESTAMP"),
   };
+  const opens = existing && !!existing.isPrivate !== !!d.isPrivate;
   let l;
   if (viaBridge()) {
-    l = await Bridge().saveList(id, { name: d.name, isMain: !!d.isMain, isPrivate: !!d.isPrivate, createdAt: existing ? existing.createdAt : Date.now(),
-      memberIDs: existing ? existing.memberIDs : [] });
+    // The bridge writes the whole list: what this sheet does not touch
+    // travels as it was (members, their dates, the occasion and its day).
+    const since = {};
+    for (const e of (existing && existing.memberSince) || []) { const i = String(e).indexOf("|"); if (i > 0) since[String(e).slice(0, i)] = Number(String(e).slice(i + 1)) * 1000; }
+    l = await Bridge().saveList(id, { name: d.name, isMain: !!d.isMain, isPrivate: !!d.isPrivate, friendsOnly: !!(d.isPrivate && d.friendsOnly),
+      createdAt: existing ? existing.createdAt : Date.now(), memberIDs: existing ? existing.memberIDs : [], memberSince: since,
+      occasion: existing ? existing.occasion || null : null, eventDate: existing ? existing.eventDate || null : null });
+    // The bridge re-stamps her wants on a list that opened or closed (putList).
   } else {
     const rec = { recordType: "List", recordName: existing ? existing.recordName : `list-${me.id}-${id}`, fields };
     if (existing) rec.recordChangeTag = existing._tag;
@@ -975,8 +984,23 @@ async function saveList(d, existing) {
   }
   const i = me.lists.findIndex((x) => x.id === l.id);
   if (i >= 0) me.lists[i] = Object.assign(me.lists[i], l); else me.lists.push(l);
+  // A list that opened or closed re-stamps every want of hers it holds, as
+  // WishlistStore.setListVisibility does: the public flag rides on each item.
+  if (opens && !viaBridge()) await restampPieces(l.id);
   paint();
   return l;
+}
+
+/// Her wants on one list, each told again whether one of its lists shows on
+/// her profile, written only where the answer changed (isPubliclyListed).
+async function restampPieces(listID) {
+  const shows = (x) => (x.l || []).some((id) => { const y = me.lists.find((z) => z.id === id); return y && !y.isPrivate; });
+  const due = me.items.filter((x) => x.o === me.id && (x.l || []).includes(listID));
+  for (let i = 0; i < due.length; i += 50) {
+    const recs = due.slice(i, i + 50).map((x) => ({ recordType: "Item", recordName: x.id, recordChangeTag: x._tag, fields: { isPublic: f(shows(x) ? 1 : null, "INT64") } }));
+    const r = await db().saveRecords(recs);
+    for (const rec of r.records || []) { const x = me.items.find((y) => y.id === rec.recordName); if (x && rec.recordChangeTag) x._tag = rec.recordChangeTag; }
+  }
 }
 
 async function updatePiece(it, read) {
@@ -1047,28 +1071,33 @@ function openListSheet(existing, onCreated) {
     head.appendChild(el("h2", "wtitle", existing ? existing.name : W.newListTitle));
     panel.appendChild(head);
     const name = textInput(existing ? existing.name : "", W.nameIt, { caps: "words" }); name.className = "wbig";
-    let isPrivate = !!(existing && existing.isPrivate);
-    const priv = quietLine(isPrivate ? W.privateOnlyYou : W.visible, () => { isPrivate = !isPrivate; priv.textContent = isPrivate ? W.privateOnlyYou : W.visible; priv.classList.toggle("cobalt", isPrivate); }, true);
-    priv.classList.toggle("cobalt", isPrivate);
-    // A list she already has is neither renamed nor made private or public
-    // from here: her iPhone is the one writer of its own lists ("THIS DEVICE
-    // WINS", WishlistStore.sync) and would bring the old name and the old
-    // privacy back, a private list public again. Until the app reads such a
-    // change from the cloud, the web makes a list and deletes one.
-    if (!existing) { panel.appendChild(name); panel.appendChild(priv); }
+    // Everyone, Friends, Only me (the app's VisibilityChoice). Her iPhone and
+    // her Mac now take a change made here from the cloud (SED-964, 22/11), so
+    // a list she has is renamed and opened or closed here again. A list shared
+    // with her is its creator's: nothing of it is changed from here.
+    let vis = !existing || !existing.isPrivate ? "everyone" : existing.friendsOnly ? "friends" : "onlyMe";
+    const visRow = el("div", "wvis");
+    for (const [key, word] of [["everyone", W.visEveryone], ["friends", W.visFriends], ["onlyMe", W.visOnlyMe]]) {
+      const b = el("button", key === vis ? "on" : "", word); b.type = "button";
+      b.addEventListener("click", () => { vis = key; for (const x of visRow.children) x.classList.toggle("on", x === b); });
+      visRow.appendChild(b);
+    }
+    // The main list keeps its name and stays on her profile, as in the app.
+    const mine = !existing || (existing.creatorID === me.id && !existing.isMain);
+    if (mine) { panel.appendChild(name); panel.appendChild(visRow); }
     const foot = el("div", "wfoot"); panel.appendChild(foot);
     const err = el("div", "wnote"); foot.appendChild(err);
     const go = bar(existing ? W.save : W.create, async () => {
       const n = name.value.trim(); if (!n) { name.focus(); return; }
       go.disabled = true;
       try {
-        const l = await saveList({ name: n, isMain: !!(existing && existing.isMain), isPrivate }, existing);
+        const l = await saveList({ name: n, isMain: !!(existing && existing.isMain), isPrivate: vis !== "everyone", friendsOnly: vis === "friends" }, existing);
         if (!existing && onCreated) onCreated(l);
         if (!existing && !onCreated) { me.listID = l.id; me.shelf = false; paint(); }
         closeSheet();
       } catch (e) { go.disabled = false; err.textContent = String(e && (e.message || e)); }
     });
-    if (!existing) foot.appendChild(go);
+    if (mine) foot.appendChild(go);
     // A list someone shared with her: she walks out of it (leaveList); nothing
     // is deleted for the others, her own pieces come back to her main list.
     if (existing && existing.creatorID !== me.id) {

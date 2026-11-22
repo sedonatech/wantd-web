@@ -147,6 +147,8 @@ function listOf(v) {
     id: v.id, name: v.name || "", isMain: !!v.isMain, isPrivate: !!v.isPrivate, friendsOnly: !!v.isPrivate && v.friendsOnly === true,
     memberIDs: v.memberIDs || [], memberSince: Object.entries(v.memberSince || {}).map(([k, ms]) => k + "|" + Math.round(ms / 1000)),
     creatorID: v.creatorID, createdAt: v.createdAt || 0, recordName: `list-${v.creatorID}-${v.id}`, _tag: null,
+    // Kept so a rename from the web writes them back as they were (SED-964).
+    occasion: v.occasion || null, eventDate: v.eventDate || null,
   };
 }
 function profileOf(p) {
