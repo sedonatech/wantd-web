@@ -20,7 +20,7 @@ const W = words("W", {
   productName: "Product name", namePrompt: "e.g. Wide-leg trousers", storeOrBrand: "Store or brand", storePrompt: "ASOS, Sephora…", amount: "Amount", currency: "Currency", select: "Select",
   note: "Personal note", notePrompt: "Size, color, comment…", addToLists: "Add to lists", newList: "New list",
   addToWishlist: "Add to wishlist", addAnyway: "Add anyway", already: "Already Wantd.",
-  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.",
+  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.",
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
   deleteAsk: "Delete this want?", deleteBody: "It will leave your wishlist for good.", unwantAsk: "Unwant this?", unwantBody: "It leaves your wishlist, and your want mark comes off everywhere.",
@@ -848,11 +848,13 @@ function openAddSheet() {
         if (!read2.n) { card.querySelector("textarea").focus(); return; }
         if (draft.storefront) { notes.textContent = W.storefront; return; }
         if (!read2.i && !read2.photo) { notes.textContent = W.noPhoto; return; }
+        // No price, no publishing (Agathe, 20/11), as in the apps.
+        if (!(read2.pa > 0)) { notes.textContent = W.noPrice; card.querySelector("input[inputmode=decimal]").focus(); return; }
         add.disabled = true; add.textContent = "…";
         try { await savePiece(Object.assign({}, draft, read2), selected); closeSheet(); }
         catch (e) { add.disabled = false; add.textContent = already ? W.addAnyway : W.addToWishlist; notes.textContent = String(e && (e.message || e)); }
       });
-      if (draft.storefront) notes.textContent = W.storefront; else if (!draft.i && !draft.photo) notes.textContent = W.noPhoto;
+      if (draft.storefront) notes.textContent = W.storefront; else if (!draft.i && !draft.photo) notes.textContent = W.noPhoto; else if (!(draft.pa > 0)) notes.textContent = W.noPrice;
       foot.appendChild(add);
     };
     url.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); readLink(); } });
