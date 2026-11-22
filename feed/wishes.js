@@ -20,7 +20,7 @@ const W = words("W", {
   productName: "Product name", namePrompt: "e.g. Wide-leg trousers", storeOrBrand: "Store or brand", storePrompt: "ASOS, Sephora…", amount: "Amount", currency: "Currency", select: "Select",
   note: "Personal note", notePrompt: "Size, color, comment…", addToLists: "Add to lists", newList: "New list",
   addToWishlist: "Add to wishlist", addAnyway: "Add anyway", already: "Already Wantd.",
-  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.", inAll: (t) => `${t} in all`, visEveryone: "Everyone", visFriends: "Friends", visOnlyMe: "Only me",
+  storefront: "This link is the whole shop. Share the product's own page.", noPhoto: "Every want needs its photo.", noPrice: "Every want needs its price.", forTotal: (t) => ` for ${t}`, visEveryone: "Everyone", visFriends: "Friends", visOnlyMe: "Only me",
   newListTitle: "A new list.", nameIt: "Name it", visible: "Visible to your circle.", privateOnlyYou: "Private. Only you can see it.", create: "Create",
   editWant: "Edit want", save: "Save", cancel: "Cancel", delete: "Delete", unwant: "Unwant",
   deleteAsk: "Delete this want?", deleteBody: "It will leave your wishlist for good.", unwantAsk: "Unwant this?", unwantBody: "It leaves your wishlist, and your want mark comes off everywhere.",
@@ -362,10 +362,11 @@ function listTotal(items) {
   }
   return priced ? money(Math.round(sum), VIEWER || "EUR") : null;
 }
+/// "X wants for $Y" (Agathe, 22/11), large, under the lists: the list in view.
 function paintTotal(node, items) {
   const t = listTotal(items);
-  node.hidden = !t;
-  if (t) node.textContent = W.inAll(t);
+  node.hidden = false;
+  node.textContent = W.wantsN(items.length) + (t ? W.forTotal(t) : "");
 }
 const wantedCount = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
@@ -400,7 +401,7 @@ function paint() {
   $("wName").textContent = p.n || "";
   $("wFounder").hidden = me.id !== FOUNDER;
   const count = me.items.filter((it) => !isHad(it)).length;
-  $("wFacts").textContent = p.h ? `@${p.h} · ${W.wantsN(count)} · ${W.followersN(p.fr || 0)}` : "";
+  $("wFacts").textContent = p.h ? `@${p.h} · ${W.followersN(p.fr || 0)}` : "";
   // The list tabs.
   const tabs = $("wTabs"); tabs.innerHTML = "";
   const tab = (title, active, opts) => {

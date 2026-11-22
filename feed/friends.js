@@ -524,7 +524,7 @@ function paintVisit() {
   $("vName").textContent = p ? (p.n || p.h) : "";
   $("vFounder").hidden = !(p && visit.owner === FOUNDER);
   const count = visit.items.filter((it) => !isHadByOwner(it)).length + Object.values(visit.sections).reduce((n, sec) => n + sec.length, 0);
-  $("vFacts").textContent = p ? `@${p.h} · ${F.wantsN(visit.items.length ? count : 0)} · ${F.followersN(p.fr || 0)}` : "";
+  $("vFacts").textContent = p ? `@${p.h} · ${F.followersN(p.fr || 0)}` : "";
   $("vFilterValue").textContent = visit.budget ? "· " + K.W.on : "";
   const fb = $("vFollow"); fb.hidden = !p || visit.owner === me().id; fb.textContent = visit.following ? F.followingYou : F.follow; fb.classList.toggle("soft", visit.following);
   $("vPledge").hidden = !p || visit.owner === me().id;
@@ -539,7 +539,7 @@ function paintVisit() {
     if (hasGranted) { const g = tab(F.granted, visit.shelf); g.addEventListener("click", () => { visit.shelf = true; visit.listID = null; paintVisit(); }); tabs.appendChild(g); }
   }
   // What the list in view would cost, as its owner sees it (SED-916).
-  if (visit.shelf || !visit.items.length) $("vTotal").hidden = true; else paintTotal($("vTotal"), visitShown());
+  if (visit.shelf || visit.loading) $("vTotal").hidden = true; else paintTotal($("vTotal"), visitShown());
   const host = $("vWall"), state = $("vState");
   host.innerHTML = ""; wall = K.makeWallWith(host, REGULAR.matches ? 5 : 2);
   if (visit.loading && !visit.items.length) { state.hidden = false; state.className = "state"; state.innerHTML = '<div class="spin"></div>'; host.hidden = true; return; }
