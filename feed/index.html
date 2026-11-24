@@ -1120,7 +1120,10 @@ let rates = null;
 const NO_CENTS = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"];
 function money(amount, currency) {
   try {
-    return new Intl.NumberFormat(LOCALE, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: NO_CENTS.includes(String(currency).toUpperCase()) ? 0 : 2 }).format(amount);
+    // Her own money in its short sign, as on her iPhone: "$200,824", never
+    // "US$" here and "$" there (Agathe, 24/11/2026: "pareil partout").
+    const own = String(currency).toUpperCase() === VIEWER;
+    return new Intl.NumberFormat(LOCALE, { style: "currency", currency, currencyDisplay: own ? "narrowSymbol" : "symbol", minimumFractionDigits: 0, maximumFractionDigits: NO_CENTS.includes(String(currency).toUpperCase()) ? 0 : 2 }).format(amount);
   } catch (e) { return Math.round(amount) + " " + currency; }
 }
 function priceOf(it) {
@@ -1167,7 +1170,7 @@ function basePriceOf(it) {
   if (VIEWER && cur !== VIEWER && rates && rates[cur] > 0 && rates[VIEWER]) { perUnit = Math.round(perUnit / rates[cur] * rates[VIEWER]); code = VIEWER; }
   const noCents = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"].includes(code);
   const cents = noCents ? Math.round(perUnit) : Math.round(perUnit * 100) / 100;
-  const text = new Intl.NumberFormat(LOCALE, { style: "currency", currency: code, minimumFractionDigits: cents === Math.round(cents) ? 0 : 2, maximumFractionDigits: cents === Math.round(cents) ? 0 : 2 }).format(cents);
+  const text = new Intl.NumberFormat(LOCALE, { style: "currency", currency: code, currencyDisplay: code === VIEWER ? "narrowSymbol" : "symbol", minimumFractionDigits: cents === Math.round(cents) ? 0 : 2, maximumFractionDigits: cents === Math.round(cents) ? 0 : 2 }).format(cents);
   return m[2] === "ml" ? T.perL(text) : T.perKg(text);
 }
 const dateOf = (ms) => new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "long", year: "numeric" }).format(new Date(ms));
