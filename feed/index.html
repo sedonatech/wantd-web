@@ -476,6 +476,9 @@
   .wplus { padding: 6px 0; color: var(--ink-soft); display: inline-flex; }
   .wplus svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; fill: none; }
   .wctl { display: flex; align-items: center; gap: 10px; padding: 14px 0 0; }
+  /* Under the total, the same air as above it (Agathe, 24/11/2026: "l'écart
+     n'est pas le même en haut et en dessous"): 16 on both sides. */
+  .wtotal:not([hidden]) ~ .wctl { padding-top: 2px; }
   .wctl .text { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--ink); position: relative; }
   .wctl .text .val { font-weight: 300; color: var(--ink-soft); }
   .wctl .text .chev { width: 8px; height: 8px; stroke: var(--ink-soft); fill: none; stroke-width: 1.2; stroke-linecap: round; }
