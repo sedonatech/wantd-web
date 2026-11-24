@@ -31,7 +31,7 @@ const W = words("W", {
   promiseCovers: (a, b) => `Their promise covers ${a} of ${b}.`, chooseThisOne: "Choose this one?", chooseIt: "Choose it", willSee: (from) => `${from} will see the piece you chose and give it to you.`,
   declinePromise: "Decline this promise", declinePromiseAsk: "Decline this promise?", decline: "Decline", leavesUntold: (from) => `It leaves your wishlist. ${from} will not be told.`,
   didNotGo: "That did not go through", checkConn: "Check your connection and try again.", ok: "OK",
-  yourBudget: "Your budget", reset: "Reset", done: "Done", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
+  yourBudget: "Your budget", reset: "Reset", done: "Done", from: "From", to: "To", apply: "Apply", shop: "Shop", lists: "Lists", privateList: "Private list", deleteList: "Delete this list",
   deleteListKeep: "Delete, keep its wants",
   editProfile: "Edit profile", useInitial: "Use initial", nameLabel: "Name", username: "Username", usernamePrompt: "yourname",
   handleHint: "Your public handle. Friends use it to find you.", handleInvalid: "2 to 15 letters or numbers.", handleChecking: "Checking availability…",
@@ -654,6 +654,7 @@ function openSheet(build) {
   closeSheet(true);
   const root = $("wSheet"), panel = $("wSheetPanel");
   panel.innerHTML = '<div class="grab"></div>';
+  panel.classList.remove("fit");
   build(panel);
   root.classList.add("on");
   requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("in")));
@@ -1394,16 +1395,48 @@ function wireControls() {
   });
 }
 function openFilterSheet() {
+  // The app's BudgetFilterSheet, element for element: From → To over a
+  // two-thumb range in the viewer's money, then Reset and Apply.
   openSheet((panel) => {
+    panel.classList.add("fit");
     const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", W.filter)); head.appendChild(el("p", "wsub", W.yourBudget)); panel.appendChild(head);
-    const max = Math.max(1, ...me.items.map((it) => viewerAmount(it) || 0));
-    const cur = me.budget || [0, Math.ceil(max)];
-    const lo = textInput(String(Math.round(cur[0])), "0", { type: "number" }); lo.min = "0";
-    const hi = textInput(String(Math.round(cur[1])), String(Math.ceil(max)), { type: "number" }); hi.min = "0";
-    const row = el("div", "wrow"); row.appendChild(labeled("Min", lo)); row.appendChild(labeled("Max", hi)); panel.appendChild(row);
-    const foot = el("div", "wfoot"); panel.appendChild(foot);
-    foot.appendChild(bar(W.done, () => { const a = Number(lo.value) || 0, b = Number(hi.value) || Math.ceil(max); me.budget = (a <= 0 && b >= Math.ceil(max)) ? null : [Math.min(a, b), Math.max(a, b)]; paint(); closeSheet(); }));
-    foot.appendChild(quietLine(W.reset, () => { me.budget = null; paint(); closeSheet(); }, true));
+    const max = Math.max(1, Math.ceil(Math.max(0, ...me.items.map((it) => viewerAmount(it) || 0))));
+    let lo = me.budget ? Math.max(0, Math.min(me.budget[0], max)) : 0;
+    let hi = me.budget ? Math.max(0, Math.min(me.budget[1], max)) : max;
+    const fmt = (v) => VIEWER ? money(Math.round(v), VIEWER) : String(Math.round(v));
+    const box = el("div", "wbudget");
+    const ends = el("div", "ends");
+    const from = el("div", "end"); from.appendChild(el("span", null, W.from)); const fromV = el("b"); from.appendChild(fromV);
+    const to = el("div", "end to"); to.appendChild(el("span", null, W.to)); const toV = el("b"); to.appendChild(toV);
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg"); arrow.setAttribute("viewBox", "0 0 14 14"); arrow.setAttribute("class", "arrow"); arrow.setAttribute("aria-hidden", "true");
+    arrow.innerHTML = '<path d="M2 7h10M8 3l4 4-4 4"/>';
+    ends.appendChild(from); ends.appendChild(arrow); ends.appendChild(to); box.appendChild(ends);
+    const range = el("div", "wrange");
+    range.appendChild(el("div", "track")); const fill = el("div", "fill"); range.appendChild(fill);
+    const step = max > 2000 ? 10 : 1;
+    const mk = (v, label) => { const i = el("input"); i.type = "range"; i.min = "0"; i.max = String(max); i.step = String(step); i.value = String(v); i.setAttribute("aria-label", label); range.appendChild(i); return i; };
+    const a = mk(lo, W.from), z = mk(hi, W.to);
+    const gap = max * 0.01;
+    const draw = () => {
+      fromV.textContent = fmt(lo); toV.textContent = fmt(hi);
+      fill.style.left = (lo / max * 100) + "%"; fill.style.width = ((hi - lo) / max * 100) + "%";
+      a.setAttribute("aria-valuetext", fmt(lo)); z.setAttribute("aria-valuetext", fmt(hi));
+      // The thumb last touched sits on top, so two thumbs at one end stay reachable.
+    };
+    a.addEventListener("input", () => { lo = Math.min(Number(a.value), hi - gap); a.value = String(lo); a.style.zIndex = 2; z.style.zIndex = 1; draw(); });
+    z.addEventListener("input", () => { hi = Math.max(Number(z.value), lo + gap); z.value = String(hi); z.style.zIndex = 2; a.style.zIndex = 1; draw(); });
+    box.appendChild(range); panel.appendChild(box);
+    draw();
+    const pair = el("div", "wpair");
+    const reset = el("button", "soft", W.reset); reset.type = "button";
+    reset.addEventListener("click", () => { me.budget = null; paint(); closeSheet(); });
+    const apply = el("button", "ink", W.apply); apply.type = "button";
+    apply.addEventListener("click", () => {
+      const l = Math.round(lo), h = Math.round(hi);
+      me.budget = (l <= 0 && h >= max) ? null : [l, h];
+      paint(); closeSheet();
+    });
+    pair.appendChild(reset); pair.appendChild(apply); panel.appendChild(pair);
   });
 }
 
