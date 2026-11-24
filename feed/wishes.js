@@ -420,7 +420,7 @@ function paint() {
   const signedIn = !!me.id;
   rememberHandle();
   if (window.prettify) window.prettify();
-  $("wDoor").hidden = signedIn;
+  $("wDoor").hidden = signedIn || !authKnown;
   $("wHome").hidden = !signedIn;
   if (!signedIn) return;
   // The header.
@@ -2179,7 +2179,12 @@ function readyScreen() {
 // Sign in, sign out: CloudKit draws Apple's buttons into #ckSignIn and
 // #ckSignOut; the identity is the iPhone's.
 // ---------------------------------------------------------------------------
+/// Whether this browser has said who she is yet (iCloud or the bridge). Until
+/// then the tab shows neither her list nor the door: a member saw the sign-in
+/// page flash at every refresh (Agathe, 24/11/2026: "c pas ok").
+let authKnown = false;
 function signedIn(identity) {
+  authKnown = true;
   me.id = identity && identity.userRecordName;
   me.via = me.id ? (identity.via === "bridge" ? "bridge" : "ck") : null;
   me.loaded = false; me.items = []; me.lists = []; me.extras = {}; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
@@ -2199,6 +2204,8 @@ function watchAuth() {
   if (DEMO) { signedIn({ userRecordName: FOUNDER }); return; }
   let ck = null;
   window.Account.onChange(() => { const b = bridgeIdentity(); if (b) signedIn(b); else if (me.via === "bridge" || !me.id) signedIn(ck); });
+  // iCloud that never answers still leaves the door within reach.
+  setTimeout(() => { if (!authKnown) { authKnown = true; paint(); } }, 4000);
   // A bridge session is hers at once, without waiting for CloudKit JS.
   const b0 = bridgeIdentity();
   if (b0) signedIn(b0);
