@@ -284,6 +284,24 @@
     color: var(--ink);
     font-size: 14px;
   }
+  /* Her star (SED-1003): cobalt on the same small disc as the rewant pill,
+     at the photo's lower left; her lists and her board only, never the feed. */
+  .star {
+    position: absolute; left: 8px; bottom: 8px; z-index: 2;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; padding: 0; border: 0;
+    background: color-mix(in srgb, var(--ivory) 92%, transparent);
+    box-shadow: 0 0 0 0.5px rgba(102,102,105,0.12);
+    color: var(--cobalt);
+  }
+  .star svg { width: 12px; height: 12px; fill: currentColor; }
+  .star.off { color: color-mix(in srgb, var(--ink) 72%, transparent); }
+  .star.off svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+  .cartel .hero { position: relative; }
+  .cartel .hero .star { width: 30px; height: 30px; left: 12px; bottom: 4px; }
+  .cartel .hero button.star { cursor: pointer; }
+  .cartel .hero button.star::after { content: ""; position: absolute; inset: -7px; }
+  .cartel .hero .star svg { width: 14px; height: 14px; }
   .rewant svg { width: 15px; height: 10px; stroke: currentColor; fill: none; stroke-width: 0.78; stroke-linecap: round; stroke-linejoin: round; }
   .card .text { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 4px; text-align: left; }
   /* The river's bare card (SED-983): no surface, no shadow; the photo is the card. */
@@ -980,6 +998,7 @@ const T = words("T", {
   back: "Back", close: "Close", clear: "Clear", cancel: "Cancel", toCheck: "Price to check",
   findStores: "Find it in the stores", perL: (p) => `${p} / 1 l`, perKg: (p) => `${p} / 1 kg`, reserved: "Reserved",
   was: (p) => `was ${p}`,
+  mostWanted: "Most wanted", markMostWanted: "Mark as most wanted",
 });
 document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = T[el.dataset.t]; });
 document.getElementById("q").placeholder = T.searchPrompt;
@@ -1252,6 +1271,16 @@ function makeWall(el) {
 // SF's arrow.2.squarepath, traced on the symbol itself (15 by 10 points
 // at 10 pt, a 0.75 pt stroke, corners of radius 1): a square of two
 // arrows, one climbing the left side, one descending the right.
+// SF's star.fill, drawn on a 24 grid (SED-1003).
+const SVG_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 6.05 6.6.8-4.87 4.55 1.25 6.55L12 17.3l-5.83 3.25 1.25-6.55L2.55 9.45l6.6-.8z"/></svg>';
+function starMark(it, onToggle) {
+  const s = document.createElement(onToggle ? "button" : "span");
+  s.className = "star" + (it.mw ? "" : " off");
+  s.innerHTML = SVG_STAR;
+  s.setAttribute("aria-label", it.mw ? T.mostWanted : T.markMostWanted);
+  if (onToggle) { s.type = "button"; s.setAttribute("aria-pressed", it.mw ? "true" : "false"); s.addEventListener("click", (e) => { e.stopPropagation(); onToggle(); }); }
+  return s;
+}
 const SVG_REWANT = '<svg viewBox="0 0 15 10" aria-hidden="true"><path d="M5.9 1.4 H10.4 Q11.6 1.4 11.6 2.6 V7.7"/><path d="M9.4 5.9 L11.6 8.1 L13.8 5.9"/><path d="M9.1 8.8 H4.7 Q3.5 8.8 3.5 7.6 V2.4"/><path d="M1.4 4.2 L3.5 2.1 L5.6 4.2"/></svg>';
 
 function card(it, opts) {
@@ -1275,6 +1304,7 @@ function card(it, opts) {
     pill.lastChild.textContent = String(n);
     photo.appendChild(pill);
   }
+  if (o.star && it.mw) photo.appendChild(starMark(it));
   el.appendChild(photo);
   if (o.quiet) {
     // The river's card is the photo alone (SED-983, Agathe, 14 November):
@@ -1800,6 +1830,14 @@ function openPiece(it, fromHistory) {
     let k = 0; img.onerror = () => { k += 1; if (k < srcs.length) img.src = srcs[k]; else img.remove(); };
     img.src = srcs[0]; hero.appendChild(img);
   } else { const b = document.createElement("div"); b.className = "blank"; hero.appendChild(b); }
+  // Her star (SED-1003): the switch on her own piece, the mark on a visited
+  // board's; never on a piece opened from the feed.
+  const mine = !!(window.Wishes && window.Wishes.isMine(it));
+  if (mine) {
+    const redraw = () => { const old = hero.querySelector(".star"); if (old && pieceOpen === it) old.replaceWith(starMark(it, toggle)); };
+    const toggle = () => { const done = window.Wishes.setMostWanted(it, !it.mw); redraw(); done.catch(() => {}).finally(redraw); };
+    hero.appendChild(starMark(it, toggle));
+  } else if (it.mw && it._visited) hero.appendChild(starMark(it));
   const body = document.getElementById("pieceBody"); body.innerHTML = "";
   const maker = it.s || it.b;
   if (maker) { const m = document.createElement("div"); m.className = "maker"; m.textContent = maker; body.appendChild(m); }

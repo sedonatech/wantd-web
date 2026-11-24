@@ -137,6 +137,7 @@ function itemOf(v) {
     rb: v.reservedByMe || (st === "purchased" && v.ownerID === me) ? me : (st === "reserved" ? "someone" : undefined),
     note: v.personalNote || undefined, aw: v.alsoWantedBy || [], rf: v.rewantedFrom || undefined, _tag: null,
     nc: v.netContent || undefined, ncf: v.netContentFor || undefined, rn: v.reservedNote || undefined,
+    mw: v.mostWanted ? 1 : undefined,
     gift: giftOf(v.groupGift, me),
   };
   if (v.ownPhoto && v.imageAssetURL) { it.op = 1; it.ia = v.imageAssetURL; }

@@ -106,6 +106,7 @@ function itemFromRecord(r) {
     si: typeof v(r, "sortIndex") === "number" ? v(r, "sortIndex") : 0, st: v(r, "status") || "available", rb: v(r, "reservedBy"),
     note: v(r, "personalNote"), aw: v(r, "alsoWantedBy") || [], rf: v(r, "rewantedFrom"), _tag: r.recordChangeTag,
     nc: v(r, "netContent") || undefined, ncf: v(r, "netContentFor") || undefined,
+    mw: v(r, "mostWanted") === 1 ? 1 : undefined,
   };
   if (v(r, "ownPhoto") === 1 && asset && asset.downloadURL) { it.op = 1; it.ia = String(asset.downloadURL).replace("${f}", "photo.jpg"); }
   return it;
@@ -188,7 +189,7 @@ function bridgeBody(it, changes) {
 /// Every piece filed on a list, whoever wrote it (fetchItems(inList:)).
 async function itemsInList(listID) {
   const rows = await queryAll({ recordType: "Item", filterBy: [{ fieldName: "listIDs", comparator: "LIST_CONTAINS", fieldValue: { value: listID } }] },
-    { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+    { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor", "mostWanted"] });
   return rows.map(itemFromRecord);
 }
 async function queryAll(query, options) {
@@ -228,7 +229,7 @@ async function load() {
       } else {
         const [itemsR, mineR, sharedR, profR, m, wordsR] = await Promise.all([
           queryAll({ recordType: "Item", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] },
-                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] }),
+                   { resultsLimit: 200, desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor", "mostWanted"] }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "ownerID", comparator: "EQUALS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }),
           queryAll({ recordType: "List", filterBy: [{ fieldName: "memberIDs", comparator: "LIST_CONTAINS", fieldValue: { value: me.id } }] }, { resultsLimit: 200 }).catch(() => []),
           // null when the read failed: a profile that could not be read is not
@@ -685,7 +686,7 @@ function paintWall() {
     host.hidden = true; return;
   }
   state.hidden = true; host.hidden = false;
-  wall.add(list, { counts: wantedCount, own: true });
+  wall.add(list, { counts: wantedCount, own: true, star: true });
   wireReorder(host);
 }
 function makeWallWith(host, n) {
@@ -1130,6 +1131,25 @@ async function updatePiece(it, read) {
   }
   Object.assign(it, fresh);
   paint();
+  return it;
+}
+
+/// Her star (SED-1003, WishlistStore.setMostWanted): her own pieces only.
+async function setMostWanted(it, on) {
+  if (!me.id || it.o !== me.id || !!it.mw === !!on) return it;
+  const was = it.mw;
+  it.mw = on ? 1 : undefined;
+  paint();
+  try {
+    let fresh;
+    if (viaBridge()) fresh = await Bridge().saveItem(it.id, bridgeBody(it, { mostWanted: !!on }));
+    else {
+      const res = await db().saveRecords([{ recordType: "Item", recordName: it.id, recordChangeTag: it._tag, fields: { mostWanted: f(on ? 1 : 0, "INT64") } }]);
+      if (res.hasErrors) throw new Error(res.errors.map((e) => e.ckErrorCode + " " + (e.reason || "")).join(", "));
+      fresh = itemFromRecord(res.records[0]);
+    }
+    Object.assign(it, fresh, { mw: on ? 1 : undefined });
+  } catch (e) { it.mw = was; paint(); throw e; }
   return it;
 }
 
@@ -2440,6 +2460,7 @@ window.Wishes = {
   wake() { if (!wired) { wired = true; wireControls(); watchAuth(); } },
   ownActions,
   isMine: (it) => !!me.id && it.o === me.id && !DEMO,
+  setMostWanted,
   findMine: (id) => me.items.find((it) => it.id === id) || null,
   myHandle: () => (me.id && me.profile && me.profile.h) || "",
   /// The products she already has, by their link: the river leaves them out.
@@ -2450,7 +2471,7 @@ window.Wishes = {
   async readPiece(id) {
     if (viaBridge()) return Bridge().item(id).catch(() => null);
     if (!container()) return null;
-    const res = await db().fetchRecords([{ recordName: String(id).toUpperCase() }], { desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor"] });
+    const res = await db().fetchRecords([{ recordName: String(id).toUpperCase() }], { desiredKeys: ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "personalNote", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "netContent", "netContentFor", "mostWanted"] });
     const r = res.records && res.records[0];
     return r && r.fields ? itemFromRecord(r) : null;
   },

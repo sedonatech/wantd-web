@@ -56,7 +56,7 @@ function giftCardURL(u) {
     return shopURL(entry[1], { brand: host.split(".")[0], name: "" });
   } catch (e) { return null; }
 }
-const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor"];
+const ITEM_KEYS = ["name", "brand", "store", "priceText", "priceAmount", "priceCurrency", "priceWas", "urlString", "status", "addedAt", "sortIndex", "reservedBy", "listIDs", "alsoWantedBy", "imageCandidateURLs", "imageURLString", "ownerID", "rewantedFrom", "ownPhoto", "imageAsset", "groupGiftJSON", "personalNote", "netContent", "netContentFor", "mostWanted"];
 
 // ---------------------------------------------------------------------------
 // State.
@@ -537,7 +537,7 @@ function paintVisit() {
   const list = visitShown();
   if (!list.length) { state.hidden = false; state.className = "state serif"; state.textContent = F.nothing; host.hidden = true; return; }
   state.hidden = true; host.hidden = false;
-  wall.add(list, { counts: (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0), status: (it) => me().loaded && !isMineOrShared(it) });
+  wall.add(list, { counts: (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0), status: (it) => me().loaded && !isMineOrShared(it), star: true });
 }
 
 async function toggleFollow() {
