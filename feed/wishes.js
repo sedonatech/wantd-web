@@ -422,7 +422,15 @@ function listTotal(items) {
 function paintTotal(node, items) {
   const t = listTotal(items);
   node.hidden = false;
-  node.textContent = W.wantsN(items.length) + (t ? W.forTotal(t) : "");
+  // Piste A (Agathe, 24/11/2026): the words stay quiet, the amount speaks
+  // like the cards' prices, serif italic in ink, as in the app's WantsLine.
+  const line = W.wantsN(items.length) + (t ? W.forTotal(t) : "");
+  const at = t ? line.lastIndexOf(t) : -1;
+  node.textContent = "";
+  if (at < 0) { node.textContent = line; return; }
+  node.appendChild(document.createTextNode(line.slice(0, at)));
+  node.appendChild(el("span", "amount", t));
+  node.appendChild(document.createTextNode(line.slice(at + t.length)));
 }
 const wantedCount = (it) => river.counts.get(urlKey(it.u)) || (it.aw ? it.aw.length : 0);
 
@@ -2446,7 +2454,7 @@ window.Wishes = {
     const r = res.records && res.records[0];
     return r && r.fields ? itemFromRecord(r) : null;
   },
-  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, budgetSheet, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
+  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, budgetSheet, paintTotal, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
          listFromRecord, itemFromRecord, itemsInList, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });

@@ -75,6 +75,7 @@
   nav.lists::-webkit-scrollbar { display: none; }
   /* The one line a list kept for an occasion carries (SED-613). */
   .occasion.total { font-style: normal; font-size: 13px; }
+  .occasion.total .amount { font-family: Georgia, serif; font-style: italic; font-weight: 400; font-size: 15px; letter-spacing: -0.2px; color: var(--ink); }   /* the cards' .pz voice */
   .occasion { font-style: italic; font-weight: 300; font-size: 15px; color: var(--ink-soft); padding: 0 4px 12px; margin: 0; }
   nav.lists button {
     appearance: none; background: none; border: 0; cursor: pointer;
@@ -594,7 +595,9 @@ function renderTotal() {
     priced++;
   }
   el.hidden = false;
-  el.textContent = count + (count === 1 ? " want" : " wants") + (priced ? " for " + formatPrice(Math.round(sum), "EUR", "") : "");
+  // Piste A (Agathe, 24/11/2026): quiet words, the amount in the prices' voice.
+  el.textContent = count + (count === 1 ? " want" : " wants") + (priced ? " for " : "");
+  if (priced) { const a = document.createElement("span"); a.className = "amount"; a.textContent = formatPrice(Math.round(sum), "EUR", ""); el.append(a); }
 }
 
 function visibleItems() {

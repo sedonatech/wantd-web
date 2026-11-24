@@ -6,7 +6,7 @@
 (function () {
 "use strict";
 const K = window.Wishes.kit;   // the Wishlist's own tools: me, db, sheets, fields
-const { el, $, f, bar, quietLine, labeled, textInput, openSheet, closeSheet, queryAll, db, me } = K;
+const { el, $, f, bar, quietLine, labeled, textInput, openSheet, closeSheet, paintTotal, queryAll, db, me } = K;
 
 const F = words("F", {
   newFromFriends: "New from friends", friendsN: (n) => `${n} ${n === 1 ? "friend" : "friends"}`, following: "Following",
