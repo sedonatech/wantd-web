@@ -1578,7 +1578,8 @@ async function loadWishlist(handle) {
   records = [...new Map(records.map(r => [r.recordName, r])).values()];
 
   const items = records
-    .sort((a, b) => (a.fields.sortIndex?.value ?? 0) - (b.fields.sortIndex?.value ?? 0))
+    // Her stars first, as in the app's Default order (SED-1003).
+    .sort((a, b) => ((b.fields.mostWanted?.value === 1) - (a.fields.mostWanted?.value === 1)) || (a.fields.sortIndex?.value ?? 0) - (b.fields.sortIndex?.value ?? 0))
     .map(r => {
       const f = r.fields;
       let img = f.imageURLString?.value || null;

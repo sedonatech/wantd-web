@@ -393,7 +393,8 @@ function shown() {
     list = list.filter((it) => { const a = viewerAmount(it); return a == null ? true : a >= lo && a <= hi; });
   }
   const by = {
-    manual: (a, b) => a.si - b.si || b.at - a.at,
+    // Her stars always open the list (SED-1003, Agathe 24/11/2026).
+    manual: (a, b) => (b.mw ? 1 : 0) - (a.mw ? 1 : 0) || a.si - b.si || b.at - a.at,
     recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at,
     priceAsc: (a, b) => (viewerAmount(a) ?? Infinity) - (viewerAmount(b) ?? Infinity),
     priceDesc: (a, b) => (viewerAmount(b) ?? -1) - (viewerAmount(a) ?? -1),
@@ -581,7 +582,7 @@ function paintTabs() { paint(); }
 /// only the pieces whose number changed are written.
 async function movePiece(draggedID, targetID) {
   if (draggedID === targetID) return;
-  const ordered = me.items.slice().sort((a, b) => a.si - b.si || b.at - a.at);
+  const ordered = me.items.slice().sort((a, b) => (b.mw ? 1 : 0) - (a.mw ? 1 : 0) || a.si - b.si || b.at - a.at);
   const from = ordered.findIndex((x) => x.id === draggedID); if (from < 0) return;
   const [moved] = ordered.splice(from, 1);
   const at = ordered.findIndex((x) => x.id === targetID); if (at < 0) return;

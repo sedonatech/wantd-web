@@ -499,7 +499,7 @@ function visitShown() {
     const [lo, hi] = visit.budget;
     list = list.filter((it) => { const a = viewerAmountOf(it); return a == null ? true : a >= lo && a <= hi; });
   }
-  const by = { manual: (a, b) => a.si - b.si || b.at - a.at, recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at,
+  const by = { manual: (a, b) => (b.mw ? 1 : 0) - (a.mw ? 1 : 0) || a.si - b.si || b.at - a.at, recent: (a, b) => b.at - a.at, oldest: (a, b) => a.at - b.at,
     priceAsc: (a, b) => (viewerAmountOf(a) ?? Infinity) - (viewerAmountOf(b) ?? Infinity), priceDesc: (a, b) => (viewerAmountOf(b) ?? -1) - (viewerAmountOf(a) ?? -1) }[visit.sort] || ((a, b) => a.si - b.si);
   return list.sort(by);
 }
