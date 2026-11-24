@@ -242,6 +242,9 @@
   /* The wall: five balanced columns, twelve apart.                    */
   /* ---------------------------------------------------------------- */
   .wall { display: flex; align-items: flex-start; gap: 12px; margin: 18px -6px 0; }
+  /* Her cards closer to Sort and Filter, as on the iPhone (Agathe, 24/11/2026:
+     "un écart trop grand entre la ligne Sort, Filter, View et les fiches"). */
+  .wctl ~ .wall { margin-top: 8px; }
   .col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
   /* The feed's walls breathe less (SED-982, Agathe, 11 November: "agrandir les
      images et réduire l'écart"): eight pixels between photos and from the
