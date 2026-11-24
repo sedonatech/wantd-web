@@ -253,7 +253,7 @@ async function load() {
         }
         profilesRead = profR && profR.map((r) => {
           const x = r.fields || {}; const asset = x.avatarAsset && x.avatarAsset.value && x.avatarAsset.value.downloadURL;
-          return { b: (x.birthday && x.birthday.value) || null, h: (x.handle && x.handle.value) || "", n: (x.displayName && x.displayName.value) || "", avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (x.avatarEmoji && x.avatarEmoji.value) || null };
+          return { b: (x.birthday && x.birthday.value) || null, h: (x.handle && x.handle.value) || "", n: (x.displayName && x.displayName.value) || "", avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (x.avatarEmoji && x.avatarEmoji.value) || null, cu: (x.currency && x.currency.value) || null };
         });
       }
       me.items = items.filter((it) => it.n);
@@ -304,6 +304,7 @@ async function load() {
         n: (p && p.n) || (member && member.profile && member.profile.n) || "",
         fr: (member && member.profile && member.profile.fr) || 0, fg: (member && member.profile && member.profile.fg) || 0,
         avatarURL: (p && p.avatarURL) || null, emoji: (p && p.emoji) || null, b: (p && p.b) || null,
+        cu: (p && p.cu) || null,
       };
     }
     me.loaded = true;
@@ -317,6 +318,34 @@ async function load() {
   // (the app's hasOnboarded), once her profile could be read again.
   if (me.loaded && !DEMO && (me.newcomer || (entering() && me.profile && me.profile.h))) openEntrance();
   else askNextShare();
+  if (me.loaded && !DEMO && !me.newcomer) followProfileMoney();
+}
+
+/// Her money belongs to her profile (SED-1002, Agathe 24/11: "une devise suit
+/// un profil"), as on her iPhone: the profile's money becomes this browser's;
+/// a profile without one yet takes this browser's, once.
+async function followProfileMoney() {
+  const p = me.profile;
+  if (!p || !p.h) return;
+  if (p.cu) {
+    if (p.cu === VIEWER) return;
+    try { localStorage.setItem(CURRENCY_KEY, p.cu); } catch (e) { return; }
+    // Every price on the page was written in the other money: the same fresh
+    // start as a change made in Edit profile.
+    location.reload();
+    return;
+  }
+  try {
+    if (viaBridge()) await Bridge().putProfile({ handle: p.h, displayName: p.n, currency: VIEWER });
+    else {
+      const got = await db().fetchRecords([{ recordName: "profile-" + p.h }]);
+      const r = got.records && got.records[0];
+      if (!r || !r.fields || v(r, "ownerID") !== me.id || v(r, "currency")) return;
+      const out = await db().saveRecords([{ recordType: "Profile", recordName: r.recordName, recordChangeTag: r.recordChangeTag, fields: { currency: f(VIEWER, "STRING") } }]);
+      if (out.hasErrors) return;
+    }
+    p.cu = VIEWER;
+  } catch (e) { console.log("profile money not written", e); }
 }
 
 // ---------------------------------------------------------------------------
@@ -1707,18 +1736,19 @@ async function saveProfile(p, draft, preview) {
         try { handle = (await Bridge().renameProfile(wanted)).h || wanted; }
         catch (e) { return e && e.code === "handle_taken" ? "taken" : "error"; }
       }
-      const body = { handle, displayName: name, birthday };
+      const body = { handle, displayName: name, birthday, currency: draft.currency };
       if (draft.photo instanceof Blob) body.avatarJpegBase64 = await blobBase64(draft.photo);
       else if (draft.photo === null) body.removeAvatar = true;
       const saved = await Bridge().putProfile(body);
-      me.profile = Object.assign({}, me.profile, { h: saved.h || handle, n: saved.n || name, avatarURL: saved.avatarURL || null, emoji: saved.emoji || null, b: saved.b || birthday });
+      me.profile = Object.assign({}, me.profile, { h: saved.h || handle, n: saved.n || name, avatarURL: saved.avatarURL || null, emoji: saved.emoji || null, b: saved.b || birthday, cu: saved.cu || draft.currency });
       keepHandle(me.profile.h);
       return "ok";
     }
     const got = await db().fetchRecords([{ recordName: "profile-" + p.h }]);
     const r = got.records && got.records[0];
     if (!r || !r.fields || v(r, "ownerID") !== me.id) return "error";
-    const fields = { displayName: f(name, "STRING"), birthday: f(birthday, "TIMESTAMP") };
+    // Her money travels with her profile (SED-1002).
+    const fields = { displayName: f(name, "STRING"), birthday: f(birthday, "TIMESTAMP"), currency: f(draft.currency, "STRING") };
     if (draft.photo instanceof Blob) { fields.avatarAsset = { value: draft.photo }; fields.avatarEmoji = f(null, "STRING"); }
     else if (draft.photo === null) { fields.avatarAsset = { value: null }; fields.avatarEmoji = f(null, "STRING"); }
     let saved;
@@ -1746,7 +1776,7 @@ async function saveProfile(p, draft, preview) {
       saved = out.records[0];
     }
     const asset = saved && saved.fields && saved.fields.avatarAsset && saved.fields.avatarAsset.value && saved.fields.avatarAsset.value.downloadURL;
-    me.profile = Object.assign({}, me.profile, { h: wanted, n: name, b: birthday,
+    me.profile = Object.assign({}, me.profile, { h: wanted, n: name, b: birthday, cu: draft.currency,
       avatarURL: asset ? String(asset).replace("${f}", "avatar.jpg") : null, emoji: (saved && v(saved, "avatarEmoji")) || null });
     return "ok";
   } catch (e) {

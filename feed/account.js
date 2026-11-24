@@ -153,7 +153,7 @@ function listOf(v) {
 }
 function profileOf(p) {
   if (!p) return null;
-  return { o: p.ownerID, h: p.handle || "", n: p.displayName || "", avatarURL: p.avatarURL || null, emoji: p.avatarEmoji || null, e: p.avatarEmoji || null, b: p.birthday || null };
+  return { o: p.ownerID, h: p.handle || "", n: p.displayName || "", avatarURL: p.avatarURL || null, emoji: p.avatarEmoji || null, e: p.avatarEmoji || null, b: p.birthday || null, cu: p.currency || null };
 }
 
 const Bridge = {
