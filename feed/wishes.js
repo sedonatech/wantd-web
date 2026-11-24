@@ -654,7 +654,7 @@ function openSheet(build) {
   closeSheet(true);
   const root = $("wSheet"), panel = $("wSheetPanel");
   panel.innerHTML = '<div class="grab"></div>';
-  panel.classList.remove("fit");
+  panel.classList.remove("budget"); root.classList.remove("budget");
   build(panel);
   root.classList.add("on");
   requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add("in")));
@@ -1395,49 +1395,122 @@ function wireControls() {
   });
 }
 function openFilterSheet() {
-  // The app's BudgetFilterSheet, element for element: From → To over a
-  // two-thumb range in the viewer's money, then Reset and Apply.
+  // The app's BudgetFilterSheet, measure for measure (HomeView.swift):
+  // Filter / Your budget, a glass card with From → To over the RangeSlider,
+  // then Reset and Apply at the foot of a medium sheet.
   openSheet((panel) => {
-    panel.classList.add("fit");
-    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", W.filter)); head.appendChild(el("p", "wsub", W.yourBudget)); panel.appendChild(head);
+    panel.classList.add("budget"); $("wSheet").classList.add("budget");
+    const head = el("div", "bhead"); head.appendChild(el("h2", null, W.filter)); head.appendChild(el("p", null, W.yourBudget)); panel.appendChild(head);
     const max = Math.max(1, Math.ceil(Math.max(0, ...me.items.map((it) => viewerAmount(it) || 0))));
     let lo = me.budget ? Math.max(0, Math.min(me.budget[0], max)) : 0;
     let hi = me.budget ? Math.max(0, Math.min(me.budget[1], max)) : max;
     const fmt = (v) => VIEWER ? money(Math.round(v), VIEWER) : String(Math.round(v));
-    const box = el("div", "wbudget");
+    const card = el("div", "wbudget");
     const ends = el("div", "ends");
-    const from = el("div", "end"); from.appendChild(el("span", null, W.from)); const fromV = el("b"); from.appendChild(fromV);
-    const to = el("div", "end to"); to.appendChild(el("span", null, W.to)); const toV = el("b"); to.appendChild(toV);
-    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg"); arrow.setAttribute("viewBox", "0 0 14 14"); arrow.setAttribute("class", "arrow"); arrow.setAttribute("aria-hidden", "true");
-    arrow.innerHTML = '<path d="M2 7h10M8 3l4 4-4 4"/>';
-    ends.appendChild(from); ends.appendChild(arrow); ends.appendChild(to); box.appendChild(ends);
-    const range = el("div", "wrange");
-    range.appendChild(el("div", "track")); const fill = el("div", "fill"); range.appendChild(fill);
-    const step = max > 2000 ? 10 : 1;
-    const mk = (v, label) => { const i = el("input"); i.type = "range"; i.min = "0"; i.max = String(max); i.step = String(step); i.value = String(v); i.setAttribute("aria-label", label); range.appendChild(i); return i; };
-    const a = mk(lo, W.from), z = mk(hi, W.to);
-    const gap = max * 0.01;
-    const draw = () => {
-      fromV.textContent = fmt(lo); toV.textContent = fmt(hi);
-      fill.style.left = (lo / max * 100) + "%"; fill.style.width = ((hi - lo) / max * 100) + "%";
-      a.setAttribute("aria-valuetext", fmt(lo)); z.setAttribute("aria-valuetext", fmt(hi));
-      // The thumb last touched sits on top, so two thumbs at one end stay reachable.
+    const from = el("div", "end"); from.appendChild(el("span", "lab", W.from)); const fromV = el("span", "num"); from.appendChild(fromV);
+    const to = el("div", "end to"); to.appendChild(el("span", "lab", W.to)); const toV = el("span", "num"); to.appendChild(toV);
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg"); arrow.setAttribute("viewBox", "0 0 11.3 9"); arrow.setAttribute("class", "arrow"); arrow.setAttribute("aria-hidden", "true");
+    arrow.innerHTML = '<path d="M0.5 4.5h10.3M6.8 0.5l4 4-4 4"/>';
+    ends.appendChild(from); ends.appendChild(arrow); ends.appendChild(to); card.appendChild(ends);
+    // RangeSlider: the track spans the card, a thumb's centre sits on its value
+    // (half a thumb past each end), the high thumb drawn over the low one.
+    const slider = el("div", "wslider");
+    slider.appendChild(el("div", "track")); const fill = el("div", "fill"); slider.appendChild(fill);
+    const thumbLo = el("div", "thumb"), thumbHi = el("div", "thumb");
+    slider.appendChild(thumbLo); slider.appendChild(thumbHi);
+    card.appendChild(slider); panel.appendChild(card);
+    const span = max, gap = span * 0.01;
+    const rtl = () => document.documentElement.dir === "rtl";
+    const draw = (animate) => {
+      rollNumber(fromV, fmt(lo), animate); rollNumber(toV, fmt(hi), animate);
+      thumbLo.style.insetInlineStart = (lo / span * 100) + "%"; thumbHi.style.insetInlineStart = (hi / span * 100) + "%";
+      fill.style.insetInlineStart = (lo / span * 100) + "%"; fill.style.width = (Math.max(0, hi - lo) / span * 100) + "%";
+      thumbLo.setAttribute("aria-valuenow", String(Math.round(lo))); thumbLo.setAttribute("aria-valuetext", fmt(lo));
+      thumbHi.setAttribute("aria-valuenow", String(Math.round(hi))); thumbHi.setAttribute("aria-valuetext", fmt(hi));
     };
-    a.addEventListener("input", () => { lo = Math.min(Number(a.value), hi - gap); a.value = String(lo); a.style.zIndex = 2; z.style.zIndex = 1; draw(); });
-    z.addEventListener("input", () => { hi = Math.max(Number(z.value), lo + gap); z.value = String(hi); z.style.zIndex = 2; a.style.zIndex = 1; draw(); });
-    box.appendChild(range); panel.appendChild(box);
-    draw();
-    const pair = el("div", "wpair");
-    const reset = el("button", "soft", W.reset); reset.type = "button";
+    const setLo = (v) => { lo = Math.min(Math.max(0, v), hi - gap); draw(true); };
+    const setHi = (v) => { hi = Math.max(Math.min(span, v), lo + gap); draw(true); };
+    const valueAt = (x) => { const r = slider.getBoundingClientRect(); const t = Math.max(0, Math.min(1, (rtl() ? r.right - x : x - r.left) / r.width)); return t * span; };
+    for (const [thumb, set, label] of [[thumbLo, setLo, W.from], [thumbHi, setHi, W.to]]) {
+      thumb.tabIndex = 0; thumb.setAttribute("role", "slider"); thumb.setAttribute("aria-label", label);
+      thumb.setAttribute("aria-valuemin", "0"); thumb.setAttribute("aria-valuemax", String(Math.round(span)));
+      // As the app's DragGesture(minimumDistance: 0): the value follows the finger.
+      thumb.addEventListener("pointerdown", (e) => { e.preventDefault(); thumb.setPointerCapture(e.pointerId); thumb.focus({ preventScroll: true }); set(valueAt(e.clientX)); });
+      thumb.addEventListener("pointermove", (e) => { if (thumb.hasPointerCapture(e.pointerId)) set(valueAt(e.clientX)); });
+      thumb.addEventListener("keydown", (e) => {
+        const cur = thumb === thumbLo ? lo : hi, step = span / 100, big = span / 10;
+        const fwd = rtl() ? "ArrowLeft" : "ArrowRight", back = rtl() ? "ArrowRight" : "ArrowLeft";
+        const next = { [fwd]: cur + step, ArrowUp: cur + step, [back]: cur - step, ArrowDown: cur - step, PageUp: cur + big, PageDown: cur - big, Home: 0, End: span }[e.key];
+        if (next == null) return;
+        e.preventDefault(); set(next);
+      });
+    }
+    draw(false);
+    const foot = el("div", "bfoot");
+    const reset = el("button", "glass", W.reset); reset.type = "button";
     reset.addEventListener("click", () => { me.budget = null; paint(); closeSheet(); });
-    const apply = el("button", "ink", W.apply); apply.type = "button";
+    const apply = el("button", "prominent", W.apply); apply.type = "button";
     apply.addEventListener("click", () => {
       const l = Math.round(lo), h = Math.round(hi);
       me.budget = (l <= 0 && h >= max) ? null : [l, h];
       paint(); closeSheet();
     });
-    pair.appendChild(reset); pair.appendChild(apply); panel.appendChild(pair);
+    foot.appendChild(reset); foot.appendChild(apply); panel.appendChild(foot);
   });
+}
+
+/// SwiftUI's .contentTransition(.numericText()) on the web: each character
+/// that changes rolls out upward and in from below, blurred and faded, its
+/// width easing to the new glyph's, with .snappy's timing. Characters are
+/// matched from the trailing end, as a number's digits are. Reduce Motion:
+/// a plain crossfade, as iOS does.
+function rollNumber(node, text, animate) {
+  const prev = node.__text || "";
+  node.__text = text;
+  node.setAttribute("aria-label", text);
+  if (!animate || !prev || !node.animate) {
+    node.innerHTML = "";
+    for (const c of text) { const s = el("span", "ch", c); s.__c = c; s.setAttribute("aria-hidden", "true"); node.appendChild(s); }
+    return;
+  }
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const old = [...node.children];
+  const chars = [...text];
+  const timing = { duration: 420, easing: "cubic-bezier(0.25, 1, 0.3, 1)" };
+  const leaving = { ...timing, fill: "forwards" };
+  const fresh = [];
+  const n = Math.max(old.length, chars.length);
+  for (let k = 1; k <= n; k++) {
+    const slot = old[old.length - k];
+    const c = chars[chars.length - k];
+    if (slot && c != null && slot.__c === c) { fresh.unshift(slot); continue; }
+    const s = el("span", "ch"); s.setAttribute("aria-hidden", "true"); s.__c = c == null ? null : c;
+    const was = slot ? slot.getBoundingClientRect().width : 0;
+    if (c != null) s.appendChild(document.createTextNode(c));
+    if (slot && slot.__c != null) {
+      const out = el("span", "out", slot.__c);
+      s.appendChild(out);
+      out.animate(still ? [{ opacity: 1 }, { opacity: 0 }] : [
+        { transform: "translateY(0)", opacity: 1, filter: "blur(0)" },
+        { transform: "translateY(-0.55em)", opacity: 0, filter: "blur(3px)" }], leaving).onfinish = () => out.remove();
+    }
+    s.__was = was;
+    fresh.unshift(s);
+  }
+  for (const s of old) if (!fresh.includes(s)) s.remove();
+  node.innerHTML = ""; fresh.forEach((s) => node.appendChild(s));
+  for (const s of fresh) {
+    if (s.__was === undefined) continue;
+    const was = s.__was; delete s.__was;
+    const now = s.__c == null ? 0 : (() => { const t = s.firstChild; const r = document.createRange(); r.selectNodeContents(t); return r.getBoundingClientRect().width; })();
+    if (s.__c == null) { s.style.width = "0px"; s.animate([{ width: was + "px" }, { width: "0px" }], leaving).onfinish = () => s.remove(); continue; }
+    s.animate([{ width: was + "px" }, { width: now + "px" }], timing);
+    const inner = s.firstChild;
+    const wrap = el("span"); wrap.style.display = "inline-block"; s.replaceChild(wrap, inner); wrap.appendChild(inner);
+    wrap.animate(still ? [{ opacity: 0 }, { opacity: 1 }] : [
+      { transform: "translateY(0.55em)", opacity: 0, filter: "blur(3px)" },
+      { transform: "translateY(0)", opacity: 1, filter: "blur(0)" }], timing);
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -500,31 +500,48 @@
   }
   #wSheet.in .panel { opacity: 1; transform: translate(-50%, -50%); }
   @media (min-width: 768px) { #wSheet .panel { min-height: min(60vh, 600px); } }
-  #wSheet .panel.fit { min-height: 0; }
-  /* The budget sheet, as the app's BudgetFilterSheet (Agathe, 24/11/2026: "pas du tout comme dans les apps"):
-     From → To in a soft card, a two-thumb range, Reset and Apply side by side. */
-  .wbudget { margin: 4px 0 26px; padding: 22px; border-radius: 22px; background: color-mix(in srgb, #fff 70%, var(--ivory)); box-shadow: 0 0 0 0.5px rgba(102,102,105,0.14), 0 8px 24px rgba(14,14,15,0.05); }
-  .wbudget .ends { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 8px; }
-  .wbudget .end { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .wbudget .end.to { align-items: flex-end; text-align: right; }
-  .wbudget .end span { font-size: 13px; font-weight: 300; color: var(--ink-soft); }
-  .wbudget .end b { font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 20px; letter-spacing: -0.2px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .wbudget .arrow { width: 13px; height: 13px; stroke: var(--ink-soft); opacity: 0.6; fill: none; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  /* The budget sheet, point for point the app's BudgetFilterSheet as measured on her iPhone (24/11/2026, "très exactement
+     la même chose que sur iPhone"). Every offset below is that capture's: title baseline 45 from the sheet top, card top 93,
+     From baseline 33 into the card, the value's 56.3, the thumbs' centre 89.3, card 127 tall; buttons 54.5 tall, 53.5 above
+     the sheet's foot; a floating sheet 8 from the edges. Line boxes are the fonts' own (New York 1.193 em, baseline 0.952;
+     SF 1.178 em, baseline 0.967), so each baseline lands where iOS puts it. */
+  #wSheet.budget .scrim { background: rgba(14,14,15,0.21); }
+  #wSheet .panel.budget { display: flex; flex-direction: column; padding: 0 21px 22px; }
+  @media (max-width: 767px) {
+    #wSheet .panel.budget { left: 8px; right: 8px; bottom: 8px; width: auto; height: max(470px, 52dvh); max-height: calc(100dvh - 16px);
+      border-radius: 38px 38px 50px 50px; padding: 0 21px 53.5px; }
+  }
+  #wSheet .panel.budget .grab { width: 58px; height: 3.5px; margin: 6px auto 0; border-radius: 2px; opacity: 1; background: color-mix(in srgb, var(--ink-soft) 40%, var(--ivory)); }
+  .bhead { text-align: center; margin-top: 10.75px; }
+  /* New York has no light: iOS falls back to its regular (400), drawn at the optical size of the point size. */
+  .bhead h2 { font-family: var(--serif); font-size: 26px; line-height: 31.02px; font-weight: 400; font-style: italic; font-variation-settings: "opsz" 26; color: var(--ink); padding-top: 4px; }
+  .bhead p { font-size: 11px; line-height: 12.96px; font-weight: 300; letter-spacing: 0.4px; color: var(--ink-soft); margin-top: -0.6px; }
+  .wbudget { margin-top: 25.6px; padding: 20.4px 22.3px 26.7px; border-radius: 22px; background: #fff;
+    box-shadow: 0 0 0 0.5px rgba(14,14,15,0.24), 0 0 10px rgba(14,14,15,0.035), 0 7px 22px rgba(14,14,15,0.08); }
+  @media (prefers-color-scheme: dark) { .wbudget { background: color-mix(in srgb, var(--ivory) 84%, #fff); box-shadow: 0 0 0 0.5px rgba(255,255,255,0.16); } }
+  .wbudget .ends { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: start; }
+  .wbudget .end { display: flex; flex-direction: column; min-width: 0; align-items: flex-start; }
+  .wbudget .end.to { align-items: flex-end; }
+  .wbudget .end > .lab { font-size: 13px; line-height: 15.31px; font-weight: 300; color: var(--ink-soft); }
+  .wbudget .num { margin-top: 5.5px; font-family: var(--serif); font-style: italic; font-weight: 400; font-variation-settings: "opsz" 20; font-size: 20px; line-height: 23.87px; letter-spacing: -0.2px; color: var(--ink); white-space: nowrap; display: inline-flex; }
+  .wbudget .num .ch { display: inline-block; position: relative; white-space: pre; }
+  .wbudget .num .ch .out { position: absolute; left: 0; top: 0; }
+  .wbudget .arrow { width: 11.3px; height: 9px; margin-top: 3.57px; stroke: var(--ink-soft); opacity: 0.6; fill: none; stroke-width: 1.05; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
   [dir="rtl"] .wbudget .arrow { transform: scaleX(-1); }
-  .wrange { position: relative; height: 30px; margin-top: 18px; }
-  .wrange .track, .wrange .fill { position: absolute; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 2px; }
-  .wrange .track { left: 0; right: 0; background: rgba(102,102,105,0.18); }
-  .wrange .fill { background: var(--ink); }
-  .wrange input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
-  .wrange input::-webkit-slider-runnable-track { background: none; border: 0; height: 30px; }
-  .wrange input::-moz-range-track { background: none; border: 0; }
-  .wrange input::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 22px; height: 22px; margin-top: 4px; border-radius: 50%; background: var(--ivory); border: 1.2px solid var(--ink); box-shadow: 0 1px 4px rgba(14,14,15,0.18); cursor: grab; }
-  .wrange input::-moz-range-thumb { pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: var(--ivory); border: 1.2px solid var(--ink); box-shadow: 0 1px 4px rgba(14,14,15,0.18); cursor: grab; }
-  .wrange input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--cobalt); outline-offset: 2px; }
-  .wpair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .wpair button { padding: 13px 0; border-radius: 999px; font-size: 13px; font-weight: 300; letter-spacing: 0.3px; text-align: center; }
-  .wpair .soft { background: color-mix(in srgb, #fff 60%, var(--ivory)); color: var(--ink); box-shadow: 0 0 0 0.5px rgba(102,102,105,0.2), 0 2px 8px rgba(14,14,15,0.05); }
-  .wpair .ink { background: var(--ink); color: var(--ivory); }
+  .wslider { position: relative; height: 22px; margin-top: 13.17px; touch-action: none; }
+  .wslider .track, .wslider .fill { position: absolute; top: 50%; height: 3px; margin-top: -1.5px; border-radius: 1.5px; }
+  .wslider .track { inset-inline: 0; background: color-mix(in srgb, var(--ink-soft) 18%, transparent); }
+  .wslider .fill { background: var(--ink); }
+  .wslider .thumb { position: absolute; top: 50%; width: 23.2px; height: 23.2px; margin-top: -11.6px; margin-inline-start: -11.6px; border-radius: 50%;
+    box-sizing: border-box; background: var(--ivory); border: 1.2px solid var(--ink); box-shadow: 0 1px 8px color-mix(in srgb, var(--ink) 18%, transparent); cursor: grab; touch-action: none; }
+  .wslider .thumb:active { cursor: grabbing; }
+  .wslider .thumb:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+  .bfoot { margin-top: auto; padding-top: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .bfoot button { height: 54.5px; padding: 0 16px; border-radius: 999px; font-size: 13px; line-height: 15.31px; font-weight: 300; letter-spacing: 0.3px; text-align: center; }
+  .bfoot .glass { background: #fff; color: var(--ink); box-shadow: 0 0 0 0.5px rgba(14,14,15,0.24), 0 2px 6px rgba(14,14,15,0.03); }
+  @media (prefers-color-scheme: dark) { .bfoot .glass { background: color-mix(in srgb, var(--ivory) 84%, #fff); box-shadow: 0 0 0 0.5px rgba(255,255,255,0.16); } }
+  .bfoot .prominent { background: var(--ink); color: var(--ivory); box-shadow: 0 0 0 0.5px rgba(14,14,15,0.4); }
+  .bfoot button:active { transform: scale(0.97); transition: transform 0.12s ease-out; }
   #wSheet .grab { width: 38px; height: 4px; border-radius: 2px; background: var(--ink-soft); opacity: 0.3; margin: 10px auto 0; }
   .whead { text-align: center; padding: 18px 0 20px; }
   .whead.left { text-align: left; padding-top: 18px; }
@@ -2026,7 +2043,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=8"></script>
-<script src="/feed/wishes.js?v=34"></script>
+<script src="/feed/wishes.js?v=35"></script>
 <script src="/feed/friends.js?v=18"></script>
 </body>
 </html>
