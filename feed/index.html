@@ -38,7 +38,7 @@
   var asked = /[?&]lang=([A-Za-z-]+)/.exec(location.search);
   if (asked && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && (asked[1] === "en" || known.indexOf(asked[1]) >= 0)) pick = asked[1];
   window.WANTD_LANG = pick;
-  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=7"><\/script>');
+  if (pick !== "en") document.write('<script src="/feed/words/' + pick + '.js?v=9"><\/script>');
 })();
 </script>
 <script src="/feed/ck.js?v=1"></script>
@@ -480,10 +480,9 @@
   .wctl .text .chev { width: 8px; height: 8px; stroke: var(--ink-soft); fill: none; stroke-width: 1.2; stroke-linecap: round; }
   .wctl select.cover { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font: inherit; }
   .wctl .spacer { flex: 1; }
-  .wctl .gridsel { position: relative; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
-  .wctl .gridsel svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1; }
-  .wadd { width: 36px; height: 36px; border-radius: 9px; background: var(--ink); color: var(--ivory); display: inline-flex; align-items: center; justify-content: center; }
-  .wadd svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+  /* View is a word like Sort and Filter; the + a plain cobalt disc (Agathe, 24/11/2026). */
+  .wadd { width: 36px; height: 36px; border-radius: 50%; background: var(--cobalt); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+  .wadd svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; fill: none; }
   .card .tocheck { font-size: 11px; font-weight: 300; color: var(--ink-soft); margin-top: 1px; }
   .cartel .wline { display: inline-block; font-size: 13px; color: var(--ink); text-decoration: underline; text-underline-offset: 2px; text-align: left; }
   .cartel .wline.soft { color: var(--ink-soft); }
@@ -805,8 +804,8 @@
       <div class="wctl">
         <span class="text"><span id="wSortLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><span class="val" id="wSortValue"></span><select class="cover" id="wSort"></select></span>
         <button type="button" class="text" id="wFilter"><span id="wFilterLabel"></span><span class="val" id="wFilterValue"></span></button>
+        <span class="text gridsel"><span id="wGridLabel"></span><svg class="chev" viewBox="0 0 8 8"><path d="M1.5 3 L4 5.5 L6.5 3"/></svg><select class="cover" id="wGrid"></select></span>
         <span class="spacer"></span>
-        <span class="gridsel"><svg viewBox="0 0 14 14"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg><select class="cover" id="wGrid"></select></span>
         <button type="button" class="wadd" id="wAdd"><svg viewBox="0 0 16 16"><path d="M8 2v12M2 8h12"/></svg></button>
       </div>
       <div id="wState" class="state" hidden></div>
@@ -2002,7 +2001,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=8"></script>
-<script src="/feed/wishes.js?v=31"></script>
+<script src="/feed/wishes.js?v=33"></script>
 <script src="/feed/friends.js?v=18"></script>
 </body>
 </html>

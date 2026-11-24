@@ -11,7 +11,7 @@ const W = words("W", {
   share: "Share", copied: "Link copied", shareText: "Here is my WANTD wishlist", shareTitle: (n) => `${n}'s WANTD`,
   friendsLink: (n) => `Only your friends see ${n} from this link.`,
   wantsN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "want" : "wants"}`, followersN: (n) => `${n.toLocaleString(LOCALE)} ${n === 1 ? "follower" : "followers"}`,
-  all: "All", edit: "Edit", granted: "Granted", sort: "Sort", filter: "Filter", on: "On",
+  all: "All", edit: "Edit", granted: "Granted", sort: "Sort", filter: "Filter", view: "View", on: "On",
   sortDefault: "Default", sortNewest: "Newest first", sortOldest: "Oldest first", sortPriceUp: "Ascending price", sortPriceDown: "Descending price",
   grid2: "Grid (2 per row)", grid4: "Grid (4 per row)", grid5: "Grid (5 per row)", gridView: "Grid view",
   priceToCheck: "Price to check", onTheirWay: "Your wants are on their way from iCloud.", nothingHere: "Nothing on this list yet.", firstWant: "Add your first want with this plus.",
@@ -427,7 +427,7 @@ function paint() {
   // Sort, filter, grid.
   $("wSortValue").textContent = me.sort === "manual" ? "" : { recent: W.sortNewest, oldest: W.sortOldest, priceAsc: W.sortPriceUp, priceDesc: W.sortPriceDown }[me.sort];
   $("wFilterValue").textContent = me.budget ? "· " + W.on : "";
-  $("wGrid").hidden = !REGULAR.matches;
+  $("wGrid").closest(".gridsel").hidden = !REGULAR.matches;
   $("wAdd").hidden = DEMO;
   // The promise line (SED-611), museum grammar: one sentence, the act underlined.
   const pl = $("wPledges"); pl.innerHTML = "";
@@ -1369,6 +1369,7 @@ function wireControls() {
   sort.addEventListener("change", () => { me.sort = sort.value; paint(); });
   $("wSortLabel").textContent = W.sort;
   $("wFilterLabel").textContent = W.filter;
+  $("wGridLabel").textContent = W.view;
   const grid = $("wGrid");
   for (const [n, label] of [[5, W.grid5], [4, W.grid4], [2, W.grid2]]) { const o = el("option", null, label); o.value = String(n); grid.appendChild(o); }
   grid.value = String(me.perRow);
