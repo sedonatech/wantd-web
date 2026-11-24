@@ -484,18 +484,9 @@ function viewerAmountOf(it) {
   return it.pa;
 }
 function openVisitFilter() {
-  openSheet((panel) => {
-    const head = el("div", "whead"); head.appendChild(el("h2", "wtitle", K.W.filter)); head.appendChild(el("p", "wsub", K.W.yourBudget)); panel.appendChild(head);
-    const all = visit.items.concat(...Object.values(visit.sections));
-    const max = Math.max(1, ...all.map((it) => viewerAmountOf(it) || 0));
-    const cur = visit.budget || [0, Math.ceil(max)];
-    const lo = textInput(String(Math.round(cur[0])), "0", { type: "number" }); lo.min = "0";
-    const hi = textInput(String(Math.round(cur[1])), String(Math.ceil(max)), { type: "number" }); hi.min = "0";
-    const row = el("div", "wrow"); row.appendChild(labeled("Min", lo)); row.appendChild(labeled("Max", hi)); panel.appendChild(row);
-    const foot = el("div", "wfoot"); panel.appendChild(foot);
-    foot.appendChild(bar(K.W.done, () => { const a = Number(lo.value) || 0, b = Number(hi.value) || Math.ceil(max); visit.budget = (a <= 0 && b >= Math.ceil(max)) ? null : [Math.min(a, b), Math.max(a, b)]; paintVisit(); closeSheet(); }));
-    foot.appendChild(quietLine(K.W.reset, () => { visit.budget = null; paintVisit(); closeSheet(); }, true));
-  });
+  // The app's own budget sheet, the one her Wishlist opens (FriendsView).
+  const all = visit.items.concat(...Object.values(visit.sections));
+  K.budgetSheet(all.map(viewerAmountOf), visit.budget, (range) => { visit.budget = range; paintVisit(); });
 }
 const isHadByOwner = (it) => it.st === "purchased" && it.rb === visit.owner;
 function visitShown() {

@@ -1079,15 +1079,21 @@ const REDIRECTORS = ["share.google", "l.instagram.com", "lnkd.in", "t.co", "bit.
 // (CurrencyService, rates from open.er-api.com, kept a day).
 // ---------------------------------------------------------------------------
 const LOCALE = navigator.language || "en";
-const EURO = ["FR", "BE", "DE", "ES", "IT", "NL", "PT", "AT", "IE", "FI", "GR", "LU", "SK", "SI", "EE", "LV", "LT", "HR", "MT", "CY", "MC"];
-function viewerCurrency() {
-  const region = (new Intl.Locale(LOCALE).region || "").toUpperCase();
-  if (EURO.includes(region)) return "EUR";
-  const table = { GB: "GBP", US: "USD", CA: "CAD", AU: "AUD", CH: "CHF", SE: "SEK", NO: "NOK", DK: "DKK", PL: "PLN", JP: "JPY", CZ: "CZK", HU: "HUF", RO: "RON", NZ: "NZD", AE: "AED", SG: "SGD", HK: "HKD", MX: "MXN", BR: "BRL", TR: "TRY", IN: "INR", ZA: "ZAR", KR: "KRW" };
-  if (table[region]) return table[region];
-  const lang = LOCALE.split("-")[0];
-  return ({ fr: "EUR", de: "EUR", es: "EUR", it: "EUR", nl: "EUR", pt: "EUR", en: "USD", sv: "SEK", da: "DKK", nb: "NOK", pl: "PLN", ja: "JPY" })[lang] || null;
+/// Every region's own money, as Apple's Locale gives it (Locale(identifier:
+/// "en_XX").currency, generated from the system on 24/11/2026): the phone's
+/// region decides the money there, the browser's region decides it here.
+const REGION_CURRENCY = {AC:"SHP",AD:"EUR",AE:"AED",AF:"AFN",AG:"XCD",AI:"XCD",AL:"ALL",AM:"AMD",AO:"AOA",AQ:"XXX",AR:"ARS",AS:"USD",AT:"EUR",AU:"AUD",AW:"AWG",AX:"EUR",AZ:"AZN",BA:"BAM",BB:"BBD",BD:"BDT",BE:"EUR",BF:"XOF",BG:"EUR",BH:"BHD",BI:"BIF",BJ:"XOF",BL:"EUR",BM:"BMD",BN:"BND",BO:"BOB",BQ:"USD",BR:"BRL",BS:"BSD",BT:"BTN",BV:"NOK",BW:"BWP",BY:"BYN",BZ:"BZD",CA:"CAD",CC:"AUD",CD:"CDF",CF:"XAF",CG:"XAF",CH:"CHF",CI:"XOF",CK:"NZD",CL:"CLP",CM:"XAF",CN:"CNY",CO:"COP",CP:"XXX",CR:"CRC",CU:"CUP",CV:"CVE",CW:"XCG",CX:"AUD",CY:"EUR",CZ:"CZK",DE:"EUR",DG:"USD",DJ:"DJF",DK:"DKK",DM:"XCD",DO:"DOP",DZ:"DZD",EA:"EUR",EC:"USD",EE:"EUR",EG:"EGP",EH:"MAD",ER:"ERN",ES:"EUR",ET:"ETB",EU:"EUR",FI:"EUR",FJ:"FJD",FK:"FKP",FM:"USD",FO:"DKK",FR:"EUR",GA:"XAF",GB:"GBP",GD:"XCD",GE:"GEL",GF:"EUR",GG:"GBP",GH:"GHS",GI:"GIP",GL:"DKK",GM:"GMD",GN:"GNF",GP:"EUR",GQ:"XAF",GR:"EUR",GS:"GBP",GT:"GTQ",GU:"USD",GW:"XOF",GY:"GYD",HK:"HKD",HM:"AUD",HN:"HNL",HR:"EUR",HT:"HTG",HU:"HUF",IC:"EUR",ID:"IDR",IE:"EUR",IL:"ILS",IM:"GBP",IN:"INR",IO:"USD",IQ:"IQD",IR:"IRR",IS:"ISK",IT:"EUR",JE:"GBP",JM:"JMD",JO:"JOD",JP:"JPY",KE:"KES",KG:"KGS",KH:"KHR",KI:"AUD",KM:"KMF",KN:"XCD",KP:"KPW",KR:"KRW",KW:"KWD",KY:"KYD",KZ:"KZT",LA:"LAK",LB:"LBP",LC:"XCD",LI:"CHF",LK:"LKR",LR:"LRD",LS:"ZAR",LT:"EUR",LU:"EUR",LV:"EUR",LY:"LYD",MA:"MAD",MC:"EUR",MD:"MDL",ME:"EUR",MF:"EUR",MG:"MGA",MH:"USD",MK:"MKD",ML:"XOF",MM:"MMK",MN:"MNT",MO:"MOP",MP:"USD",MQ:"EUR",MR:"MRU",MS:"XCD",MT:"EUR",MU:"MUR",MV:"MVR",MW:"MWK",MX:"MXN",MY:"MYR",MZ:"MZN",NA:"NAD",NC:"XPF",NE:"XOF",NF:"AUD",NG:"NGN",NI:"NIO",NL:"EUR",NO:"NOK",NP:"NPR",NR:"AUD",NU:"NZD",NZ:"NZD",OM:"OMR",PA:"PAB",PE:"PEN",PF:"XPF",PG:"PGK",PH:"PHP",PK:"PKR",PL:"PLN",PM:"EUR",PN:"NZD",PR:"USD",PS:"ILS",PT:"EUR",PW:"USD",PY:"PYG",QA:"QAR",RE:"EUR",RO:"RON",RS:"RSD",RU:"RUB",RW:"RWF",SA:"SAR",SB:"SBD",SC:"SCR",SD:"SDG",SE:"SEK",SG:"SGD",SH:"SHP",SI:"EUR",SJ:"NOK",SK:"EUR",SL:"SLE",SM:"EUR",SN:"XOF",SO:"SOS",SR:"SRD",SS:"SSP",ST:"STN",SV:"USD",SX:"XCG",SY:"SYP",SZ:"SZL",TA:"GBP",TC:"USD",TD:"XAF",TF:"EUR",TG:"XOF",TH:"THB",TJ:"TJS",TK:"NZD",TL:"USD",TM:"TMT",TN:"TND",TO:"TOP",TR:"TRY",TT:"TTD",TV:"AUD",TW:"TWD",TZ:"TZS",UA:"UAH",UG:"UGX",UM:"USD",US:"USD",UY:"UYU",UZ:"UZS",VA:"EUR",VC:"XCD",VE:"VED",VG:"USD",VI:"USD",VN:"VND",VU:"VUV",WF:"XPF",WS:"WST",XK:"EUR",YE:"YER",YT:"EUR",ZA:"ZAR",ZM:"ZMW",ZW:"ZWG"};
+/// The region the browser speaks for: the first preferred language that
+/// carries one ("en-GB"), else the browser's own formatting locale.
+function viewerRegion() {
+  const tags = [].concat(navigator.languages || [], navigator.language || [], Intl.NumberFormat().resolvedOptions().locale || []);
+  for (const t of tags) { try { const r = new Intl.Locale(t).region; if (r) return r.toUpperCase(); } catch (e) {} }
+  return "";
 }
+/// CurrencyService.viewerCurrencyCode: her explicit choice first (below),
+/// else her region's money, euro as the last word. Nothing guessed from a
+/// language alone: the app never does.
+function viewerCurrency() { return REGION_CURRENCY[viewerRegion()] || "EUR"; }
 /// The money she chose in Edit profile wins over the browser's guess, as on
 /// the phone (wantd.currency, kept on this device).
 function chosenCurrency() { try { const c = localStorage.getItem("wantd.currency"); return c && /^[A-Z]{3}$/.test(c) ? c : null; } catch (e) { return null; } }
@@ -1109,11 +1115,13 @@ let rates = null;
     }
   } catch (e) {}
 })();
+/// CurrencyService.format: the viewer's conventions, cents only when there
+/// are some, never for the six moneys that have none.
+const NO_CENTS = ["JPY", "IDR", "KRW", "VND", "CLP", "HUF"];
 function money(amount, currency) {
-  const whole = Math.abs(amount - Math.round(amount)) < 0.005;
   try {
-    return new Intl.NumberFormat(LOCALE, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: whole ? 0 : 2 }).format(amount);
-  } catch (e) { return amount + " " + currency; }
+    return new Intl.NumberFormat(LOCALE, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: NO_CENTS.includes(String(currency).toUpperCase()) ? 0 : 2 }).format(amount);
+  } catch (e) { return Math.round(amount) + " " + currency; }
 }
 function priceOf(it) {
   if (typeof it.pa === "number" && it.pc) {
@@ -1123,7 +1131,7 @@ function priceOf(it) {
     }
     return money(it.pa, cur);
   }
-  if (it.pt) return it.pt.replace(/([.,])00(?!\d)/, "");
+  if (it.pt) return it.pt.replace(/[.,]00(?=\D*$)/, "");   // CurrencyService.stripZeroCents
   return null;
 }
 /// The shop's own "was" for the price shown (SED-980, WishItem.shownWas),
@@ -2043,7 +2051,7 @@ REGULAR.addEventListener("change", () => {
 });
 </script>
 <script src="/feed/account.js?v=8"></script>
-<script src="/feed/wishes.js?v=35"></script>
-<script src="/feed/friends.js?v=18"></script>
+<script src="/feed/wishes.js?v=36"></script>
+<script src="/feed/friends.js?v=19"></script>
 </body>
 </html>

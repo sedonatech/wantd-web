@@ -1394,16 +1394,19 @@ function wireControls() {
     const b = $("ckSignOut").querySelector(".apple-auth-button, button, [role=button], div"); if (b) b.click();
   });
 }
-function openFilterSheet() {
+/// The app's BudgetFilterSheet for any wall: `amounts` are the pieces' prices
+/// in her money, `budget` the range in force, `onApply` gets the new one (null
+/// for all of it). Her Wishlist and a visited list both open it, as in the app.
+function budgetSheet(amounts, budget, onApply) {
   // The app's BudgetFilterSheet, measure for measure (HomeView.swift):
   // Filter / Your budget, a glass card with From → To over the RangeSlider,
   // then Reset and Apply at the foot of a medium sheet.
   openSheet((panel) => {
     panel.classList.add("budget"); $("wSheet").classList.add("budget");
     const head = el("div", "bhead"); head.appendChild(el("h2", null, W.filter)); head.appendChild(el("p", null, W.yourBudget)); panel.appendChild(head);
-    const max = Math.max(1, Math.ceil(Math.max(0, ...me.items.map((it) => viewerAmount(it) || 0))));
-    let lo = me.budget ? Math.max(0, Math.min(me.budget[0], max)) : 0;
-    let hi = me.budget ? Math.max(0, Math.min(me.budget[1], max)) : max;
+    const max = Math.max(1, Math.ceil(Math.max(0, ...amounts.map((v) => v || 0))));
+    let lo = budget ? Math.max(0, Math.min(budget[0], max)) : 0;
+    let hi = budget ? Math.max(0, Math.min(budget[1], max)) : max;
     const fmt = (v) => VIEWER ? money(Math.round(v), VIEWER) : String(Math.round(v));
     const card = el("div", "wbudget");
     const ends = el("div", "ends");
@@ -1448,15 +1451,18 @@ function openFilterSheet() {
     draw(false);
     const foot = el("div", "bfoot");
     const reset = el("button", "glass", W.reset); reset.type = "button";
-    reset.addEventListener("click", () => { me.budget = null; paint(); closeSheet(); });
+    reset.addEventListener("click", () => { onApply(null); closeSheet(); });
     const apply = el("button", "prominent", W.apply); apply.type = "button";
     apply.addEventListener("click", () => {
       const l = Math.round(lo), h = Math.round(hi);
-      me.budget = (l <= 0 && h >= max) ? null : [l, h];
-      paint(); closeSheet();
+      onApply((l <= 0 && h >= max) ? null : [l, h]);
+      closeSheet();
     });
     foot.appendChild(reset); foot.appendChild(apply); panel.appendChild(foot);
   });
+}
+function openFilterSheet() {
+  budgetSheet(me.items.map(viewerAmount), me.budget, (range) => { me.budget = range; paint(); });
 }
 
 /// SwiftUI's .contentTransition(.numericText()) on the web: each character
@@ -1536,13 +1542,18 @@ const validHandle = (h) => /^wtd-[a-z0-9]{2,15}$/.test(h);
 /// digits only, 15 at most (the app filters the field the same way).
 const handleTyped = (t) => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 15);
 function chevronIcon() { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 8 12"); s.innerHTML = '<path d="M2 1.5 6.5 6 2 10.5"/>'; s.classList.add("wpchev"); return s; }
-/// Every money the rates know, in her language; the short list before they arrive.
+/// The app's CurrencyPickerSheet: its six first (EUR, USD, GBP, CHF, AUD,
+/// CAD), then every other ISO money by its code, each "CODE · its name" in
+/// her language.
+const CURRENCY_FAVORITES = ["EUR", "USD", "GBP", "CHF", "AUD", "CAD"];
 function currencyChoices(current) {
-  let codes = rates ? Object.keys(rates) : CURRENCIES.slice();
-  try { const known = new Set(Intl.supportedValuesOf("currency")); codes = codes.filter((c) => known.has(c)); } catch (e) {}
+  let all = CURRENCIES.slice();
+  try { all = Intl.supportedValuesOf("currency"); } catch (e) {}
+  const rest = all.filter((c) => !CURRENCY_FAVORITES.includes(c)).sort();
+  const codes = CURRENCY_FAVORITES.concat(rest);
   if (current && !codes.includes(current)) codes.push(current);
   let names = null; try { names = new Intl.DisplayNames([LOCALE], { type: "currency" }); } catch (e) {}
-  return codes.map((c) => ({ code: c, name: (names && names.of(c)) || c })).sort((a, b) => a.name.localeCompare(b.name, LOCALE));
+  return codes.map((c) => ({ code: c, name: (names && names.of(c)) || c }));
 }
 function openProfileSheet(preview) {
   $("wMenuBox").hidden = true;
@@ -2365,7 +2376,7 @@ window.Wishes = {
     const r = res.records && res.records[0];
     return r && r.fields ? itemFromRecord(r) : null;
   },
-  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
+  kit: { el, $, f, bar, quietLine, labeled, textInput, capsuleField, openSheet, closeSheet, budgetSheet, queryAll, db, me: () => me, W, DEMO, viaBridge, buildDoor,
          listFromRecord, itemFromRecord, itemsInList, makeWallWith, lockIcon, peopleIcon, saveCopy, deletePiece, alert: alertBox, avatar: avatarNode },
 };
 REGULAR.addEventListener("change", () => { if (me.id) paint(); });
