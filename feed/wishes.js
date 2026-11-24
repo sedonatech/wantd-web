@@ -70,6 +70,7 @@ const me = {
   extras: {},          // listID -> the co-members' pieces of a list kept with others (WishlistStore.sharedListExtras)
   pledges: [],         // promises made on her list (SED-611): { recordName, token, fromName, amount, currencyCode, status }
   loaded: false, loading: false, error: null,
+  fromSnapshot: false, // what shows is her last Wishlist kept here, the fresh one is on its way
   newcomer: false,     // her profile was read and she has none: the entrance is hers
   listID: null,        // null = All
   shelf: false,        // the Granted shelf
@@ -308,8 +309,13 @@ async function load() {
       };
     }
     me.loaded = true;
+    me.fromSnapshot = false;
+    keepSnapshot();
   } catch (e) {
-    me.error = String(e && (e.message || e)); console.log("wishes load failed", e);
+    console.log("wishes load failed", e);
+    // Her last list stays on screen when the refresh fails; the error only
+    // shows when there is nothing to show.
+    if (!me.fromSnapshot) me.error = String(e && (e.message || e));
   }
   me.loading = false;
   paint();
@@ -319,6 +325,27 @@ async function load() {
   if (me.loaded && !DEMO && (me.newcomer || (entering() && me.profile && me.profile.h))) openEntrance();
   else askNextShare();
   if (me.loaded && !DEMO && !me.newcomer) followProfileMoney();
+}
+
+/// Her last Wishlist, kept in this browser like the app keeps hers on the
+/// phone (WishlistStore's local copy): a refresh shows it at once, then the
+/// fresh one replaces it. One per member, dropped when she signs out.
+const SNAP = "wantd.snapshot.v1.";
+function keepSnapshot() {
+  if (DEMO || !me.id || !me.profile || !me.profile.h) return;
+  try { localStorage.setItem(SNAP + me.id, JSON.stringify({ at: Date.now(), profile: me.profile, items: me.items, lists: me.lists, extras: me.extras })); } catch (e) {}
+}
+function restoreSnapshot() {
+  if (DEMO) return;
+  try {
+    const s = JSON.parse(localStorage.getItem(SNAP + me.id) || "null");
+    if (!s || !s.profile || !Array.isArray(s.items) || !Array.isArray(s.lists)) return;
+    me.profile = s.profile; me.items = s.items; me.lists = s.lists; me.extras = s.extras || {};
+    me.loaded = true; me.fromSnapshot = true;
+  } catch (e) {}
+}
+function dropSnapshots() {
+  try { for (const k of Object.keys(localStorage)) if (k.startsWith(SNAP)) localStorage.removeItem(k); } catch (e) {}
 }
 
 /// Her money belongs to her profile (SED-1002, Agathe 24/11: "une devise suit
@@ -421,7 +448,9 @@ function paint() {
   rememberHandle();
   if (window.prettify) window.prettify();
   $("wDoor").hidden = signedIn || !authKnown;
-  $("wHome").hidden = !signedIn;
+  // Her page shows once there is something of hers to show: never an empty
+  // "Founder" header while iCloud answers (Agathe, 24/11/2026).
+  $("wHome").hidden = !signedIn || !(me.loaded || me.error);
   if (!signedIn) return;
   // The header.
   const p = me.profile || {};
@@ -1001,7 +1030,7 @@ async function ensureMainList() {
   // Only when her lists were read and none is the main one: lists still on
   // their way, or a read that failed, are not "she has none" (the app's
   // SED-828: a second Main Wishlist).
-  if (!me.loaded || me.error) throw new Error(W.onTheirWay);
+  if (!me.loaded || me.error || me.fromSnapshot) throw new Error(W.onTheirWay);
   main = await saveList({ name: "Main Wishlist", isMain: true, isPrivate: false });
   return main;
 }
@@ -2185,9 +2214,13 @@ function readyScreen() {
 let authKnown = false;
 function signedIn(identity) {
   authKnown = true;
+  const was = me.id;
   me.id = identity && identity.userRecordName;
   me.via = me.id ? (identity.via === "bridge" ? "bridge" : "ck") : null;
   me.loaded = false; me.items = []; me.lists = []; me.extras = {}; me.profile = null; me.pending = []; me.words = new Map(); me.asking = false; me.newcomer = false;
+  me.fromSnapshot = false;
+  if (me.id) restoreSnapshot();
+  else if (was) dropSnapshots();   // she signed out: nothing of hers stays here
   if (!entry.preview) closeEntrance();
   paint();
   if (window.riverRefresh) window.riverRefresh();
