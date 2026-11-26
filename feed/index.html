@@ -211,6 +211,11 @@
     padding: 18px 16px;
   }
   .tile img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+  /* Too few logos to loop (fewer than a screen and a tile): the row stands
+     still, one copy of each, and scrolls by hand if it overflows. */
+  .stores.still { overflow-x: auto; scrollbar-width: none; }
+  .stores.still::-webkit-scrollbar { display: none; }
+  .stores.still .track { animation: none; padding: 0 16px; }
   @media (prefers-reduced-motion: reduce) {
     .stores { overflow-x: auto; scrollbar-width: none; }
     .stores::-webkit-scrollbar { display: none; }
@@ -1619,10 +1624,18 @@ async function loadRiver() {
 
 // ---------------------------------------------------------------------------
 // The row of shops: the community's most-saved, one tile a brand, a logo
-// from Wantd (/logo), and the row only when it can loop (StoreMarquee.loops).
+// from Wantd (/logo). From 4 logos the row is there: sliding when it can
+// loop (StoreMarquee.loops), standing still with one copy of each when it
+// cannot. A logo Wantd does not hold yet answers 503 "not known yet" with
+// Retry-After 30, so one more try follows 30 s after a build that lost
+// logos; the row is redrawn only when its logos change.
 // ---------------------------------------------------------------------------
 let storesBuilt = 0;
 let popular = [];
+let storesRetry = 0;          // the one later try, after logos were missing
+let storesShown = "";         // what the row holds now, to leave it alone when nothing changed
+const LOGO_RETRY_MS = 30000;  // the worker's Retry-After on "not known yet"
+const STORES_MIN = 4;         // under that, no row
 function rankedStores(items, limit) {
   const byDomain = new Map();
   for (const it of items) {
@@ -1644,34 +1657,45 @@ function rankedStores(items, limit) {
   }
   return [...byBrand.values()].sort((a, b) => b.count - a.count || (a.domain < b.domain ? -1 : 1)).slice(0, limit);
 }
-async function buildStores() {
+async function buildStores(laterTry) {
   const stamp = ++storesBuilt;
+  clearTimeout(storesRetry); storesRetry = 0;
   popular = rankedStores(river.items, 24);
-  const marks = [];
+  const marks = []; let missing = 0;
   await Promise.all(popular.map((s) => new Promise((done) => {
     const img = new Image();
     img.onload = () => { marks.push({ store: s, img }); done(); };
-    img.onerror = () => done();
+    img.onerror = () => { missing++; done(); };
     img.src = WORKER + "/logo/" + s.domain;
   })));
   if (stamp !== storesBuilt) return;
+  // Missing logos: one more try when the worker says to (Retry-After 30).
+  // An <img> cannot tell a 503 from a 404 (no CORS on /logo), so every miss
+  // is asked again once; the 404s come back from the browser's cache.
+  if (missing && !laterTry) storesRetry = setTimeout(() => buildStores(true), LOGO_RETRY_MS);
   marks.sort((a, b) => popular.indexOf(a.store) - popular.indexOf(b.store));
   const row = document.getElementById("stores"), track = document.getElementById("track"), label = document.getElementById("storesLabel");
+  if (marks.length < STORES_MIN) { row.hidden = true; label.hidden = true; storesShown = ""; return; }
   const oneSet = marks.length * 154;
-  const loops = marks.length && oneSet >= window.innerWidth + 144 + 10;
-  if (!loops) { row.hidden = true; label.hidden = true; return; }
-  track.innerHTML = "";
-  const tile = (m) => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "tile"; b.setAttribute("aria-label", m.store.name);
-    const i = m.img.cloneNode(); i.alt = ""; b.appendChild(i);
-    b.addEventListener("click", () => go({ store: m.store.domain, name: m.store.name }));
-    return b;
-  };
-  // Enough copies to cover the screen, then one more set to loop on.
-  const copies = Math.max(2, Math.ceil(window.innerWidth / oneSet) + 1);
-  for (let c = 0; c < copies; c++) for (const m of marks) track.appendChild(tile(m));
-  track.style.setProperty("--set", oneSet + "px");
-  track.style.setProperty("--dur", (oneSet / 40) + "s");   // 40 a second
+  const loops = oneSet >= window.innerWidth + 144 + 10;
+  const shown = (loops ? "loop " : "still ") + marks.map((m) => m.store.domain).join(" ");
+  if (shown !== storesShown) {
+    track.innerHTML = "";
+    const tile = (m) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "tile"; b.setAttribute("aria-label", m.store.name);
+      const i = m.img.cloneNode(); i.alt = ""; b.appendChild(i);
+      b.addEventListener("click", () => go({ store: m.store.domain, name: m.store.name }));
+      return b;
+    };
+    // Enough copies to cover the screen, then one more set to loop on; one
+    // copy, standing still, when the set cannot loop.
+    const copies = loops ? Math.max(2, Math.ceil(window.innerWidth / oneSet) + 1) : 1;
+    for (let c = 0; c < copies; c++) for (const m of marks) track.appendChild(tile(m));
+    row.classList.toggle("still", !loops);
+    track.style.setProperty("--set", oneSet + "px");
+    track.style.setProperty("--dur", (oneSet / 40) + "s");   // 40 a second
+    storesShown = shown;
+  }
   row.hidden = false; label.hidden = false;
 }
 
